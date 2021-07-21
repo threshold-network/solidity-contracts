@@ -10,9 +10,12 @@ describe("VendingMachine", () => {
 
   let vendingMachine
 
-  let tokenHolder
   // Token holder has 5 wrapped tokens (KEEP/NU)
+  let tokenHolder
   const initialHolderBalance = to1e18(5)
+
+  // Third party has no wrapped tokens and no T tokens.
+  let thirdParty
 
   beforeEach(async () => {
     const TestToken = await ethers.getContractFactory("TestToken")
@@ -33,12 +36,23 @@ describe("VendingMachine", () => {
 
     // VendingMachine receives 100 T upon deployment
     await tToken.mint(vendingMachine.address, to1e18(100))
-
-    tokenHolder = await ethers.getSigner(0)
+    ;[tokenHolder, thirdParty] = await ethers.getSigners()
     await wrappedToken.mint(tokenHolder.address, initialHolderBalance)
   })
 
   describe("wrap", () => {
+    context("when caller has no wrapped tokens", () => {
+      it("should revert", async () => {
+        const amount = 1
+        await wrappedToken
+          .connect(thirdParty)
+          .approve(vendingMachine.address, amount)
+        await expect(
+          vendingMachine.connect(thirdParty).wrap(amount)
+        ).to.be.revertedWith("Transfer amount exceeds balance")
+      })
+    })
+
     context("when token holder has not enough wrapped tokens", () => {
       it("should revert", async () => {
         const amount = initialHolderBalance.add(1)
@@ -67,9 +81,7 @@ describe("VendingMachine", () => {
           expect(await wrappedToken.balanceOf(vendingMachine.address)).to.equal(
             amount
           )
-          expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
-            0 // 5 - 5 = 0
-          )
+          expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(0)
         })
 
         it("should transfer T tokens to token holder", async () => {
@@ -82,9 +94,17 @@ describe("VendingMachine", () => {
         })
 
         it("should emit Wrapped event", async () => {
-          await expect(tx)
-            .to.emit(vendingMachine, "Wrapped")
-            .withArgs(tokenHolder.address, amount, to1ePrecision(725, 16))
+          await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
+            tokenHolder.address,
+            amount,
+            to1ePrecision(725, 16) // 1.45 * 5 = 7.25
+          )
+        })
+
+        it("should update wrapped balance", async () => {
+          expect(
+            await vendingMachine.wrappedBalance(tokenHolder.address)
+          ).to.equal(amount)
         })
       })
 
@@ -96,7 +116,6 @@ describe("VendingMachine", () => {
           await wrappedToken
             .connect(tokenHolder)
             .approve(vendingMachine.address, to1e18(5))
-
           tx = await vendingMachine.connect(tokenHolder).wrap(amount)
         })
 
@@ -119,9 +138,17 @@ describe("VendingMachine", () => {
         })
 
         it("should emit Wrapped event", async () => {
-          await expect(tx)
-            .to.emit(vendingMachine, "Wrapped")
-            .withArgs(tokenHolder.address, amount, to1ePrecision(145, 16))
+          await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
+            tokenHolder.address,
+            amount,
+            to1ePrecision(145, 16) // 1.45 * 1 = 1.45
+          )
+        })
+
+        it("should update wrapped balance", async () => {
+          expect(
+            await vendingMachine.wrappedBalance(tokenHolder.address)
+          ).to.equal(amount)
         })
       })
     })
@@ -182,9 +209,11 @@ describe("VendingMachine", () => {
       })
 
       it("should emit Wrapped event", async () => {
-        await expect(tx)
-          .to.emit(vendingMachine, "Wrapped")
-          .withArgs(tokenHolder.address, amount, to1ePrecision(29, 17))
+        await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
+          tokenHolder.address,
+          amount,
+          to1ePrecision(29, 17) // 1.45 * 2 = 2.9
+        )
       })
     })
   })
@@ -200,6 +229,16 @@ describe("VendingMachine", () => {
       await vendingMachine.connect(tokenHolder).wrap(wrappedAmount)
     })
 
+    context("when caller has no T tokens", () => {
+      it("should revert", async () => {
+        const amount = 1
+        await tToken.connect(thirdParty).approve(vendingMachine.address, amount)
+        await expect(
+          vendingMachine.connect(thirdParty).unwrap(amount)
+        ).to.be.revertedWith("Transfer amount exceeds balance")
+      })
+    })
+
     context("when token holder has not enough T tokens", () => {
       it("should revert", async () => {
         const amount = tAmount.add(1)
@@ -213,7 +252,19 @@ describe("VendingMachine", () => {
     })
 
     context("when token holder has enough T tokens", () => {
-      context("when unwrapping entire allowance", () => {
+      context("when unwrapping more than previously wrapped", () => {
+        it("should revert", async () => {
+          await tToken.mint(tokenHolder.address, to1e18(1))
+          await tToken
+            .connect(tokenHolder)
+            .approve(vendingMachine.address, tAmount.add(to1e18(1)))
+          await expect(
+            vendingMachine.connect(tokenHolder).unwrap(tAmount.add(to1e18(1)))
+          ).to.be.revertedWith("Can not unwrap more than previously wrapped")
+        })
+      })
+
+      context("when unwrapping all that was previously wrapped", () => {
         let tx
 
         beforeEach(async () => {
@@ -244,40 +295,101 @@ describe("VendingMachine", () => {
             .to.emit(vendingMachine, "Unwrapped")
             .withArgs(tokenHolder.address, tAmount, wrappedAmount)
         })
+
+        it("should update wrapped balance", async () => {
+          expect(
+            await vendingMachine.wrappedBalance(tokenHolder.address)
+          ).to.equal(0)
+        })
       })
 
-      context("when unwrapping part of the allowance", () => {
-        beforeEach(async () => {
-          await tToken
-            .connect(tokenHolder)
-            .approve(vendingMachine.address, tAmount)
-          tx = await vendingMachine.connect(tokenHolder).unwrap(to1e18(1))
+      context("when updating part of what was previously wrapped", () => {
+        context("when unwrapping entire allowance", () => {
+          let tx
+
+          beforeEach(async () => {
+            await tToken
+              .connect(tokenHolder)
+              .approve(vendingMachine.address, to1e18(2))
+            tx = await vendingMachine.connect(tokenHolder).unwrap(to1e18(2))
+          })
+
+          it("should transfer T tokens to Vending Machine", async () => {
+            expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
+              to1ePrecision(9765, 16) // 100 - 4.35 + 2 = 97.65
+            )
+            expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
+              to1ePrecision(235, 16) // 4.35 - 2 = 2.35
+            )
+          })
+
+          it("should transfer wrapped tokens to token holder", async () => {
+            expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
+              "3379310344827586206" // 5 - 3 + 2/1.45 = 3.379310344827586206
+            )
+            expect(
+              await wrappedToken.balanceOf(vendingMachine.address)
+            ).to.equal(
+              "1620689655172413794" // 3 - 2/1.45 = 1.620689655172413794
+            )
+          })
+
+          it("should emit Unwrapped event", async () => {
+            await expect(tx).to.emit(vendingMachine, "Unwrapped").withArgs(
+              tokenHolder.address,
+              to1e18(2),
+              "1379310344827586206" // 2 / 1.45 = 1.379310344827586206
+            )
+          })
+
+          it("should update wrapped balance", async () => {
+            expect(
+              await vendingMachine.wrappedBalance(tokenHolder.address)
+            ).to.equal("1620689655172413794") // 3 - 2/1.45 = 1.620689655172413794
+          })
         })
 
-        it("should transfer T tokens to Vending Machine", async () => {
-          expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
-            to1ePrecision(335, 16) // 4.35 - 1 = 3.35
-          )
-          expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
-            to1ePrecision(9665, 16) // 100 - 4.35 + 1 = 96.65
-          )
-        })
+        context("when unwrapping part of the allowance", () => {
+          beforeEach(async () => {
+            await tToken
+              .connect(tokenHolder)
+              .approve(vendingMachine.address, tAmount)
+            tx = await vendingMachine.connect(tokenHolder).unwrap(to1e18(1))
+          })
 
-        it("should transfer wrapped tokens to token holder", async () => {
-          expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
-            "2689655172413793103" // 5 - 3 + 1/1.45 = 2.689655172413793103
-          )
-          expect(await wrappedToken.balanceOf(vendingMachine.address)).to.equal(
-            "2310344827586206897" // 3 - 1/1.45 = 2.310344827586206897
-          )
-        })
+          it("should transfer T tokens to Vending Machine", async () => {
+            expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
+              to1ePrecision(9665, 16) // 100 - 4.35 + 1 = 96.65
+            )
+            expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
+              to1ePrecision(335, 16) // 4.35 - 1 = 3.35
+            )
+          })
 
-        it("should emit Unwrapped event", async () => {
-          await expect(tx).to.emit(vendingMachine, "Unwrapped").withArgs(
-            tokenHolder.address,
-            to1e18(1),
-            "689655172413793103" // 1 / 1.45 = 0.689655172413793103
-          )
+          it("should transfer wrapped tokens to token holder", async () => {
+            expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
+              "2689655172413793103" // 5 - 3 + 1/1.45 = 2.689655172413793103
+            )
+            expect(
+              await wrappedToken.balanceOf(vendingMachine.address)
+            ).to.equal(
+              "2310344827586206897" // 3 - 1/1.45 = 2.310344827586206897
+            )
+          })
+
+          it("should emit Unwrapped event", async () => {
+            await expect(tx).to.emit(vendingMachine, "Unwrapped").withArgs(
+              tokenHolder.address,
+              to1e18(1),
+              "689655172413793103" // 1 / 1.45 = 0.689655172413793103
+            )
+          })
+
+          it("should update wrapped balance", async () => {
+            expect(
+              await vendingMachine.wrappedBalance(tokenHolder.address)
+            ).to.equal("2310344827586206897") // 3 - 1/1.45 = 2.310344827586206897
+          })
         })
       })
     })

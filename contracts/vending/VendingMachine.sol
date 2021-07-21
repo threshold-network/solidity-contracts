@@ -26,6 +26,8 @@ contract VendingMachine is Ownable, IReceiveApproval {
     // x [source token] = amount [T] * FLOATING_POINT_DIVISOR / ratio
     uint256 public ratio;
 
+    mapping(address => uint256) public wrappedBalance;
+
     event Wrapped(
         address indexed recipient,
         uint256 wrappedTokenAmount,
@@ -77,20 +79,28 @@ contract VendingMachine is Ownable, IReceiveApproval {
             FLOATING_POINT_DIVISOR;
 
         emit Wrapped(tokenHolder, wrappedTokenAmount, tTokenAmount);
+
         wrappedToken.safeTransferFrom(
             tokenHolder,
             address(this),
             wrappedTokenAmount
         );
         tToken.safeTransfer(tokenHolder, tTokenAmount);
+        wrappedBalance[tokenHolder] += wrappedTokenAmount;
     }
 
     function _unwrap(address tokenHolder, uint256 tTokenAmount) internal {
         uint256 wrappedTokenAmount = (tTokenAmount * FLOATING_POINT_DIVISOR) /
             ratio;
 
+        require(
+            wrappedBalance[tokenHolder] >= wrappedTokenAmount,
+            "Can not unwrap more than previously wrapped"
+        );
+
         emit Unwrapped(tokenHolder, tTokenAmount, wrappedTokenAmount);
         tToken.safeTransferFrom(tokenHolder, address(this), tTokenAmount);
         wrappedToken.safeTransfer(tokenHolder, wrappedTokenAmount);
+        wrappedBalance[tokenHolder] -= wrappedTokenAmount;
     }
 }
