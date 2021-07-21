@@ -29,7 +29,7 @@ contract VendingMachine is Ownable, IReceiveApproval {
 
     /// @notice The token being wrapped to T (KEEP/NU).
     IERC20 public immutable wrappedToken;
-    
+
     /// @notice T token contract.
     T public immutable tToken;
 
@@ -38,7 +38,7 @@ contract VendingMachine is Ownable, IReceiveApproval {
     ///
     ///         When wrapping:
     ///           x [T] = amount [KEEP/NU] * ratio / FLOATING_POINT_DIVISOR
-    ///  
+    ///
     ///         When unwrapping:
     ///           x [KEEP/NU] = amount [T] * FLOATING_POINT_DIVISOR / ratio
     uint256 public ratio;
@@ -123,13 +123,13 @@ contract VendingMachine is Ownable, IReceiveApproval {
 
         emit Wrapped(tokenHolder, wrappedTokenAmount, tTokenAmount);
 
+        wrappedBalance[tokenHolder] += wrappedTokenAmount;
         wrappedToken.safeTransferFrom(
             tokenHolder,
             address(this),
             wrappedTokenAmount
         );
         tToken.safeTransfer(tokenHolder, tTokenAmount);
-        wrappedBalance[tokenHolder] += wrappedTokenAmount;
     }
 
     function _unwrap(address tokenHolder, uint256 tTokenAmount) internal {
@@ -142,8 +142,8 @@ contract VendingMachine is Ownable, IReceiveApproval {
         );
 
         emit Unwrapped(tokenHolder, tTokenAmount, wrappedTokenAmount);
+        wrappedBalance[tokenHolder] -= wrappedTokenAmount;
         tToken.safeTransferFrom(tokenHolder, address(this), tTokenAmount);
         wrappedToken.safeTransfer(tokenHolder, wrappedTokenAmount);
-        wrappedBalance[tokenHolder] -= wrappedTokenAmount;
     }
 }
