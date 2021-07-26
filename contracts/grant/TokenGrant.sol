@@ -7,7 +7,21 @@ import "../token/T.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/// @title Token Grant
+/// @notice Token Grant releases its token balance gradually to the grantee
+///         based on the vesting schedule with a cliff and vesting period.
+///         Can be revoked by grant creator. Allows to stake granted tokens
+///         according to the provided staking policy.
 contract TokenGrant {
+    // TODO Not implemented yet:
+    // TODO   - TokenGrantFactory, master clone factory TokenGrant contract 
+    // TODO     initialization prevention.
+    // TODO   - Staking, including checking the policy, allowed staking
+    // TODO     contracts, and calling the staking contract.
+    // TODO   - Grant revoke functionality.
+    // TODO   - VendingMachine integration and functions allowing to convert
+    // TODO     granted KEEP/NU into T and back
+
     using SafeERC20 for T;
 
     T public token;
@@ -59,6 +73,8 @@ contract TokenGrant {
         // TODO: implement
     }
 
+    /// @notice Witthdraws all the amount that is currently withdrawable. Can
+    ///         be called only by the grantee.
     function withdraw() external onlyGrantee {
         uint256 withdrawable = withdrawableAmount();
         require(withdrawable > 0, "There is nothing to withdraw");
@@ -68,6 +84,9 @@ contract TokenGrant {
         token.safeTransfer(grantee, withdrawable);
     }
 
+    /// @notice Calculates the amount unlocked so far. Includes the amount
+    ///         staked and withdrawn. Returns 0 if the vesting schedule has not
+    ///         started yet or if the cliff has not yet ended.
     function unlockedAmount() public view returns (uint256) {
         /* solhint-disable-next-line not-rely-on-time */
         if (block.timestamp < start) {
@@ -90,6 +109,9 @@ contract TokenGrant {
         return (amount * timeElapsed) / duration;
     }
 
+    /// @notice Calculates the currently withdrawable amount. The amount
+    ///         withdrawable is the amount vested minus the amount staked and
+    ///         minus the amount already withdrawn.
     function withdrawableAmount() public view returns (uint256) {
         uint256 unlocked = unlockedAmount();
 
