@@ -9,7 +9,8 @@ interface IGrantStakingPolicy {
         uint256 duration,
         uint256 start,
         uint256 cliff,
-        uint256 withdrawn) external view returns (uint256);
+        uint256 withdrawn
+    ) external view returns (uint256);
 }
 
 // TODO: add more policies
