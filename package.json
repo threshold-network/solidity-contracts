@@ -1,7 +1,7 @@
 {
   "name": "@t-network/solidity-contracts",
   "version": "0.0.1",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "build": "hardhat compile",
     "format": "npm run lint && prettier --check .",
