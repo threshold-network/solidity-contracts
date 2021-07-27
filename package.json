@@ -1,0 +1,35 @@
+{
+  "name": "@t-network/solidity-contracts",
+  "version": "0.0.1",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "build": "hardhat compile",
+    "format": "npm run lint && prettier --check .",
+    "format:fix": "npm run lint:fix && prettier --write .",
+    "lint": "npm run lint:js && npm run lint:sol",
+    "lint:fix": "npm run lint:fix:js && npm run lint:fix:sol",
+    "lint:fix:js": "eslint . --fix",
+    "lint:fix:sol": "solhint 'contracts/**/*.sol' --fix",
+    "lint:js": "eslint . ",
+    "lint:sol": "solhint 'contracts/**/*.sol'",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@keep-network/prettier-config-keep": "github:keep-network/prettier-config-keep#d6ec02e",
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "chai": "^4.3.4",
+    "eslint": "^7.27.0",
+    "eslint-config-keep": "github:keep-network/eslint-config-keep#0c27ade",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.4.1",
+    "hardhat": "^2.4.3",
+    "hardhat-gas-reporter": "^1.0.4",
+    "prettier": "^2.3.2",
+    "prettier-plugin-sh": "^0.7.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.14 ",
+    "solhint": "^3.3.6",
+    "solhint-config-keep": "github:keep-network/solhint-config-keep",
+    "typescript": "^4.3.2"
+  }
+}
