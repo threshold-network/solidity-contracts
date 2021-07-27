@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  code-format:
+  code-lint-and-format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
