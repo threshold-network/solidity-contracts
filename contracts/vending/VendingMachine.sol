@@ -41,7 +41,7 @@ contract VendingMachine is Ownable, IReceiveApproval {
     ///
     ///         When unwrapping:
     ///           x [KEEP/NU] = amount [T] * FLOATING_POINT_DIVISOR / ratio
-    uint256 public ratio;
+    uint256 public immutable ratio;
 
     /// @notice The total balance of wrapped tokens for the given holder
     ///         account. Only holders that have previously wrapped KEEP/NU to T
