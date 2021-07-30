@@ -19,6 +19,162 @@ describe("TokenGrant", () => {
     await token.deployed()
   })
 
+  describe("initialize", () => {
+    const revocable = true
+    const amount = to1e18(120000) // 120k tokens
+    const duration = 15552000 // 180 days
+    let start
+    let cliff
+    const stakingPolicy = ZERO_ADDRESS
+
+    let tokenGrant
+
+    beforeEach(async () => {
+      now = await lastBlockTime()
+      start = now
+      cliff = now
+
+      const TokenGrant = await ethers.getContractFactory("TokenGrant")
+      tokenGrant = await TokenGrant.deploy()
+      tokenGrant.deployed()
+    })
+
+    context("when token is zero address", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenGrant.initialize(
+            ZERO_ADDRESS,
+            grantee.address,
+            revocable,
+            amount,
+            duration,
+            start,
+            cliff,
+            stakingPolicy
+          )
+        ).to.be.revertedWith("Token must not be 0x0")
+      })
+    })
+
+    context("when grantee is zero address", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenGrant.initialize(
+            token.address,
+            ZERO_ADDRESS,
+            revocable,
+            amount,
+            duration,
+            start,
+            cliff,
+            stakingPolicy
+          )
+        ).to.be.revertedWith("Grantee must not be 0x0")
+      })
+    })
+
+    context("when amount is 0", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenGrant.initialize(
+            token.address,
+            grantee.address,
+            revocable,
+            0,
+            duration,
+            start,
+            cliff,
+            stakingPolicy
+          )
+        ).to.be.revertedWith("Amount must not be 0")
+      })
+    })
+
+    context("when duration is 0", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenGrant.initialize(
+            token.address,
+            grantee.address,
+            revocable,
+            amount,
+            0,
+            start,
+            cliff,
+            stakingPolicy
+          )
+        ).to.be.revertedWith("Duration must not be 0")
+      })
+    })
+
+    context("when start is 0", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenGrant.initialize(
+            token.address,
+            grantee.address,
+            revocable,
+            amount,
+            duration,
+            0,
+            cliff,
+            stakingPolicy
+          )
+        ).to.be.revertedWith("Start timestamp must not be 0")
+      })
+    })
+
+    context("when cliff is 0", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenGrant.initialize(
+            token.address,
+            grantee.address,
+            revocable,
+            amount,
+            duration,
+            start,
+            0,
+            stakingPolicy
+          )
+        ).to.be.revertedWith("Cliff timestamp must not be 0")
+      })
+    })
+
+    context("when all parameters are valid", () => {
+      const amount = to1e18(41211)
+
+      beforeEach(async () => {
+        await token.connect(deployer).mint(deployer.address, amount)
+        await token.connect(deployer).approve(tokenGrant.address, amount)
+
+        await tokenGrant.initialize(
+          token.address,
+          grantee.address,
+          revocable,
+          amount,
+          duration,
+          start,
+          cliff,
+          ZERO_ADDRESS
+        )
+      })
+
+      it("should transfer tokens to the grant", async () => {
+        expect(await token.balanceOf(tokenGrant.address)).to.equal(amount)
+      })
+
+      it("should initialize all fields", async () => {
+        expect(await tokenGrant.token()).to.equal(token.address)
+        expect(await tokenGrant.revocable()).to.equal(revocable)
+        expect(await tokenGrant.amount()).to.equal(amount)
+        expect(await tokenGrant.duration()).to.equal(duration)
+        expect(await tokenGrant.start()).to.equal(start)
+        expect(await tokenGrant.cliff()).to.equal(cliff)
+      })
+    })
+  })
+
   describe("unlockedAmount", () => {
     const assertionPrecision = to1e18(1) // +- 1 token
 

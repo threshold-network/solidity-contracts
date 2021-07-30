@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 ///         according to the provided staking policy.
 contract TokenGrant {
     // TODO Not implemented yet:
-    // TODO   - TokenGrantFactory, master clone factory TokenGrant contract 
+    // TODO   - TokenGrantFactory, master clone factory TokenGrant contract
     // TODO     initialization prevention.
     // TODO   - Staking, including checking the policy, allowed staking
     // TODO     contracts, and calling the staking contract.
@@ -54,7 +54,15 @@ contract TokenGrant {
         uint256 _start,
         uint256 _cliff,
         IGrantStakingPolicy _stakingPolicy
-    ) public {
+    ) external {
+        require(address(_token) != address(0), "Token must not be 0x0");
+        require(_grantee != address(0), "Grantee must not be 0x0");
+        require(_amount != 0, "Amount must not be 0");
+        require(_duration != 0, "Duration must not be 0");
+        require(_start != 0, "Start timestamp must not be 0");
+        require(_cliff != 0, "Cliff timestamp must not be 0");
+        // TODO: validate staking policy is not 0x0
+
         token = _token;
         grantee = _grantee;
         revocable = _revocable;
