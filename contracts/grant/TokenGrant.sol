@@ -76,6 +76,7 @@ contract TokenGrant {
     }
 
     function stake(uint256 amountToStake) external onlyGrantee {
+        //slither-disable-next-line events-maths
         staked += amountToStake;
 
         // TODO: implement
