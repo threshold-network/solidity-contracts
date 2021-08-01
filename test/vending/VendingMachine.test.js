@@ -4,9 +4,11 @@ const { to1e18, to1ePrecision } = require("../helpers/contract-test-helpers")
 describe("VendingMachine", () => {
   let wrappedToken
   let tToken
-  // 1.45 in 1e18 precision
-  // It means that for every 1 wrapped token (KEEP/NU), one will receive 1.45 T
-  const ratio = "1450000000000000000"
+
+  const floatingPointDivisor = to1e18(1)
+  const tAllocation = to1e18("4500000000")  // 4.5 Billion
+  const maxWrappedTokens = to1e18("1100000000")  // 1.1 Billion
+  const expectedRatio = floatingPointDivisor.mul(tAllocation).div(maxWrappedTokens)
 
   let vendingMachine
 
@@ -30,12 +32,12 @@ describe("VendingMachine", () => {
     vendingMachine = await VendingMachine.deploy(
       wrappedToken.address,
       tToken.address,
-      ratio
+      expectedRatio
     )
     await vendingMachine.deployed()
 
-    // VendingMachine receives 100 T upon deployment
-    await tToken.mint(vendingMachine.address, to1e18(100))
+    // VendingMachine receives 4.5 Billion T upon deployment
+    await tToken.mint(vendingMachine.address, tAllocation)
     ;[tokenHolder, thirdParty] = await ethers.getSigners()
     await wrappedToken.mint(tokenHolder.address, initialHolderBalance)
   })
@@ -67,7 +69,9 @@ describe("VendingMachine", () => {
 
     context("when token holder has enough wrapped tokens", () => {
       context("when wrapping entire allowance", () => {
-        const amount = to1e18(5)
+        const amount = initialHolderBalance
+        const expectedNewBalance = amount.mul(expectedRatio).div(floatingPointDivisor)
+        const expectedRemaining = tAllocation.sub(expectedNewBalance)
         let tx
 
         beforeEach(async () => {
@@ -86,10 +90,10 @@ describe("VendingMachine", () => {
 
         it("should transfer T tokens to token holder", async () => {
           expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
-            to1ePrecision(725, 16) // 1.45 * 5 = 7.25
+            expectedNewBalance
           )
           expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
-            to1ePrecision(9275, 16) // 100 - 7.25 = 92.75
+            expectedRemaining
           )
         })
 
@@ -97,7 +101,7 @@ describe("VendingMachine", () => {
           await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
             tokenHolder.address,
             amount,
-            to1ePrecision(725, 16) // 1.45 * 5 = 7.25
+            expectedNewBalance
           )
         })
 
@@ -110,12 +114,14 @@ describe("VendingMachine", () => {
 
       context("when wrapping part of the allowance", () => {
         const amount = to1e18(1)
+        const expectedNewBalance = amount.mul(expectedRatio).div(floatingPointDivisor)
+        const expectedRemaining = tAllocation.sub(expectedNewBalance)
         let tx
 
         beforeEach(async () => {
           await wrappedToken
             .connect(tokenHolder)
-            .approve(vendingMachine.address, to1e18(5))
+            .approve(vendingMachine.address, initialHolderBalance)
           tx = await vendingMachine.connect(tokenHolder).wrap(amount)
         })
 
@@ -124,16 +130,16 @@ describe("VendingMachine", () => {
             amount
           )
           expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
-            to1e18(4) // 5 - 1 = 4
+            initialHolderBalance.sub(amount)
           )
         })
 
         it("should transfer T tokens to token holder", async () => {
           expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
-            to1ePrecision(145, 16) // 1.45 * 1 = 1.45
+            expectedNewBalance
           )
           expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
-            to1ePrecision(9855, 16) // 100 - 1.45 = 98.55
+            expectedRemaining
           )
         })
 
@@ -141,7 +147,7 @@ describe("VendingMachine", () => {
           await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
             tokenHolder.address,
             amount,
-            to1ePrecision(145, 16) // 1.45 * 1 = 1.45
+            expectedNewBalance
           )
         })
 
@@ -182,6 +188,8 @@ describe("VendingMachine", () => {
 
     context("when called via wrapped token's approveAndCall", () => {
       const amount = to1e18(2)
+      const expectedNewBalance = amount.mul(expectedRatio).div(floatingPointDivisor)
+      const expectedRemaining = tAllocation.sub(expectedNewBalance)
       let tx
 
       beforeEach(async () => {
@@ -195,16 +203,16 @@ describe("VendingMachine", () => {
           amount
         )
         expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
-          to1e18(3) // 5 - 2 = 3
+          initialHolderBalance.sub(amount)
         )
       })
 
       it("should transfer T tokens to token holder", async () => {
         expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
-          to1ePrecision(29, 17) // 1.45 * 2 = 2.9
+          expectedNewBalance
         )
         expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
-          to1ePrecision(971, 17) // 100 - 2.9 = 97.1
+          expectedRemaining
         )
       })
 
@@ -212,7 +220,7 @@ describe("VendingMachine", () => {
         await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
           tokenHolder.address,
           amount,
-          to1ePrecision(29, 17) // 1.45 * 2 = 2.9
+          expectedNewBalance
         )
       })
     })
@@ -220,7 +228,7 @@ describe("VendingMachine", () => {
 
   describe("unwrap", () => {
     const wrappedAmount = to1e18(3)
-    const tAmount = to1ePrecision(435, 16) // 3 * 1.45 = 4.35
+    const tAmount = wrappedAmount.mul(expectedRatio).div(floatingPointDivisor)
 
     beforeEach(async () => {
       await wrappedToken
@@ -276,14 +284,14 @@ describe("VendingMachine", () => {
 
         it("should transfer T tokens to Vending Machine", async () => {
           expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
-            to1e18(100)
+            tAllocation
           )
           expect(await tToken.balanceOf(tokenHolder.address)).to.equal(0)
         })
 
         it("should transfer wrapped tokens to token holder", async () => {
           expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
-            to1e18(5)
+            initialHolderBalance
           )
           expect(await wrappedToken.balanceOf(vendingMachine.address)).to.equal(
             0
@@ -305,90 +313,99 @@ describe("VendingMachine", () => {
 
       context("when updating part of what was previously wrapped", () => {
         context("when unwrapping entire allowance", () => {
+          
+          const tAmount2 = to1e18(2)
+          const wrappedAmount2 = tAmount2.mul(floatingPointDivisor).div(expectedRatio)
+          const allocationLeft = tAllocation.sub(tAmount).add(tAmount2)
+          const holderTBalance = tAmount.sub(tAmount2)
           let tx
 
           beforeEach(async () => {
             await tToken
               .connect(tokenHolder)
-              .approve(vendingMachine.address, to1e18(2))
-            tx = await vendingMachine.connect(tokenHolder).unwrap(to1e18(2))
+              .approve(vendingMachine.address, tAmount2)
+            tx = await vendingMachine.connect(tokenHolder).unwrap(tAmount2)
           })
 
           it("should transfer T tokens to Vending Machine", async () => {
             expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
-              to1ePrecision(9765, 16) // 100 - 4.35 + 2 = 97.65
+              allocationLeft
             )
             expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
-              to1ePrecision(235, 16) // 4.35 - 2 = 2.35
+              holderTBalance
             )
           })
 
           it("should transfer wrapped tokens to token holder", async () => {
             expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
-              "3379310344827586206" // 5 - 3 + 2/1.45 = 3.379310344827586206
+              initialHolderBalance.sub(wrappedAmount).add(wrappedAmount2)
             )
             expect(
               await wrappedToken.balanceOf(vendingMachine.address)
             ).to.equal(
-              "1620689655172413794" // 3 - 2/1.45 = 1.620689655172413794
+              wrappedAmount.sub(wrappedAmount2)
             )
           })
 
           it("should emit Unwrapped event", async () => {
             await expect(tx).to.emit(vendingMachine, "Unwrapped").withArgs(
               tokenHolder.address,
-              to1e18(2),
-              "1379310344827586206" // 2 / 1.45 = 1.379310344827586206
+              tAmount2,
+              wrappedAmount2
             )
           })
 
           it("should update wrapped balance", async () => {
             expect(
               await vendingMachine.wrappedBalance(tokenHolder.address)
-            ).to.equal("1620689655172413794") // 3 - 2/1.45 = 1.620689655172413794
+            ).to.equal(wrappedAmount.sub(wrappedAmount2))
           })
         })
 
         context("when unwrapping part of the allowance", () => {
+
+          const tAmount2 = to1e18(1)
+          const wrappedAmount2 = tAmount2.mul(floatingPointDivisor).div(expectedRatio)
+
           beforeEach(async () => {
             await tToken
               .connect(tokenHolder)
               .approve(vendingMachine.address, tAmount)
-            tx = await vendingMachine.connect(tokenHolder).unwrap(to1e18(1))
+            tx = await vendingMachine.connect(tokenHolder).unwrap(tAmount2)
           })
 
           it("should transfer T tokens to Vending Machine", async () => {
             expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
-              to1ePrecision(9665, 16) // 100 - 4.35 + 1 = 96.65
+              tAllocation.sub(tAmount).add(tAmount2)
             )
             expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
-              to1ePrecision(335, 16) // 4.35 - 1 = 3.35
+              tAmount.sub(tAmount2)
             )
           })
 
           it("should transfer wrapped tokens to token holder", async () => {
             expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
-              "2689655172413793103" // 5 - 3 + 1/1.45 = 2.689655172413793103
+              initialHolderBalance.sub(wrappedAmount).add(wrappedAmount2)
             )
             expect(
               await wrappedToken.balanceOf(vendingMachine.address)
             ).to.equal(
-              "2310344827586206897" // 3 - 1/1.45 = 2.310344827586206897
+              wrappedAmount.sub(wrappedAmount2)
             )
           })
 
           it("should emit Unwrapped event", async () => {
             await expect(tx).to.emit(vendingMachine, "Unwrapped").withArgs(
               tokenHolder.address,
-              to1e18(1),
-              "689655172413793103" // 1 / 1.45 = 0.689655172413793103
+              tAmount2,
+              wrappedAmount2
             )
           })
 
           it("should update wrapped balance", async () => {
             expect(
               await vendingMachine.wrappedBalance(tokenHolder.address)
-            ).to.equal("2310344827586206897") // 3 - 1/1.45 = 2.310344827586206897
+            ).to.equal(wrappedAmount.sub(wrappedAmount2))
           })
         })
       })
