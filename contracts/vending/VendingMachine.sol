@@ -69,6 +69,18 @@ contract VendingMachine is Ownable, IReceiveApproval {
         ratio = FLOATING_POINT_DIVISOR * _tTokenAllocation / _maxWrappedTokens;
     }
 
+    /// @notice The T token amount that's obtained from `_amount` wrapped
+    ///         tokens (KEEP/NU).
+    function conversionToT(uint256 _amount) view public returns (uint256) {
+        return _amount * ratio / FLOATING_POINT_DIVISOR;
+    }
+
+    /// @notice The amount of wrapped tokens (KEEP/NU) than's obtained from
+    ///         `_amount` T tokens.
+    function conversionFromT(uint256 _amount) view public returns (uint256) {
+        return _amount * FLOATING_POINT_DIVISOR / ratio;
+    }
+
     /// @notice Wraps the given amount of the token (KEEP/NU) and
     ///         releases T token proportionally to the amount being wrapped and
     ///         the wrap ratio. The token holder needs to have at least the
@@ -118,9 +130,7 @@ contract VendingMachine is Ownable, IReceiveApproval {
     }
 
     function _wrap(address tokenHolder, uint256 wrappedTokenAmount) internal {
-        uint256 tTokenAmount = (wrappedTokenAmount * ratio) /
-            FLOATING_POINT_DIVISOR;
-
+        uint256 tTokenAmount = conversionToT(wrappedTokenAmount);
         emit Wrapped(tokenHolder, wrappedTokenAmount, tTokenAmount);
 
         wrappedBalance[tokenHolder] += wrappedTokenAmount;
@@ -133,8 +143,7 @@ contract VendingMachine is Ownable, IReceiveApproval {
     }
 
     function _unwrap(address tokenHolder, uint256 tTokenAmount) internal {
-        uint256 wrappedTokenAmount = (tTokenAmount * FLOATING_POINT_DIVISOR) /
-            ratio;
+        uint256 wrappedTokenAmount = conversionFromT(tTokenAmount);
 
         require(
             wrappedBalance[tokenHolder] >= wrappedTokenAmount,
