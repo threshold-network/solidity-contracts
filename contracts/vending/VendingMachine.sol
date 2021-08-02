@@ -61,11 +61,12 @@ contract VendingMachine is Ownable, IReceiveApproval {
     constructor(
         IERC20 _wrappedToken,
         T _tToken,
-        uint256 _ratio
+        uint256 _maxWrappedTokens,
+        uint256 _tTokenAllocation
     ) {
         wrappedToken = _wrappedToken;
         tToken = _tToken;
-        ratio = _ratio;
+        ratio = FLOATING_POINT_DIVISOR * _tTokenAllocation / _maxWrappedTokens;
     }
 
     /// @notice Wraps the given amount of the token (KEEP/NU) and

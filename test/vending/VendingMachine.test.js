@@ -32,7 +32,8 @@ describe("VendingMachine", () => {
     vendingMachine = await VendingMachine.deploy(
       wrappedToken.address,
       tToken.address,
-      expectedRatio
+      maxWrappedTokens,
+      tAllocation
     )
     await vendingMachine.deployed()
 
