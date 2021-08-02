@@ -11,12 +11,12 @@ import "../token/T.sol";
 
 /// @title T token vending machine
 /// @notice Contract implements a special update protocol to enable KEEP/NU
-///         token holders to wrap their tokens and obtain T tokens according 
+///         token holders to wrap their tokens and obtain T tokens according
 ///         to a fixed ratio. This will go on indefinitely and enable NU and
 ///         KEEP token holders to join T network without needing to buy or
 ///         sell any assets. Logistically, anyone holding NU or KEEP can wrap
 ///         those assets in order to receive T. They can also unwrap T in
-///         order to go back to the underlying asset. There is a separate 
+///         order to go back to the underlying asset. There is a separate
 ///         instance of this contract deployed for KEEP holders and a separate
 ///         instance of this contract deployed for NU holders.
 contract VendingMachine is Ownable, IReceiveApproval {
@@ -66,19 +66,9 @@ contract VendingMachine is Ownable, IReceiveApproval {
     ) {
         wrappedToken = _wrappedToken;
         tToken = _tToken;
-        ratio = FLOATING_POINT_DIVISOR * _tTokenAllocation / _maxWrappedTokens;
-    }
-
-    /// @notice The T token amount that's obtained from `_amount` wrapped
-    ///         tokens (KEEP/NU).
-    function conversionToT(uint256 _amount) view public returns (uint256) {
-        return _amount * ratio / FLOATING_POINT_DIVISOR;
-    }
-
-    /// @notice The amount of wrapped tokens (KEEP/NU) than's obtained from
-    ///         `_amount` T tokens.
-    function conversionFromT(uint256 _amount) view public returns (uint256) {
-        return _amount * FLOATING_POINT_DIVISOR / ratio;
+        ratio =
+            (FLOATING_POINT_DIVISOR * _tTokenAllocation) /
+            _maxWrappedTokens;
     }
 
     /// @notice Wraps the given amount of the token (KEEP/NU) and
@@ -127,6 +117,18 @@ contract VendingMachine is Ownable, IReceiveApproval {
     /// @param amount The amount of T to unwrap back to the collateral (KEEP/NU)
     function unwrap(uint256 amount) external {
         _unwrap(msg.sender, amount);
+    }
+
+    /// @notice The T token amount that's obtained from `_amount` wrapped
+    ///         tokens (KEEP/NU).
+    function conversionToT(uint256 _amount) public view returns (uint256) {
+        return (_amount * ratio) / FLOATING_POINT_DIVISOR;
+    }
+
+    /// @notice The amount of wrapped tokens (KEEP/NU) than's obtained from
+    ///         `_amount` T tokens.
+    function conversionFromT(uint256 _amount) public view returns (uint256) {
+        return (_amount * FLOATING_POINT_DIVISOR) / ratio;
     }
 
     function _wrap(address tokenHolder, uint256 wrappedTokenAmount) internal {

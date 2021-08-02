@@ -1,14 +1,16 @@
 const { expect } = require("chai")
-const { to1e18, to1ePrecision } = require("../helpers/contract-test-helpers")
+const { to1e18 } = require("../helpers/contract-test-helpers")
 
 describe("VendingMachine", () => {
   let wrappedToken
   let tToken
 
   const floatingPointDivisor = to1e18(1)
-  const tAllocation = to1e18("4500000000")  // 4.5 Billion
-  const maxWrappedTokens = to1e18("1100000000")  // 1.1 Billion
-  const expectedRatio = floatingPointDivisor.mul(tAllocation).div(maxWrappedTokens)
+  const tAllocation = to1e18("4500000000") // 4.5 Billion
+  const maxWrappedTokens = to1e18("1100000000") // 1.1 Billion
+  const expectedRatio = floatingPointDivisor
+    .mul(tAllocation)
+    .div(maxWrappedTokens)
 
   let vendingMachine
 
@@ -71,7 +73,9 @@ describe("VendingMachine", () => {
     context("when token holder has enough wrapped tokens", () => {
       context("when wrapping entire allowance", () => {
         const amount = initialHolderBalance
-        const expectedNewBalance = amount.mul(expectedRatio).div(floatingPointDivisor)
+        const expectedNewBalance = amount
+          .mul(expectedRatio)
+          .div(floatingPointDivisor)
         const expectedRemaining = tAllocation.sub(expectedNewBalance)
         let tx
 
@@ -99,11 +103,9 @@ describe("VendingMachine", () => {
         })
 
         it("should emit Wrapped event", async () => {
-          await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
-            tokenHolder.address,
-            amount,
-            expectedNewBalance
-          )
+          await expect(tx)
+            .to.emit(vendingMachine, "Wrapped")
+            .withArgs(tokenHolder.address, amount, expectedNewBalance)
         })
 
         it("should update wrapped balance", async () => {
@@ -115,7 +117,9 @@ describe("VendingMachine", () => {
 
       context("when wrapping part of the allowance", () => {
         const amount = to1e18(1)
-        const expectedNewBalance = amount.mul(expectedRatio).div(floatingPointDivisor)
+        const expectedNewBalance = amount
+          .mul(expectedRatio)
+          .div(floatingPointDivisor)
         const expectedRemaining = tAllocation.sub(expectedNewBalance)
         let tx
 
@@ -145,11 +149,9 @@ describe("VendingMachine", () => {
         })
 
         it("should emit Wrapped event", async () => {
-          await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
-            tokenHolder.address,
-            amount,
-            expectedNewBalance
-          )
+          await expect(tx)
+            .to.emit(vendingMachine, "Wrapped")
+            .withArgs(tokenHolder.address, amount, expectedNewBalance)
         })
 
         it("should update wrapped balance", async () => {
@@ -189,7 +191,9 @@ describe("VendingMachine", () => {
 
     context("when called via wrapped token's approveAndCall", () => {
       const amount = to1e18(2)
-      const expectedNewBalance = amount.mul(expectedRatio).div(floatingPointDivisor)
+      const expectedNewBalance = amount
+        .mul(expectedRatio)
+        .div(floatingPointDivisor)
       const expectedRemaining = tAllocation.sub(expectedNewBalance)
       let tx
 
@@ -218,11 +222,9 @@ describe("VendingMachine", () => {
       })
 
       it("should emit Wrapped event", async () => {
-        await expect(tx).to.emit(vendingMachine, "Wrapped").withArgs(
-          tokenHolder.address,
-          amount,
-          expectedNewBalance
-        )
+        await expect(tx)
+          .to.emit(vendingMachine, "Wrapped")
+          .withArgs(tokenHolder.address, amount, expectedNewBalance)
       })
     })
   })
@@ -314,9 +316,10 @@ describe("VendingMachine", () => {
 
       context("when updating part of what was previously wrapped", () => {
         context("when unwrapping entire allowance", () => {
-          
           const tAmount2 = to1e18(2)
-          const wrappedAmount2 = tAmount2.mul(floatingPointDivisor).div(expectedRatio)
+          const wrappedAmount2 = tAmount2
+            .mul(floatingPointDivisor)
+            .div(expectedRatio)
           const allocationLeft = tAllocation.sub(tAmount).add(tAmount2)
           const holderTBalance = tAmount.sub(tAmount2)
           let tx
@@ -343,17 +346,13 @@ describe("VendingMachine", () => {
             )
             expect(
               await wrappedToken.balanceOf(vendingMachine.address)
-            ).to.equal(
-              wrappedAmount.sub(wrappedAmount2)
-            )
+            ).to.equal(wrappedAmount.sub(wrappedAmount2))
           })
 
           it("should emit Unwrapped event", async () => {
-            await expect(tx).to.emit(vendingMachine, "Unwrapped").withArgs(
-              tokenHolder.address,
-              tAmount2,
-              wrappedAmount2
-            )
+            await expect(tx)
+              .to.emit(vendingMachine, "Unwrapped")
+              .withArgs(tokenHolder.address, tAmount2, wrappedAmount2)
           })
 
           it("should update wrapped balance", async () => {
@@ -364,9 +363,10 @@ describe("VendingMachine", () => {
         })
 
         context("when unwrapping part of the allowance", () => {
-
           const tAmount2 = to1e18(1)
-          const wrappedAmount2 = tAmount2.mul(floatingPointDivisor).div(expectedRatio)
+          const wrappedAmount2 = tAmount2
+            .mul(floatingPointDivisor)
+            .div(expectedRatio)
 
           beforeEach(async () => {
             await tToken
@@ -390,17 +390,13 @@ describe("VendingMachine", () => {
             )
             expect(
               await wrappedToken.balanceOf(vendingMachine.address)
-            ).to.equal(
-              wrappedAmount.sub(wrappedAmount2)
-            )
+            ).to.equal(wrappedAmount.sub(wrappedAmount2))
           })
 
           it("should emit Unwrapped event", async () => {
-            await expect(tx).to.emit(vendingMachine, "Unwrapped").withArgs(
-              tokenHolder.address,
-              tAmount2,
-              wrappedAmount2
-            )
+            await expect(tx)
+              .to.emit(vendingMachine, "Unwrapped")
+              .withArgs(tokenHolder.address, tAmount2, wrappedAmount2)
           })
 
           it("should update wrapped balance", async () => {
