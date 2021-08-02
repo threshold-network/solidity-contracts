@@ -10,16 +10,15 @@ import "@thesis/solidity-contracts/contracts/token/IReceiveApproval.sol";
 import "../token/T.sol";
 
 /// @title T token vending machine
-/// @notice Contract implements a special lending protocol to enable KEEP/NU
-///         token holders to wrap their tokens as collateral and borrow T tokens
-///         against that collateral based on the wrap ratio. This will go on
-///         indefinitely and enable NU and KEEP token holders to join T network
-///         without needing to buy or sell any assets. Logistically, anyone
-///         holding NU or KEEP can wrap those assets in order to receive T.
-///         They can also unwrap T in order to go back to the underlying asset.
-///         There is a separate instance of this contract deployed for KEEP
-///         holders and a separate instance of this contract deployed for NU
-///         holders.
+/// @notice Contract implements a special update protocol to enable KEEP/NU
+///         token holders to wrap their tokens and obtain T tokens according 
+///         to a fixed ratio. This will go on indefinitely and enable NU and
+///         KEEP token holders to join T network without needing to buy or
+///         sell any assets. Logistically, anyone holding NU or KEEP can wrap
+///         those assets in order to receive T. They can also unwrap T in
+///         order to go back to the underlying asset. There is a separate 
+///         instance of this contract deployed for KEEP holders and a separate
+///         instance of this contract deployed for NU holders.
 contract VendingMachine is Ownable, IReceiveApproval {
     using SafeERC20 for IERC20;
     using SafeERC20 for T;
@@ -33,8 +32,8 @@ contract VendingMachine is Ownable, IReceiveApproval {
     /// @notice T token contract.
     T public immutable tToken;
 
-    /// @notice The ratio with which T token is borrowed based on the provided
-    ///         token being wrapped (KEEP/NU).
+    /// @notice The ratio with which T token is converted based on the provided
+    ///         token being wrapped (KEEP/NU), expressed in 1e18 precision.
     ///
     ///         When wrapping:
     ///           x [T] = amount [KEEP/NU] * ratio / FLOATING_POINT_DIVISOR
@@ -69,8 +68,8 @@ contract VendingMachine is Ownable, IReceiveApproval {
         ratio = _ratio;
     }
 
-    /// @notice Wraps the given amount of the token (KEEP/NU) as collateral and
-    ///         borrows T token proportionally to the amount being wrapped and
+    /// @notice Wraps the given amount of the token (KEEP/NU) and
+    ///         releases T token proportionally to the amount being wrapped and
     ///         the wrap ratio. The token holder needs to have at least the
     ///         given amount of the wrapped token (KEEP/NU) approved to transfer
     ///         to the Vending Machine before calling this function.
@@ -79,8 +78,8 @@ contract VendingMachine is Ownable, IReceiveApproval {
         _wrap(msg.sender, amount);
     }
 
-    /// @notice Wraps the given amount of the token (KEEP/NU) as collateral and
-    ///         borrows T token proportionally to the amount being wrapped and
+    /// @notice Wraps the given amount of the token (KEEP/NU) and
+    ///         releases T token proportionally to the amount being wrapped and
     ///         the wrap ratio. This is a shortcut to `wrap` function allowing
     ///         to avoid a separate approval transaction. Only KEEP/NU token
     ///         is allowed as a caller, so please call this function via
@@ -105,11 +104,11 @@ contract VendingMachine is Ownable, IReceiveApproval {
         _wrap(from, amount);
     }
 
-    /// @notice Unwraps the given amount of T back to the collateral (KEEP/NU)
+    /// @notice Unwraps the given amount of T back to the legacy token (KEEP/NU)
     ///         based on the wrap ratio. Can only be called by a token holder
     ///         who previously wrapped their tokens. The token holder can not
-    ///         unwrap more tokens than they have originally wrapped. The token
-    ///         holder needs to have at least the given amount of T token
+    ///         unwrap more tokens than they originally wrapped. The token
+    ///         holder needs to have at least the given amount of T tokens
     ///         approved to transfer to the Vending Machine before calling this
     ///         function.
     /// @param amount The amount of T to unwrap back to the collateral (KEEP/NU)
