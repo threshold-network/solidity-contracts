@@ -20,6 +20,10 @@ contract T is ERC20WithPermit {
     /// @notice The number of checkpoints for each account
     mapping(address => uint32) public numCheckpoints;
 
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    bytes32 public constant DELEGATION_TYPEHASH =
+        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
+
     /// @notice An event thats emitted when an account changes its delegate
     event DelegateChanged(
         address indexed delegator,
@@ -34,17 +38,13 @@ contract T is ERC20WithPermit {
         uint256 newBalance
     );
 
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant DELEGATION_TYPEHASH =
-        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
-
     constructor() ERC20WithPermit("Threshold Network Token", "T") {}
 
     /**
      * @notice Delegate votes from `msg.sender` to `delegatee`
      * @param delegatee The address to delegate votes to
      */
-    function delegate(address delegatee) public {
+    function delegate(address delegatee) external {
         return _delegate(msg.sender, delegatee);
     }
 
@@ -65,7 +65,7 @@ contract T is ERC20WithPermit {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public {
+    ) external {
         bytes32 structHash = keccak256(
             abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
         );
@@ -108,7 +108,7 @@ contract T is ERC20WithPermit {
      * @return The number of votes the account had as of the given block
      */
     function getPriorVotes(address account, uint256 blockNumber)
-        public
+        external
         view
         returns (uint96)
     {
