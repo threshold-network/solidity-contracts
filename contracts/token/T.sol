@@ -5,14 +5,14 @@ pragma solidity 0.8.4;
 import "@thesis/solidity-contracts/contracts/token/ERC20WithPermit.sol";
 
 contract T is ERC20WithPermit {
-    /// @notice A record of each accounts delegate
-    mapping(address => address) public delegates;
-
     /// @notice A checkpoint for marking number of votes from a given block
     struct Checkpoint {
         uint32 fromBlock;
         uint96 votes;
     }
+
+    /// @notice A record of each accounts delegate
+    mapping(address => address) public delegates;
 
     /// @notice A record of votes checkpoints for each account, by index
     mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
@@ -37,8 +37,6 @@ contract T is ERC20WithPermit {
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH =
         keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
-
-    // TODO: transfer, transferFrom, burn, burnFrom should call _moveDelegates
 
     constructor() ERC20WithPermit("Threshold Network Token", "T") {}
 
@@ -148,6 +146,22 @@ contract T is ERC20WithPermit {
             }
         }
         return checkpoints[account][lower].votes;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        // Don't do anything when tokens are minted; user needs to
+        // self-delegate first.
+        if (from != address(0)) {
+            _moveDelegates(
+                delegates[from],
+                delegates[to],
+                safe96(amount, "Transfer amount overflows")
+            );
+        }
     }
 
     function _delegate(address delegator, address delegatee) internal {
