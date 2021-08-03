@@ -188,11 +188,7 @@ contract T is ERC20WithPermit {
                 uint96 srcRepOld = srcRepNum > 0
                     ? checkpoints[srcRep][srcRepNum - 1].votes
                     : 0;
-                uint96 srcRepNew = sub96(
-                    srcRepOld,
-                    amount,
-                    "Comp::_moveVotes: vote amount underflows"
-                );
+                uint96 srcRepNew = srcRepOld - amount;
                 _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
             }
 
@@ -201,11 +197,7 @@ contract T is ERC20WithPermit {
                 uint96 dstRepOld = dstRepNum > 0
                     ? checkpoints[dstRep][dstRepNum - 1].votes
                     : 0;
-                uint96 dstRepNew = add96(
-                    dstRepOld,
-                    amount,
-                    "Comp::_moveVotes: vote amount overflows"
-                );
+                uint96 dstRepNew = dstRepOld + amount;
                 _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
             }
         }
@@ -219,7 +211,7 @@ contract T is ERC20WithPermit {
     ) internal {
         uint32 blockNumber = safe32(
             block.number,
-            "Comp::_writeCheckpoint: block number exceeds 32 bits"
+            "Block number exceeds 32 bits"
         );
 
         if (
@@ -254,24 +246,5 @@ contract T is ERC20WithPermit {
     {
         require(n < 2**96, errorMessage);
         return uint96(n);
-    }
-
-    function add96(
-        uint96 a,
-        uint96 b,
-        string memory errorMessage
-    ) internal pure returns (uint96) {
-        uint96 c = a + b;
-        require(c >= a, errorMessage);
-        return c;
-    }
-
-    function sub96(
-        uint96 a,
-        uint96 b,
-        string memory errorMessage
-    ) internal pure returns (uint96) {
-        require(b <= a, errorMessage);
-        return a - b;
     }
 }
