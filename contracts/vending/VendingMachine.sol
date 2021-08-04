@@ -58,17 +58,26 @@ contract VendingMachine is Ownable, IReceiveApproval {
         uint256 wrappedTokenAmount
     );
 
+    /// @dev Sets the reference to `wrappedToken` and `tToken`. Initializes
+    ///      conversion ratio between wrapped token and T based on the provided
+    ///      `_tTokenAllocation` and `_wrappedTokenSupply`.
+    /// @param _wrappedToken Address to ERC20 token that will be wrapped to T
+    /// @param _tToken Address of T token
+    /// @param _wrappedTokenSupply The total supply of the token that will be
+    ///       wrapped to T
+    /// @param _tTokenAllocation The allocation of T this instance of Vending
+    ///        Machine will receive
     constructor(
         IERC20 _wrappedToken,
         T _tToken,
-        uint256 _maxWrappedTokens,
+        uint256 _wrappedTokenSupply,
         uint256 _tTokenAllocation
     ) {
         wrappedToken = _wrappedToken;
         tToken = _tToken;
         ratio =
             (FLOATING_POINT_DIVISOR * _tTokenAllocation) /
-            _maxWrappedTokens;
+            _wrappedTokenSupply;
     }
 
     /// @notice Wraps the given amount of the token (KEEP/NU) and
