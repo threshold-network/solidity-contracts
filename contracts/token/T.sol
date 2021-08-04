@@ -21,8 +21,11 @@ contract T is ERC20WithPermit {
     mapping(address => uint32) public numCheckpoints;
 
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    // keccak256("Delegation(address delegatee,uint256 nonce,uint256 deadline)");
     bytes32 public constant DELEGATION_TYPEHASH =
-        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
+        keccak256(
+            "Delegation(address delegatee,uint256 nonce,uint256 deadline)"
+        );
 
     /// @notice An event thats emitted when an account changes its delegate
     event DelegateChanged(
@@ -51,41 +54,52 @@ contract T is ERC20WithPermit {
     /**
      * @notice Delegates votes from signatory to `delegatee`
      * @param delegatee The address to delegate votes to
-     * @param nonce The contract state required to match the signature
-     * @param expiry The time at which to expire the signature
+     * @param deadline The time at which to expire the signature
      * @param v The recovery byte of the signature
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    // TODO: rework to have it working same as permit
     function delegateBySig(
+        address signatory,
         address delegatee,
-        uint256 nonce,
-        uint256 expiry,
+        uint256 deadline,
         uint8 v,
         bytes32 r,
         bytes32 s
     ) external {
-        bytes32 structHash = keccak256(
-            abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
+        /* solhint-disable-next-line not-rely-on-time */
+        require(deadline >= block.timestamp, "Delegation expired");
+
+        // Validate `s` and `v` values for a malleability concern described in EIP2.
+        // Only signatures with `s` value in the lower half of the secp256k1
+        // curve's order and `v` value of 27 or 28 are considered valid.
+        require(
+            uint256(s) <=
+                0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0,
+            "Invalid signature 's' value"
         );
+        require(v == 27 || v == 28, "Invalid signature 'v' value");
+
         bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), structHash)
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        DELEGATION_TYPEHASH,
+                        delegatee,
+                        nonces[signatory]++,
+                        deadline
+                    )
+                )
+            )
         );
-        address signatory = ecrecover(digest, v, r, s);
+        address recoveredAddress = ecrecover(digest, v, r, s);
         require(
-            signatory != address(0),
-            "Comp::delegateBySig: invalid signature"
+            recoveredAddress != address(0) && recoveredAddress == signatory,
+            "Invalid signature"
         );
-        require(
-            nonce == nonces[signatory]++,
-            "Comp::delegateBySig: invalid nonce"
-        );
-        require(
-            /* solhint-disable-next-line not-rely-on-time */
-            block.timestamp <= expiry,
-            "Comp::delegateBySig: signature expired"
-        );
+
         return _delegate(signatory, delegatee);
     }
 
