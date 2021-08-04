@@ -314,7 +314,7 @@ describe("VendingMachine", () => {
         })
       })
 
-      context("when updating part of what was previously wrapped", () => {
+      context("when unwrapping part of what was previously wrapped", () => {
         context("when unwrapping entire allowance", () => {
           const tAmount2 = to1e18(2)
           const wrappedAmount2 = tAmount2
