@@ -119,16 +119,16 @@ contract VendingMachine is Ownable, IReceiveApproval {
         _unwrap(msg.sender, amount);
     }
 
-    /// @notice The T token amount that's obtained from `_amount` wrapped
+    /// @notice The T token amount that's obtained from `amount` wrapped
     ///         tokens (KEEP/NU).
-    function conversionToT(uint256 _amount) public view returns (uint256) {
-        return (_amount * ratio) / FLOATING_POINT_DIVISOR;
+    function conversionToT(uint256 amount) public view returns (uint256) {
+        return (amount * ratio) / FLOATING_POINT_DIVISOR;
     }
 
     /// @notice The amount of wrapped tokens (KEEP/NU) than's obtained from
-    ///         `_amount` T tokens.
-    function conversionFromT(uint256 _amount) public view returns (uint256) {
-        return (_amount * FLOATING_POINT_DIVISOR) / ratio;
+    ///         `amount` T tokens.
+    function conversionFromT(uint256 amount) public view returns (uint256) {
+        return (amount * FLOATING_POINT_DIVISOR) / ratio;
     }
 
     function _wrap(address tokenHolder, uint256 wrappedTokenAmount) internal {
