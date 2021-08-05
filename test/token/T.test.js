@@ -34,6 +34,16 @@ describe("T token", () => {
     })
   })
 
+  describe("getPriorVotes", () => {
+    context("when executed for the last block", () => {
+      it("should revert", async () => {
+        await expect(
+          t.getPriorVotes(tokenHolder.address, await lastBlockNumber())
+        ).to.be.revertedWith("Not yet determined")
+      })
+    })
+  })
+
   describe("delegate", () => {
     context("when delegated to someone else", () => {
       it("should update current votes", async () => {

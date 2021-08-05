@@ -126,10 +126,7 @@ contract T is ERC20WithPermit {
         view
         returns (uint96)
     {
-        require(
-            blockNumber < block.number,
-            "Comp::getPriorVotes: not yet determined"
-        );
+        require(blockNumber < block.number, "Not yet determined");
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
