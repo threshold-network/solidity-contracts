@@ -1,6 +1,10 @@
 const { expect } = require("chai")
 
-const { to1e18, lastBlockNumber } = require("../helpers/contract-test-helpers")
+const {
+  to1e18,
+  lastBlockNumber,
+  ZERO_ADDRESS,
+} = require("../helpers/contract-test-helpers")
 
 describe("T token", () => {
   const initialBalance = to1e18(1000000)
@@ -46,23 +50,67 @@ describe("T token", () => {
 
   describe("delegate", () => {
     context("when delegated to someone else", () => {
-      it("should update current votes", async () => {
-        await t.connect(tokenHolder).delegate(delegatee.address)
+      let tx
 
+      beforeEach(async () => {
+        tx = await t.connect(tokenHolder).delegate(delegatee.address)
+      })
+
+      it("should update current votes", async () => {
         expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
         expect(await t.getCurrentVotes(delegatee.address)).to.equal(
           initialBalance
         )
       })
+
+      it("should update delegatee address", async () => {
+        expect(await t.delegates(tokenHolder.address)).to.equal(
+          delegatee.address
+        )
+      })
+
+      it("should emit DelegateChanged event", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateChanged")
+          .withArgs(tokenHolder.address, ZERO_ADDRESS, delegatee.address)
+      })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(delegatee.address, 0, initialBalance)
+      })
     })
 
     context("when self-delegated", () => {
-      it("should update current votes", async () => {
-        await t.connect(tokenHolder).delegate(tokenHolder.address)
+      let tx
 
+      beforeEach(async () => {
+        tx = await t.connect(tokenHolder).delegate(tokenHolder.address)
+      })
+
+      it("should update current votes", async () => {
         expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(
           initialBalance
         )
+      })
+
+      it("should update delegatee address", async () => {
+        expect(await t.delegates(tokenHolder.address)).to.equal(
+          tokenHolder.address
+        )
+      })
+
+      it("should emit DelegateChanged event", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateChanged")
+          .withArgs(tokenHolder.address, ZERO_ADDRESS, tokenHolder.address)
+      })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(tokenHolder.address, 0, initialBalance)
       })
     })
 
