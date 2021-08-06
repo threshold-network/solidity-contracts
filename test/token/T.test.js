@@ -698,4 +698,115 @@ describe("T token", () => {
       })
     })
   })
+
+  const describeBurn = (doBurn) => {
+    context("when no delegation was done", () => {
+      it("should keep current votes at zero", async () => {
+        t.connect(tokenHolder).burn(to1e18(10))
+        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
+      })
+    })
+
+    context("when delegated to someone else", () => {
+      const amount = to1e18(15)
+      let tx
+
+      beforeEach(async () => {
+        t.connect(tokenHolder).delegate(delegatee.address)
+        tx = await doBurn(amount)
+      })
+
+      it("should update current votes", async () => {
+        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+          initialBalance.sub(amount)
+        )
+      })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(
+            delegatee.address,
+            initialBalance,
+            initialBalance.sub(amount)
+          )
+      })
+    })
+
+    context("when self-delegated", () => {
+      const amount = to1e18(16)
+      let tx
+
+      beforeEach(async () => {
+        t.connect(tokenHolder).delegate(tokenHolder.address)
+        tx = await doBurn(amount)
+      })
+
+      it("should update current votes", async () => {
+        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(
+          initialBalance.sub(amount)
+        )
+      })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(
+            tokenHolder.address,
+            initialBalance,
+            initialBalance.sub(amount)
+          )
+      })
+    })
+
+    context("when burned several times", () => {
+      let block1
+      let block2
+      let block3
+
+      beforeEach(async () => {
+        await t.connect(tokenHolder).delegate(delegatee.address)
+        await doBurn(to1e18(3))
+        block1 = await lastBlockNumber()
+        await doBurn(to1e18(1))
+        block2 = await lastBlockNumber()
+        await doBurn(to1e18(5))
+        block3 = await lastBlockNumber()
+        await doBurn(to1e18(2))
+      })
+
+      it("should update current votes", async () => {
+        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+          initialBalance.sub(to1e18(11))
+        )
+      })
+
+      it("should keep track of prior votes", async () => {
+        expect(await t.getPriorVotes(delegatee.address, block1)).to.equal(
+          initialBalance.sub(to1e18(3))
+        )
+        expect(await t.getPriorVotes(delegatee.address, block2)).to.equal(
+          initialBalance.sub(to1e18(4))
+        )
+        expect(await t.getPriorVotes(delegatee.address, block3)).to.equal(
+          initialBalance.sub(to1e18(9))
+        )
+      })
+    })
+  }
+
+  describe("burn", () => {
+    describeBurn(async (amount) => {
+      return await t.connect(tokenHolder).burn(amount)
+    })
+  })
+
+  describe("burnFrom", () => {
+    describeBurn(async (amount) => {
+      await t.connect(tokenHolder).approve(thirdParty.address, amount)
+      return await t.connect(thirdParty).burnFrom(tokenHolder.address, amount)
+    })
+  })
 })
