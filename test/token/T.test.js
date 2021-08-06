@@ -608,4 +608,94 @@ describe("T token", () => {
         .transferFrom(tokenHolder.address, tokenRecipient.address, amount)
     })
   })
+
+  describe("mint", () => {
+    context("when no delegation was done", () => {
+      it("should keep current votes at zero", async () => {
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
+
+        // one more time, when not starting from zero balance
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
+      })
+    })
+
+    context("when delegated to someone else", () => {
+      let tx
+
+      beforeEach(async () => {
+        await t.connect(thirdParty).delegate(delegatee.address)
+        tx = await t.connect(deployer).mint(thirdParty.address, initialBalance)
+      })
+
+      it("should update current votes", async () => {
+        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
+        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+          initialBalance
+        )
+      })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(delegatee.address, 0, initialBalance)
+      })
+    })
+
+    context("when self-delegated", () => {
+      let tx
+
+      beforeEach(async () => {
+        await t.connect(thirdParty).delegate(thirdParty.address)
+        tx = await t.connect(deployer).mint(thirdParty.address, initialBalance)
+      })
+
+      it("should update current votes", async () => {
+        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(
+          initialBalance
+        )
+      })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(thirdParty.address, 0, initialBalance)
+      })
+    })
+
+    context("when minted several times", () => {
+      let block1
+      let block2
+      let block3
+
+      beforeEach(async () => {
+        await t.connect(thirdParty).delegate(delegatee.address)
+        await t.connect(deployer).mint(thirdParty.address, to1e18(10))
+        block1 = await lastBlockNumber()
+        await t.connect(deployer).mint(thirdParty.address, to1e18(12))
+        block2 = await lastBlockNumber()
+        await t.connect(deployer).mint(thirdParty.address, to1e18(15))
+        block3 = await lastBlockNumber()
+        await t.connect(deployer).mint(thirdParty.address, to1e18(17))
+      })
+
+      it("should update current votes", async () => {
+        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
+        expect(await t.getCurrentVotes(delegatee.address)).to.equal(to1e18(54))
+      })
+
+      it("should keep track of prior votes", async () => {
+        expect(await t.getPriorVotes(delegatee.address, block1)).to.equal(
+          to1e18(10)
+        )
+        expect(await t.getPriorVotes(delegatee.address, block2)).to.equal(
+          to1e18(22)
+        )
+        expect(await t.getPriorVotes(delegatee.address, block3)).to.equal(
+          to1e18(37)
+        )
+      })
+    })
+  })
 })

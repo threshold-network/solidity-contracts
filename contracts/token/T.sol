@@ -4,6 +4,8 @@ pragma solidity 0.8.4;
 
 import "@thesis/solidity-contracts/contracts/token/ERC20WithPermit.sol";
 
+import "hardhat/console.sol";
+
 contract T is ERC20WithPermit {
     /// @notice A checkpoint for marking number of votes from a given block
     struct Checkpoint {
@@ -34,9 +36,9 @@ contract T is ERC20WithPermit {
         address indexed toDelegate
     );
 
-    /// @notice An event thats emitted when a delegate account's vote balance changes
+    /// @notice An event thats emitted when a delegatee account's vote balance changes
     event DelegateVotesChanged(
-        address indexed delegate,
+        address indexed delegatee,
         uint256 previousBalance,
         uint256 newBalance
     );
@@ -94,6 +96,7 @@ contract T is ERC20WithPermit {
                 )
             )
         );
+
         address recoveredAddress = ecrecover(digest, v, r, s);
         require(
             recoveredAddress != address(0) && recoveredAddress == signatory,
@@ -164,15 +167,11 @@ contract T is ERC20WithPermit {
         address to,
         uint256 amount
     ) internal override {
-        // Don't do anything when tokens are minted; user needs to
-        // self-delegate first.
-        if (from != address(0)) {
-            _moveDelegates(
-                delegates[from],
-                delegates[to],
-                safe96(amount, "Transfer amount overflows")
-            );
-        }
+        _moveDelegates(
+            delegates[from],
+            delegates[to],
+            safe96(amount, "Transfer amount overflows")
+        );
     }
 
     function _delegate(address delegator, address delegatee) internal {
