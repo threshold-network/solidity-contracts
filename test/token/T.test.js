@@ -324,11 +324,12 @@ describe("T token", () => {
       "when both sender and receiver delegated votes to someone else",
       () => {
         const amount = to1e18(100)
+        let tx
 
         beforeEach(async () => {
           await t.connect(tokenHolder).delegate(delegatee.address)
           await t.connect(tokenRecipient).delegate(delegatee2.address)
-          await doTransfer(amount)
+          tx = await doTransfer(amount)
         })
 
         it("should update current votes", async () => {
@@ -366,16 +367,31 @@ describe("T token", () => {
             )
           ).to.equal(0)
         })
+
+        it("should emit DelegateVotesChanged", async () => {
+          await expect(tx)
+            .to.emit(t, "DelegateVotesChanged")
+            .withArgs(
+              delegatee.address,
+              initialBalance,
+              initialBalance.sub(amount)
+            )
+
+          await expect(tx)
+            .to.emit(t, "DelegateVotesChanged")
+            .withArgs(delegatee2.address, 0, amount)
+        })
       }
     )
 
     context("when both sender and recipient self-delegated votes", () => {
       const amount = to1e18(120)
+      let tx
 
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(tokenHolder.address)
         await t.connect(tokenRecipient).delegate(tokenRecipient.address)
-        await doTransfer(amount)
+        tx = await doTransfer(amount)
       })
 
       it("should update current votes", async () => {
@@ -400,14 +416,29 @@ describe("T token", () => {
           )
         ).to.equal(0)
       })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(
+            tokenHolder.address,
+            initialBalance,
+            initialBalance.sub(amount)
+          )
+
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(tokenRecipient.address, 0, amount)
+      })
     })
 
     context("when sender delegated votes to someone else", () => {
       const amount = to1e18(70)
+      let tx
 
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(delegatee.address)
-        await doTransfer(amount)
+        tx = await doTransfer(amount)
       })
 
       it("should update current votes", async () => {
@@ -435,14 +466,25 @@ describe("T token", () => {
           )
         ).to.equal(0)
       })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(
+            delegatee.address,
+            initialBalance,
+            initialBalance.sub(amount)
+          )
+      })
     })
 
     context("when sender self-delegated votes", () => {
       const amount = to1e18(991)
+      let tx
 
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(tokenHolder.address)
-        await doTransfer(amount)
+        tx = await doTransfer(amount)
       })
 
       it("should update current votes", async () => {
@@ -466,14 +508,25 @@ describe("T token", () => {
           )
         ).to.equal(0)
       })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(
+            tokenHolder.address,
+            initialBalance,
+            initialBalance.sub(amount)
+          )
+      })
     })
 
     context("when recipient delegated votes to someone else", () => {
       const amount = to1e18(214)
+      let tx
 
       beforeEach(async () => {
         await t.connect(tokenRecipient).delegate(delegatee2.address)
-        await doTransfer(amount)
+        tx = await doTransfer(amount)
       })
 
       it("should update current votes", async () => {
@@ -499,14 +552,21 @@ describe("T token", () => {
           )
         ).to.equal(0)
       })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(delegatee2.address, 0, amount)
+      })
     })
 
     context("when recipient self-delegated votes", () => {
       const amount = to1e18(124)
+      let tx
 
       beforeEach(async () => {
         await t.connect(tokenRecipient).delegate(tokenRecipient.address)
-        await doTransfer(amount)
+        tx = await doTransfer(amount)
       })
 
       it("should update current votes", async () => {
@@ -527,6 +587,12 @@ describe("T token", () => {
             await previousBlockNumber()
           )
         ).to.equal(0)
+      })
+
+      it("should emit DelegateVotesChanged", async () => {
+        await expect(tx)
+          .to.emit(t, "DelegateVotesChanged")
+          .withArgs(tokenRecipient.address, 0, amount)
       })
     })
 
@@ -596,14 +662,16 @@ describe("T token", () => {
 
   describe("transfer", () => {
     describeTransfer(async (amount) => {
-      await t.connect(tokenHolder).transfer(tokenRecipient.address, amount)
+      return await t
+        .connect(tokenHolder)
+        .transfer(tokenRecipient.address, amount)
     })
   })
 
   describe("transferFrom", () => {
     describeTransfer(async (amount) => {
       await t.connect(tokenHolder).approve(thirdParty.address, amount)
-      await t
+      return await t
         .connect(thirdParty)
         .transferFrom(tokenHolder.address, tokenRecipient.address, amount)
     })
