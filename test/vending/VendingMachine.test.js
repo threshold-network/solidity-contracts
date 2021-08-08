@@ -176,6 +176,58 @@ describe("VendingMachine", () => {
           ).to.equal(amount)
         })
       })
+
+      context(
+        "when wrapping an amount that isn't exact for the conversion ratio",
+        () => {
+          const convertibleAmount = to1e18(1)
+          const amount = convertibleAmount.add(42)
+          const expectedNewBalance = convertToT(amount).result
+          const expectedRemaining = tAllocation.sub(expectedNewBalance)
+          let tx
+
+          beforeEach(async () => {
+            await wrappedToken
+              .connect(tokenHolder)
+              .approve(vendingMachine.address, initialHolderBalance)
+            tx = await vendingMachine.connect(tokenHolder).wrap(amount)
+          })
+
+          it("should transfer wrapped tokens to Vending Machine", async () => {
+            expect(
+              await wrappedToken.balanceOf(vendingMachine.address)
+            ).to.equal(convertibleAmount)
+            expect(await wrappedToken.balanceOf(tokenHolder.address)).to.equal(
+              initialHolderBalance.sub(convertibleAmount)
+            )
+          })
+
+          it("should transfer T tokens to token holder", async () => {
+            expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
+              expectedNewBalance
+            )
+            expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
+              expectedRemaining
+            )
+          })
+
+          it("should emit Wrapped event", async () => {
+            await expect(tx)
+              .to.emit(vendingMachine, "Wrapped")
+              .withArgs(
+                tokenHolder.address,
+                convertibleAmount,
+                expectedNewBalance
+              )
+          })
+
+          it("should update wrapped balance", async () => {
+            expect(
+              await vendingMachine.wrappedBalance(tokenHolder.address)
+            ).to.equal(convertibleAmount)
+          })
+        }
+      )
     })
   })
 
@@ -420,6 +472,65 @@ describe("VendingMachine", () => {
             ).to.equal(wrappedAmount.sub(wrappedAmount2))
           })
         })
+
+        context(
+          "when unwrapping unexact amounts wrt to the conversion ratio",
+          () => {
+            const tAmount2 = to1e18(2)
+            const conversion = convertFromT(tAmount2)
+            const wrappedAmount2 = conversion.result
+            const convertibleTAmount2 = tAmount2.sub(conversion.remainder)
+
+            const allocationLeft = tAllocation
+              .sub(tAmount)
+              .add(convertibleTAmount2)
+            const holderTBalance = tAmount.sub(convertibleTAmount2)
+            let tx
+
+            beforeEach(async () => {
+              await tToken
+                .connect(tokenHolder)
+                .approve(vendingMachine.address, tAmount2)
+              tx = await vendingMachine.connect(tokenHolder).unwrap(tAmount2)
+            })
+
+            it("should transfer T tokens to Vending Machine", async () => {
+              expect(await tToken.balanceOf(vendingMachine.address)).to.equal(
+                allocationLeft
+              )
+              expect(await tToken.balanceOf(tokenHolder.address)).to.equal(
+                holderTBalance
+              )
+            })
+
+            it("should transfer wrapped tokens to token holder", async () => {
+              expect(
+                await wrappedToken.balanceOf(tokenHolder.address)
+              ).to.equal(
+                initialHolderBalance.sub(wrappedAmount).add(wrappedAmount2)
+              )
+              expect(
+                await wrappedToken.balanceOf(vendingMachine.address)
+              ).to.equal(wrappedAmount.sub(wrappedAmount2))
+            })
+
+            it("should emit Unwrapped event", async () => {
+              await expect(tx)
+                .to.emit(vendingMachine, "Unwrapped")
+                .withArgs(
+                  tokenHolder.address,
+                  convertibleTAmount2,
+                  wrappedAmount2
+                )
+            })
+
+            it("should update wrapped balance", async () => {
+              expect(
+                await vendingMachine.wrappedBalance(tokenHolder.address)
+              ).to.equal(wrappedAmount.sub(wrappedAmount2))
+            })
+          }
+        )
       })
     })
   })
