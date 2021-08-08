@@ -159,6 +159,7 @@ contract T is ERC20WithPermit {
         return checkpoints[account][lower].votes;
     }
 
+    // slither-disable-next-line dead-code
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -231,6 +232,7 @@ contract T is ERC20WithPermit {
         );
 
         if (
+            // slither-disable-next-line incorrect-equality
             nCheckpoints > 0 &&
             checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber
         ) {
