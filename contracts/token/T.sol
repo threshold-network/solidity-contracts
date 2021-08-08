@@ -6,8 +6,9 @@ import "@thesis/solidity-contracts/contracts/token/ERC20WithPermit.sol";
 
 import "hardhat/console.sol";
 
+/// @title T token
+/// @notice Threshold Network T token.
 contract T is ERC20WithPermit {
-
     /// @notice A checkpoint for marking number of votes from a given block.
     struct Checkpoint {
         uint32 fromBlock;
@@ -53,7 +54,6 @@ contract T is ERC20WithPermit {
         return delegate(msg.sender, delegatee);
     }
 
-    
     /// @notice Delegates votes from signatory to `delegatee`
     /// @param delegatee The address to delegate votes to
     /// @param deadline The time at which to expire the signature
@@ -105,7 +105,6 @@ contract T is ERC20WithPermit {
         return delegate(signatory, delegatee);
     }
 
-    
     /// @notice Gets the current votes balance for `account`.
     /// @param account The address to get votes balance
     /// @return The number of current votes for `account`
@@ -165,6 +164,15 @@ contract T is ERC20WithPermit {
         address to,
         uint256 amount
     ) internal override {
+        // Does not allow to mint more than uin96 can fit. Otherwise, the
+        // Checkpoint might not fit the balance.
+        if (from == address(0)) {
+            require(
+                totalSupply + amount <= type(uint96).max,
+                "Maximum total supply exceeded"
+            );
+        }
+
         moveDelegates(
             delegates[from],
             delegates[to],
@@ -243,7 +251,7 @@ contract T is ERC20WithPermit {
         pure
         returns (uint32)
     {
-        require(n < 2**32, errorMessage);
+        require(n < type(uint32).max, errorMessage);
         return uint32(n);
     }
 
@@ -252,7 +260,7 @@ contract T is ERC20WithPermit {
         pure
         returns (uint96)
     {
-        require(n < 2**96, errorMessage);
+        require(n < type(uint96).max, errorMessage);
         return uint96(n);
     }
 }

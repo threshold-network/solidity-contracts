@@ -5,6 +5,7 @@ const {
   lastBlockNumber,
   lastBlockTime,
   ZERO_ADDRESS,
+  MAX_UINT96,
 } = require("../helpers/contract-test-helpers")
 
 describe("T token", () => {
@@ -678,6 +679,26 @@ describe("T token", () => {
   })
 
   describe("mint", () => {
+    context("when trying to mint more than the checkpoint can store", () => {
+      context("in one step", () => {
+        it("should revert", async () => {
+          await expect(
+            t.connect(deployer).mint(thirdParty.address, MAX_UINT96)
+          ).to.be.revertedWith("Maximum total supply exceeded")
+        })
+      })
+
+      context("in multiple steps", () => {
+        it("should revert", async () => {
+          await t.connect(deployer).mint(thirdParty.address, MAX_UINT96.div(3))
+          await t.connect(deployer).mint(thirdParty.address, MAX_UINT96.div(3))
+          await expect(
+            t.connect(deployer).mint(thirdParty.address, MAX_UINT96.div(3))
+          ).to.be.revertedWith("Maximum total supply exceeded")
+        })
+      })
+    })
+
     context("when no delegation was done", () => {
       it("should keep current votes at zero", async () => {
         await t.connect(deployer).mint(thirdParty.address, initialBalance)
