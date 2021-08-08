@@ -1,16 +1,36 @@
 const { expect } = require("chai")
-const { to1e18 } = require("../helpers/contract-test-helpers")
+const { to1e18, to1ePrecision } = require("../helpers/contract-test-helpers")
 
 describe("VendingMachine", () => {
   let wrappedToken
   let tToken
 
-  const floatingPointDivisor = to1e18(1)
+  const floatingPointDivisor = to1ePrecision(1, 15)
   const tAllocation = to1e18("4500000000") // 4.5 Billion
   const maxWrappedTokens = to1e18("1100000000") // 1.1 Billion
   const expectedRatio = floatingPointDivisor
     .mul(tAllocation)
     .div(maxWrappedTokens)
+
+  function convertToT(amount) {
+    amount = ethers.BigNumber.from(amount)
+    const wrappedRemainder = amount.mod(floatingPointDivisor)
+    amount = amount.sub(wrappedRemainder)
+    return {
+      result: amount.mul(expectedRatio).div(floatingPointDivisor),
+      remainder: wrappedRemainder,
+    }
+  }
+
+  function convertFromT(amount) {
+    amount = ethers.BigNumber.from(amount)
+    const tRemainder = amount.mod(expectedRatio)
+    amount = amount.sub(tRemainder)
+    return {
+      result: amount.mul(floatingPointDivisor).div(expectedRatio),
+      remainder: tRemainder,
+    }
+  }
 
   let vendingMachine
 
@@ -48,7 +68,7 @@ describe("VendingMachine", () => {
   describe("wrap", () => {
     context("when caller has no wrapped tokens", () => {
       it("should revert", async () => {
-        const amount = 1
+        const amount = to1e18(42)
         await wrappedToken
           .connect(thirdParty)
           .approve(vendingMachine.address, amount)
@@ -58,9 +78,9 @@ describe("VendingMachine", () => {
       })
     })
 
-    context("when token holder has not enough wrapped tokens", () => {
+    context("when tokenholder has not enough wrapped tokens", () => {
       it("should revert", async () => {
-        const amount = initialHolderBalance.add(1)
+        const amount = initialHolderBalance.add(to1e18(42))
         await wrappedToken
           .connect(tokenHolder)
           .approve(vendingMachine.address, amount)
@@ -73,9 +93,7 @@ describe("VendingMachine", () => {
     context("when token holder has enough wrapped tokens", () => {
       context("when wrapping entire allowance", () => {
         const amount = initialHolderBalance
-        const expectedNewBalance = amount
-          .mul(expectedRatio)
-          .div(floatingPointDivisor)
+        const expectedNewBalance = convertToT(amount).result
         const expectedRemaining = tAllocation.sub(expectedNewBalance)
         let tx
 
@@ -117,9 +135,7 @@ describe("VendingMachine", () => {
 
       context("when wrapping part of the allowance", () => {
         const amount = to1e18(1)
-        const expectedNewBalance = amount
-          .mul(expectedRatio)
-          .div(floatingPointDivisor)
+        const expectedNewBalance = convertToT(amount).result
         const expectedRemaining = tAllocation.sub(expectedNewBalance)
         let tx
 
@@ -191,9 +207,7 @@ describe("VendingMachine", () => {
 
     context("when called via wrapped token's approveAndCall", () => {
       const amount = to1e18(2)
-      const expectedNewBalance = amount
-        .mul(expectedRatio)
-        .div(floatingPointDivisor)
+      const expectedNewBalance = convertToT(amount).result
       const expectedRemaining = tAllocation.sub(expectedNewBalance)
       let tx
 
@@ -231,7 +245,7 @@ describe("VendingMachine", () => {
 
   describe("unwrap", () => {
     const wrappedAmount = to1e18(3)
-    const tAmount = wrappedAmount.mul(expectedRatio).div(floatingPointDivisor)
+    const tAmount = convertToT(wrappedAmount).result
 
     beforeEach(async () => {
       await wrappedToken
@@ -242,23 +256,23 @@ describe("VendingMachine", () => {
 
     context("when caller has no T tokens", () => {
       it("should revert", async () => {
-        const amount = 1
+        const amount = convertToT(to1e18(1)).result
         await tToken.connect(thirdParty).approve(vendingMachine.address, amount)
         await expect(
           vendingMachine.connect(thirdParty).unwrap(amount)
-        ).to.be.revertedWith("Transfer amount exceeds balance")
+        ).to.be.revertedWith("Can not unwrap more than previously wrapped")
       })
     })
 
     context("when token holder has not enough T tokens", () => {
       it("should revert", async () => {
-        const amount = tAmount.add(1)
+        const amount = tAmount.add(to1e18(42))
         await tToken
           .connect(tokenHolder)
           .approve(vendingMachine.address, amount)
         await expect(
           vendingMachine.connect(tokenHolder).unwrap(amount)
-        ).to.be.revertedWith("Transfer amount exceeds balance")
+        ).to.be.revertedWith("Can not unwrap more than previously wrapped")
       })
     })
 
@@ -316,10 +330,11 @@ describe("VendingMachine", () => {
 
       context("when unwrapping part of what was previously wrapped", () => {
         context("when unwrapping entire allowance", () => {
-          const tAmount2 = to1e18(2)
-          const wrappedAmount2 = tAmount2
-            .mul(floatingPointDivisor)
-            .div(expectedRatio)
+          let tAmount2 = to1e18(2)
+          const conversion = convertFromT(tAmount2)
+          const wrappedAmount2 = conversion.result
+          tAmount2 = tAmount2.sub(conversion.remainder)
+
           const allocationLeft = tAllocation.sub(tAmount).add(tAmount2)
           const holderTBalance = tAmount.sub(tAmount2)
           let tx
@@ -363,10 +378,10 @@ describe("VendingMachine", () => {
         })
 
         context("when unwrapping part of the allowance", () => {
-          const tAmount2 = to1e18(1)
-          const wrappedAmount2 = tAmount2
-            .mul(floatingPointDivisor)
-            .div(expectedRatio)
+          let tAmount2 = to1e18(1)
+          const conversion = convertFromT(tAmount2)
+          const wrappedAmount2 = conversion.result
+          tAmount2 = tAmount2.sub(conversion.remainder)
 
           beforeEach(async () => {
             await tToken
