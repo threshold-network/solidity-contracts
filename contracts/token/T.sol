@@ -7,36 +7,38 @@ import "@thesis/solidity-contracts/contracts/token/ERC20WithPermit.sol";
 import "hardhat/console.sol";
 
 contract T is ERC20WithPermit {
-    /// @notice A checkpoint for marking number of votes from a given block
+
+    /// @notice A checkpoint for marking number of votes from a given block.
     struct Checkpoint {
         uint32 fromBlock;
         uint96 votes;
     }
 
-    /// @notice A record of each accounts delegate
+    /// @notice A record of each account's delegate.
     mapping(address => address) public delegates;
 
-    /// @notice A record of votes checkpoints for each account, by index
+    /// @notice A record of votes checkpoints for each account, by index.
     mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
 
-    /// @notice The number of checkpoints for each account
+    /// @notice The number of checkpoints for each account.
     mapping(address => uint32) public numCheckpoints;
 
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    // keccak256("Delegation(address delegatee,uint256 nonce,uint256 deadline)");
+    /// @notice The EIP-712 typehash for the delegation struct used by
+    ///         `delegateBySig`.
     bytes32 public constant DELEGATION_TYPEHASH =
         keccak256(
             "Delegation(address delegatee,uint256 nonce,uint256 deadline)"
         );
 
-    /// @notice An event thats emitted when an account changes its delegate
+    /// @notice An event emitted when an account changes its delegate.
     event DelegateChanged(
         address indexed delegator,
         address indexed fromDelegate,
         address indexed toDelegate
     );
 
-    /// @notice An event thats emitted when a delegatee account's vote balance changes
+    /// @notice An event emitted when a delegatee account's vote balance
+    ///         changes.
     event DelegateVotesChanged(
         address indexed delegatee,
         uint256 previousBalance,
@@ -45,22 +47,19 @@ contract T is ERC20WithPermit {
 
     constructor() ERC20WithPermit("Threshold Network Token", "T") {}
 
-    /**
-     * @notice Delegate votes from `msg.sender` to `delegatee`
-     * @param delegatee The address to delegate votes to
-     */
+    /// @notice Delegate votes from `msg.sender` to `delegatee`.
+    /// @param delegatee The address to delegate votes to
     function delegate(address delegatee) external {
-        return _delegate(msg.sender, delegatee);
+        return delegate(msg.sender, delegatee);
     }
 
-    /**
-     * @notice Delegates votes from signatory to `delegatee`
-     * @param delegatee The address to delegate votes to
-     * @param deadline The time at which to expire the signature
-     * @param v The recovery byte of the signature
-     * @param r Half of the ECDSA signature pair
-     * @param s Half of the ECDSA signature pair
-     */
+    
+    /// @notice Delegates votes from signatory to `delegatee`
+    /// @param delegatee The address to delegate votes to
+    /// @param deadline The time at which to expire the signature
+    /// @param v The recovery byte of the signature
+    /// @param r Half of the ECDSA signature pair
+    /// @param s Half of the ECDSA signature pair
     function delegateBySig(
         address signatory,
         address delegatee,
@@ -103,27 +102,26 @@ contract T is ERC20WithPermit {
             "Invalid signature"
         );
 
-        return _delegate(signatory, delegatee);
+        return delegate(signatory, delegatee);
     }
 
-    /**
-     * @notice Gets the current votes balance for `account`
-     * @param account The address to get votes balance
-     * @return The number of current votes for `account`
-     */
+    
+    /// @notice Gets the current votes balance for `account`.
+    /// @param account The address to get votes balance
+    /// @return The number of current votes for `account`
     function getCurrentVotes(address account) external view returns (uint96) {
         uint32 nCheckpoints = numCheckpoints[account];
         return
             nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
     }
 
-    /**
-     * @notice Determine the prior number of votes for an account as of a block number
-     * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
-     * @param account The address of the account to check
-     * @param blockNumber The block number to get the vote balance at
-     * @return The number of votes the account had as of the given block
-     */
+    /// @notice Determine the prior number of votes for an account as of
+    ///         a block number.
+    /// @dev Block number must be a finalized block or else this function will
+    ///      revert to prevent misinformation.
+    /// @param account The address of the account to check
+    /// @param blockNumber The block number to get the vote balance at
+    /// @return The number of votes the account had as of the given block
     function getPriorVotes(address account, uint256 blockNumber)
         external
         view
@@ -167,14 +165,14 @@ contract T is ERC20WithPermit {
         address to,
         uint256 amount
     ) internal override {
-        _moveDelegates(
+        moveDelegates(
             delegates[from],
             delegates[to],
             safe96(amount, "Transfer amount overflows")
         );
     }
 
-    function _delegate(address delegator, address delegatee) internal {
+    function delegate(address delegator, address delegatee) internal {
         address currentDelegate = delegates[delegator];
         uint96 delegatorBalance = safe96(
             balanceOf[delegator],
@@ -184,10 +182,10 @@ contract T is ERC20WithPermit {
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
 
-        _moveDelegates(currentDelegate, delegatee, delegatorBalance);
+        moveDelegates(currentDelegate, delegatee, delegatorBalance);
     }
 
-    function _moveDelegates(
+    function moveDelegates(
         address srcRep,
         address dstRep,
         uint96 amount
@@ -199,7 +197,7 @@ contract T is ERC20WithPermit {
                     ? checkpoints[srcRep][srcRepNum - 1].votes
                     : 0;
                 uint96 srcRepNew = srcRepOld - amount;
-                _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
+                writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
             }
 
             if (dstRep != address(0)) {
@@ -208,12 +206,12 @@ contract T is ERC20WithPermit {
                     ? checkpoints[dstRep][dstRepNum - 1].votes
                     : 0;
                 uint96 dstRepNew = dstRepOld + amount;
-                _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
+                writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
             }
         }
     }
 
-    function _writeCheckpoint(
+    function writeCheckpoint(
         address delegatee,
         uint32 nCheckpoints,
         uint96 oldVotes,
