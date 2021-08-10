@@ -33,6 +33,6 @@
     "typescript": "^4.3.2"
   },
   "dependencies": {
-    "@thesis/solidity-contracts": "github:thesis/solidity-contracts#33ff630"
+    "@thesis/solidity-contracts": "github:thesis/solidity-contracts#a004e2f"
   }
 }

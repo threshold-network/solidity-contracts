@@ -3,10 +3,11 @@
 pragma solidity 0.8.4;
 
 import "@thesis/solidity-contracts/contracts/token/ERC20WithPermit.sol";
+import "@thesis/solidity-contracts/contracts/token/MisfundRecovery.sol";
 
 /// @title T token
 /// @notice Threshold Network T token.
-contract T is ERC20WithPermit {
+contract T is ERC20WithPermit, MisfundRecovery {
     /// @notice A checkpoint for marking number of votes from a given block.
     struct Checkpoint {
         uint32 fromBlock;
@@ -158,7 +159,7 @@ contract T is ERC20WithPermit {
     }
 
     // slither-disable-next-line dead-code
-    function _beforeTokenTransfer(
+    function beforeTokenTransfer(
         address from,
         address to,
         uint256 amount

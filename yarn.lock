@@ -722,9 +722,9 @@
   dependencies:
     defer-to-connect "^1.0.1"
 
-"@thesis/solidity-contracts@github:thesis/solidity-contracts#33ff630":
+"@thesis/solidity-contracts@github:thesis/solidity-contracts#a004e2f":
   version "0.0.1"
-  resolved "https://codeload.github.com/thesis/solidity-contracts/tar.gz/33ff63015593363479f69755034d4b40b3f2ed8f"
+  resolved "https://codeload.github.com/thesis/solidity-contracts/tar.gz/a004e2f927d9bc3a65082654ed735dbc17dc6158"
   dependencies:
     "@openzeppelin/contracts" "^4.1.0"
 
