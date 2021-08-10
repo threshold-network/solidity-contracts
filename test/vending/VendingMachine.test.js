@@ -65,6 +65,20 @@ describe("VendingMachine", () => {
     await wrappedToken.mint(tokenHolder.address, initialHolderBalance)
   })
 
+  describe("setup", () => {
+    context("once deployed", () => {
+      it("token contract addresses should be correct", async () => {
+        expect(await vendingMachine.tToken()).to.equal(tToken.address)
+        expect(await vendingMachine.wrappedToken()).to.equal(
+          wrappedToken.address
+        )
+      })
+      it("conversion ratio was computed correctly", async () => {
+        expect(await vendingMachine.ratio()).to.equal(expectedRatio)
+      })
+    })
+  })
+
   describe("wrap", () => {
     context("when caller has no wrapped tokens", () => {
       it("should revert", async () => {
