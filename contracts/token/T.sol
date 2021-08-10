@@ -4,8 +4,6 @@ pragma solidity 0.8.4;
 
 import "@thesis/solidity-contracts/contracts/token/ERC20WithPermit.sol";
 
-import "hardhat/console.sol";
-
 /// @title T token
 /// @notice Threshold Network T token.
 contract T is ERC20WithPermit {
