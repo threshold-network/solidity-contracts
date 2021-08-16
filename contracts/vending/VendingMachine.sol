@@ -174,6 +174,7 @@ contract VendingMachine is IReceiveApproval {
             wrappedTokenAmount
         );
         wrappedTokenAmount -= remainder;
+        require(wrappedTokenAmount > 0, "Disallow conversions of zero value");
         emit Wrapped(tokenHolder, wrappedTokenAmount, tTokenAmount);
 
         wrappedBalance[tokenHolder] += wrappedTokenAmount;
@@ -190,6 +191,7 @@ contract VendingMachine is IReceiveApproval {
             tTokenAmount
         );
         tTokenAmount -= remainder;
+        require(tTokenAmount > 0, "Disallow conversions of zero value");
         require(
             wrappedBalance[tokenHolder] >= wrappedTokenAmount,
             "Can not unwrap more than previously wrapped"

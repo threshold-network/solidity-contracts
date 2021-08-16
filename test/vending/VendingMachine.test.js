@@ -110,6 +110,18 @@ describe("VendingMachine", () => {
       })
     })
 
+    context("when conversion amount results in 0 tokens", () => {
+      it("should revert", async () => {
+        const amount = 1
+        await wrappedToken
+          .connect(tokenHolder)
+          .approve(vendingMachine.address, amount)
+        await expect(
+          vendingMachine.connect(tokenHolder).wrap(amount)
+        ).to.be.revertedWith("Disallow conversions of zero value")
+      })
+    })
+
     context("when token holder has enough wrapped tokens", () => {
       context("when wrapping entire allowance", () => {
         const amount = initialHolderBalance
