@@ -78,12 +78,12 @@ contract VendingMachine is IReceiveApproval {
     ///        Machine will receive
     /// @dev Multiplications in this contract can't overflow uint256 as we
     ///     restrict `_wrappedTokenAllocation` and `_tTokenAllocation` to
-    ///     192 bits and FLOATING_POINT_DIVISOR fits in less than 60 bits.
+    ///     96 bits and FLOATING_POINT_DIVISOR fits in less than 60 bits.
     constructor(
         IERC20 _wrappedToken,
         T _tToken,
-        uint192 _wrappedTokenAllocation,
-        uint192 _tTokenAllocation
+        uint96 _wrappedTokenAllocation,
+        uint96 _tTokenAllocation
     ) {
         require(
             _tToken.totalSupply() >= _tTokenAllocation &&
