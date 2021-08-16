@@ -88,7 +88,7 @@ describe("VendingMachine", () => {
   describe("wrap", () => {
     context("when caller has no wrapped tokens", () => {
       it("should revert", async () => {
-        const amount = to1e18(42)
+        const amount = to1e18(1)
         await wrappedToken
           .connect(thirdParty)
           .approve(vendingMachine.address, amount)
@@ -100,7 +100,7 @@ describe("VendingMachine", () => {
 
     context("when tokenholder has not enough wrapped tokens", () => {
       it("should revert", async () => {
-        const amount = initialHolderBalance.add(to1e18(42))
+        const amount = initialHolderBalance.add(to1e18(1))
         await wrappedToken
           .connect(tokenHolder)
           .approve(vendingMachine.address, amount)
@@ -213,7 +213,7 @@ describe("VendingMachine", () => {
         "when wrapping an amount that isn't exact for the conversion ratio",
         () => {
           const convertibleAmount = to1e18(1)
-          const amount = convertibleAmount.add(42)
+          const amount = convertibleAmount.add(1)
           const expectedNewBalance = convertToT(amount).result
           const expectedRemaining = tAllocation.sub(expectedNewBalance)
           let tx
@@ -350,7 +350,7 @@ describe("VendingMachine", () => {
 
     context("when token holder has not enough T tokens", () => {
       it("should revert", async () => {
-        const amount = tAmount.add(to1e18(42))
+        const amount = tAmount.add(to1e18(1))
         await tToken
           .connect(tokenHolder)
           .approve(vendingMachine.address, amount)
