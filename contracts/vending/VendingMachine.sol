@@ -26,7 +26,9 @@ contract VendingMachine is IReceiveApproval {
     /// @notice Number of decimal places of precision in conversion to/from
     ///         wrapped tokens (assuming typical ERC20 token with 18 decimals).
     ///         This implies that amounts of wrapped tokens below this precision
-    ///         won't take part in the conversion.
+    ///         won't take part in the conversion. E.g., for a value of 3, then
+    ///         for a conversion of 1.123456789 wrapped tokens, only 1.123 is
+    ///         convertible (i.e., 3 decimal places), and 0.000456789 is left.
     uint256 public constant WRAPPED_TOKEN_CONVERSION_PRECISION = 3;
 
     /// @notice Divisor for precision purposes, used to represent fractions.
