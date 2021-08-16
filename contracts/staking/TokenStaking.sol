@@ -25,7 +25,7 @@ contract TokenStaking is Ownable {
         uint256 startUnstakingTimestamp;
     }
 
-    struct Allocation {
+    struct StakerAllocation {
         uint256 allocatedOverall;
         mapping (address => uint256) allocatedPerApp;
     }
@@ -41,7 +41,8 @@ contract TokenStaking is Ownable {
     
     mapping (address => TStakeInfo) public stakers;
     
-    mapping (address => mapping (StakingProvider => Allocation)) public allocationsPerStaker;
+    mapping (address => mapping (StakingProvider => StakerAllocation)) public allocationsPerStaker;
+    mapping (address => uint256) public allocationsPerApp;
     mapping (address => mapping (StakingProvider => bool)) public appAvailability;
 
     
@@ -150,8 +151,8 @@ contract TokenStaking is Ownable {
     function getFullStakeInfo(address staker, StakingProvider stakingProvider) 
         public view returns (StakeStatus status, uint256 tValue, uint256 freeTValue) {
         (status, tValue) = getStakeInfo(staker, stakingProvider);
-        Allocation storage allocation = allocationsPerStaker[staker][stakingProvider];
-        freeTValue = allocation.allocatedOverall <= tValue ? allocation.allocatedOverall - tValue : 0;
+        StakerAllocation storage stakerAllocation = allocationsPerStaker[staker][stakingProvider];
+        freeTValue = stakerAllocation.allocatedOverall <= tValue ? stakerAllocation.allocatedOverall - tValue : 0;
     }
 
     /// @notice Returns available amount from staking provider to allocate to the specified application
@@ -189,18 +190,42 @@ contract TokenStaking is Ownable {
         address staker, 
         address app
     ) public view returns (uint256 allocated) {
-        allocated = allocationsPerStaker[staker][StakingProvider.KEEP].allocatedPerApp[app];
-        allocated += allocationsPerStaker[staker][StakingProvider.NU].allocatedPerApp[app];
-        allocated += allocationsPerStaker[staker][StakingProvider.T].allocatedPerApp[app];
+        allocated = getAllocated(staker, app, StakingProvider.KEEP);
+        allocated += getAllocated(staker, app, StakingProvider.NU);
+        allocated += getAllocated(staker, app, StakingProvider.T);
+    }
+
+    /// @notice Returns allocated amount to the specified application per staker
+    function getAllocated(
+        address[] memory stakersSet, 
+        address app
+    ) public view returns (uint256[] memory allocated) {
+        allocated = new uint256[](stakersSet.length);
+        for (uint256 i = 0; i < stakersSet.length; i++) {
+            address staker = stakersSet[i];
+            allocated[i] = getAllocated(staker, app);
+        }
     }
 
     /// @notice Allocate part of stake for the specified application
     function allocate(address app, uint256 amount, StakingProvider stakingProvider) external {
         uint256 availableTValue = getAvailableAmount(msg.sender, app, stakingProvider);
         require(availableTValue >= amount);
-        Allocation storage allocation = allocationsPerStaker[msg.sender][stakingProvider];
-        allocation.allocatedOverall += amount;
-        allocation.allocatedPerApp[app] += amount;
+        StakerAllocation storage stakerAllocation = allocationsPerStaker[msg.sender][stakingProvider];
+        stakerAllocation.allocatedOverall += amount;
+        stakerAllocation.allocatedPerApp[app] += amount;
+        allocationsPerApp[app] += amount;
+    }
+
+    /// @notice Cancel allocation of stake for the specified application
+    function cancelAllocation(address app, StakingProvider stakingProvider) public {
+        // TODO restrictions? same as unstaking?
+        StakerAllocation storage stakerAllocation = allocationsPerStaker[msg.sender][stakingProvider];
+        uint256 amount = stakerAllocation.allocatedPerApp[app];
+        require(amount > 0);
+        stakerAllocation.allocatedOverall -= amount;
+        stakerAllocation.allocatedPerApp[app] = 0;
+        allocationsPerApp[app] -= amount;
     }
 
     /// @notice Enable/disable application for the specified staking providers
