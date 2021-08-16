@@ -50,6 +50,11 @@ describe("VendingMachine", () => {
     tToken = await T.deploy()
     await tToken.deployed()
 
+    let auxiliaryAccount
+    ;[tokenHolder, thirdParty, auxiliaryAccount] = await ethers.getSigners()
+    await tToken.mint(auxiliaryAccount.address, tAllocation)
+    await wrappedToken.mint(auxiliaryAccount.address, maxWrappedTokens)
+
     const VendingMachine = await ethers.getContractFactory("VendingMachine")
     vendingMachine = await VendingMachine.deploy(
       wrappedToken.address,
@@ -58,11 +63,12 @@ describe("VendingMachine", () => {
       tAllocation
     )
     await vendingMachine.deployed()
-
-    // VendingMachine receives 4.5 Billion T upon deployment
-    await tToken.mint(vendingMachine.address, tAllocation)
-    ;[tokenHolder, thirdParty] = await ethers.getSigners()
-    await wrappedToken.mint(tokenHolder.address, initialHolderBalance)
+    await tToken
+      .connect(auxiliaryAccount)
+      .transfer(vendingMachine.address, tAllocation)
+    await wrappedToken
+      .connect(auxiliaryAccount)
+      .transfer(tokenHolder.address, initialHolderBalance)
   })
 
   describe("setup", () => {

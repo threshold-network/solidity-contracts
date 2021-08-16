@@ -67,27 +67,32 @@ contract VendingMachine is IReceiveApproval {
 
     /// @notice Sets the reference to `wrappedToken` and `tToken`. Initializes
     ///         conversion `ratio` between wrapped token and T based on the
-    ///         provided `_tTokenAllocation` and `_wrappedTokenSupply`.
+    ///         provided `_tTokenAllocation` and `_wrappedTokenAllocation`.
     /// @param _wrappedToken Address to ERC20 token that will be wrapped to T
     /// @param _tToken Address of T token
-    /// @param _wrappedTokenSupply The total supply of the token that will be
+    /// @param _wrappedTokenAllocation The total supply of the token that will be
     ///       wrapped to T
     /// @param _tTokenAllocation The allocation of T this instance of Vending
     ///        Machine will receive
     /// @dev Multiplications in this contract can't overflow uint256 as we
-    ///     restrict `_wrappedTokenSupply` and `_tTokenAllocation` to 192 bits
-    ///     and the value in FLOATING_POINT_DIVISOR fits in less than 60 bits.
+    ///     restrict `_wrappedTokenAllocation` and `_tTokenAllocation` to
+    ///     192 bits and FLOATING_POINT_DIVISOR fits in less than 60 bits.
     constructor(
         IERC20 _wrappedToken,
         T _tToken,
-        uint192 _wrappedTokenSupply,
+        uint192 _wrappedTokenAllocation,
         uint192 _tTokenAllocation
     ) {
+        require(
+            _tToken.totalSupply() >= _tTokenAllocation &&
+                _wrappedToken.totalSupply() >= _wrappedTokenAllocation,
+            "Allocations can't be greater than token supplies"
+        );
         wrappedToken = _wrappedToken;
         tToken = _tToken;
         ratio =
             (FLOATING_POINT_DIVISOR * _tTokenAllocation) /
-            _wrappedTokenSupply;
+            _wrappedTokenAllocation;
     }
 
     /// @notice Wraps up to the the given `amount` of the token (KEEP/NU) and
