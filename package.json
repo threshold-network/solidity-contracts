@@ -31,5 +31,8 @@
     "solhint": "^3.3.6",
     "solhint-config-keep": "github:keep-network/solhint-config-keep",
     "typescript": "^4.3.2"
+  },
+  "dependencies": {
+    "@thesis/solidity-contracts": "github:thesis/solidity-contracts#dc9f223"
   }
 }
