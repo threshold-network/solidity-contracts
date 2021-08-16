@@ -19,7 +19,7 @@ import "../token/T.sol";
 ///         order to go back to the underlying asset. There is a separate
 ///         instance of this contract deployed for KEEP holders and a separate
 ///         instance of this contract deployed for NU holders.
-contract VendingMachine is Ownable, IReceiveApproval {
+contract VendingMachine is IReceiveApproval {
     using SafeERC20 for IERC20;
     using SafeERC20 for T;
 
