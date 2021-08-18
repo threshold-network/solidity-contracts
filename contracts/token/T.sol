@@ -158,7 +158,7 @@ contract T is ERC20WithPermit {
     }
 
     // slither-disable-next-line dead-code
-    function _beforeTokenTransfer(
+    function beforeTokenTransfer(
         address from,
         address to,
         uint256 amount
