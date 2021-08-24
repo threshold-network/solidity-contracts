@@ -4,6 +4,7 @@ pragma solidity 0.8.4;
 
 
 import './IStakingProvider.sol';
+import './IApplication.sol';
 import "../token/T.sol";
 import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -215,17 +216,25 @@ contract TokenStaking is Ownable {
         stakerAllocation.allocatedOverall += amount;
         stakerAllocation.allocatedPerApp[app] += amount;
         allocationsPerApp[app] += amount;
+        sendAllocatonUpdate(msg.sender, app);
     }
 
     /// @notice Cancel allocation of stake for the specified application
-    function cancelAllocation(address app, StakingProvider stakingProvider) public {
+    function cancelAllocation(address app, uint256 amount, StakingProvider stakingProvider) public {
         // TODO restrictions? same as unstaking?
         StakerAllocation storage stakerAllocation = allocationsPerStaker[msg.sender][stakingProvider];
-        uint256 amount = stakerAllocation.allocatedPerApp[app];
+        require(amount <= stakerAllocation.allocatedPerApp[app]);
         require(amount > 0);
         stakerAllocation.allocatedOverall -= amount;
-        stakerAllocation.allocatedPerApp[app] = 0;
+        stakerAllocation.allocatedPerApp[app] -= amount;
         allocationsPerApp[app] -= amount;
+        sendAllocatonUpdate(msg.sender, app);
+    }
+
+    /// @notice Send changes in allocation to an application
+    function sendAllocatonUpdate(address staker, address app) public {
+        uint256 allocated = getAllocated(staker, app);
+        IApplication(app).receiveAllocation(staker, allocated, allocationsPerApp[app]);
     }
 
     /// @notice Enable/disable application for the specified staking providers
