@@ -1,15 +1,13 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 pragma solidity 0.8.4;
 
-
-import './IStakingProvider.sol';
-import './IApplication.sol';
+import "./IStakingProvider.sol";
+import "./IApplication.sol";
 import "../token/T.sol";
 import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
 
 /// @notice Meta staking contract. 3 roles: app, meta staking, app manager
 contract TokenStaking is Ownable {
@@ -17,9 +15,17 @@ contract TokenStaking is Ownable {
 
     // TODO events
 
-    enum StakeStatus{ ELIGIBLE, ACTIVE, INACTIVE }
+    enum StakeStatus {
+        ELIGIBLE,
+        ACTIVE,
+        INACTIVE
+    }
 
-    enum StakingProvider { NU, KEEP, T }
+    enum StakingProvider {
+        NU,
+        KEEP,
+        T
+    }
 
     struct TStakeInfo {
         uint256 value;
@@ -28,7 +34,7 @@ contract TokenStaking is Ownable {
 
     struct StakerAllocation {
         uint256 allocatedOverall;
-        mapping (address => uint256) allocatedPerApp;
+        mapping(address => uint256) allocatedPerApp;
     }
 
     T public immutable token;
@@ -36,17 +42,17 @@ contract TokenStaking is Ownable {
     IStakingProvider public immutable nucypherStakingContract;
     VendingMachine public immutable keepVendingMachine;
     VendingMachine public immutable nucypherVendingMachine;
-    
+
     uint256 public immutable minStakeSize;
     uint256 public immutable minUnstakingDuration;
-    
-    mapping (address => TStakeInfo) public stakers;
-    
-    mapping (address => mapping (StakingProvider => StakerAllocation)) public allocationsPerStaker;
-    mapping (address => uint256) public allocationsPerApp;
-    mapping (address => mapping (StakingProvider => bool)) public appAvailability;
 
-    
+    mapping(address => TStakeInfo) public stakers;
+
+    mapping(address => mapping(StakingProvider => StakerAllocation))
+        public allocationsPerStaker;
+    mapping(address => uint256) public allocationsPerApp;
+    mapping(address => mapping(StakingProvider => bool)) public appAvailability;
+
     /// @param _token Address of T token contract
     /// @param _keepStakingContract Address of Keep staking contract
     /// @param _nucypherStakingContract Address of NuCypher staking contract
@@ -56,7 +62,7 @@ contract TokenStaking is Ownable {
     /// @param _minUnstakingDuration Min unstaking duration (in sec) to be eligible for staking
     constructor(
         T _token,
-        IStakingProvider _keepStakingContract, 
+        IStakingProvider _keepStakingContract,
         IStakingProvider _nucypherStakingContract,
         VendingMachine _keepVendingMachine,
         VendingMachine _nucypherVendingMachine,
@@ -81,166 +87,10 @@ contract TokenStaking is Ownable {
         // TODO send slashing call
     }
 
-    /// @notice Returns stake status for T stake
-    function getStakeStatus(uint256 amount, uint256 unstakingDuration) internal view returns(StakeStatus) {
-        if (amount < minStakeSize || unstakingDuration == 0) {
-            return StakeStatus.INACTIVE;
-        } 
-        if (unstakingDuration < minUnstakingDuration) {
-            return StakeStatus.ACTIVE;
-        }
-        return StakeStatus.ELIGIBLE;
-    }
-
-    /// @notice Returns stake info for NU, Keep or T staker
-    function getStakeInfo(address staker, StakingProvider stakingProvider) 
-        public view returns(StakeStatus status, uint256 tValue) {
-
-        uint256 stakeAmount;
-        uint256 unstakingDuration;
-        if (stakingProvider == StakingProvider.KEEP) {
-            (stakeAmount, unstakingDuration) = keepStakingContract.getStakeInfo(staker); 
-            tValue = keepVendingMachine.conversionToT(stakeAmount);
-        } else if (stakingProvider == StakingProvider.NU) {
-            (stakeAmount, unstakingDuration) = nucypherStakingContract.getStakeInfo(staker); 
-            tValue = nucypherVendingMachine.conversionToT(stakeAmount);
-        } else {
-            (tValue, unstakingDuration) = getTStakeInfo(staker);
-        }
-        status = getStakeStatus(tValue, unstakingDuration);
-    }
-
-    /// @notice Returns the T staked amount and undelegation duration for `staker`
-    function getTStakeInfo(address staker) public view returns(uint256 tValue, uint256 unstakingDuration) {
-        TStakeInfo storage tStake = stakers[staker];
-        tValue = tStake.value;
-        if (tStake.startUnstakingTimestamp == 0) {
-            unstakingDuration = minUnstakingDuration;
-        } else if (block.timestamp >= tStake.startUnstakingTimestamp) {
-            unstakingDuration = block.timestamp - tStake.startUnstakingTimestamp;
-        } else {
-            unstakingDuration = 0;
-        }
-    }
-
-    /// @notice Depost and stake T tokens
-    function stake(uint256 value) public {
-        require(value > 0);
-        TStakeInfo storage tStake = stakers[msg.sender];
-        require(tStake.startUnstakingTimestamp == 0);
-        tStake.value += value;
-        token.safeTransferFrom(msg.sender, address(this), value);
-    }
-
-    /// @notice Start unstaking process
-    function startUnstaking() external {
-        TStakeInfo storage tStake = stakers[msg.sender];
-        require(tStake.value > 0 && tStake.startUnstakingTimestamp == 0);
-        tStake.startUnstakingTimestamp = block.timestamp;  
-    }
-
-    /// @notice Withdraw tokens after unstaking period is finished
-    function withdraw() external {
-        TStakeInfo storage tStake = stakers[msg.sender];
-        require(tStake.value > 0 && tStake.startUnstakingTimestamp + minUnstakingDuration >= block.timestamp);
-        token.safeTransfer(msg.sender, tStake.value);
-        tStake.value = 0;
-        tStake.startUnstakingTimestamp = 0;
-    }
-
-    /// @notice Stake information for one provider including available amount to allocate 
-    function getFullStakeInfo(address staker, StakingProvider stakingProvider) 
-        public view returns (StakeStatus status, uint256 tValue, uint256 freeTValue) {
-        (status, tValue) = getStakeInfo(staker, stakingProvider);
-        StakerAllocation storage stakerAllocation = allocationsPerStaker[staker][stakingProvider];
-        freeTValue = stakerAllocation.allocatedOverall <= tValue ? stakerAllocation.allocatedOverall - tValue : 0;
-    }
-
-    /// @notice Returns available amount from staking provider to allocate to the specified application
-    function getAvailableAmount(
-        address staker, 
-        address app, 
-        StakingProvider stakingProvider
-    ) public view returns (uint256 tValue) {
-        if (!appAvailability[app][stakingProvider]) {
-            return 0;
-        }
-        (StakeStatus status,, uint256 freeTValue) = getFullStakeInfo(staker, stakingProvider);
-        return status == StakeStatus.ELIGIBLE ? 
-                freeTValue : 0;
-    }
-
-    /// @notice Returns available amount to allocate to the specified application
-    function getAvailableAmount(address staker, address app) public view returns (uint256 tValue) {
-        tValue += getAvailableAmount(staker, app, StakingProvider.KEEP);
-        tValue += getAvailableAmount(staker, app, StakingProvider.NU);
-        tValue += getAvailableAmount(staker, app, StakingProvider.T);
-    }
-
-    /// @notice Returns allocated amount to the specified application from staking provider
-    function getAllocated(
-        address staker, 
-        address app, 
-        StakingProvider stakingProvider
-    ) public view returns (uint256) {
-        return allocationsPerStaker[staker][stakingProvider].allocatedPerApp[app];
-    }
-
-    /// @notice Returns allocated amount to the specified application
-    function getAllocated(
-        address staker, 
-        address app
-    ) public view returns (uint256 allocated) {
-        allocated = getAllocated(staker, app, StakingProvider.KEEP);
-        allocated += getAllocated(staker, app, StakingProvider.NU);
-        allocated += getAllocated(staker, app, StakingProvider.T);
-    }
-
-    /// @notice Returns allocated amount to the specified application per staker
-    function getAllocated(
-        address[] memory stakersSet, 
-        address app
-    ) public view returns (uint256[] memory allocated) {
-        allocated = new uint256[](stakersSet.length);
-        for (uint256 i = 0; i < stakersSet.length; i++) {
-            address staker = stakersSet[i];
-            allocated[i] = getAllocated(staker, app);
-        }
-    }
-
-    /// @notice Allocate part of stake for the specified application
-    function allocate(address app, uint256 amount, StakingProvider stakingProvider) external {
-        uint256 availableTValue = getAvailableAmount(msg.sender, app, stakingProvider);
-        require(availableTValue >= amount);
-        StakerAllocation storage stakerAllocation = allocationsPerStaker[msg.sender][stakingProvider];
-        stakerAllocation.allocatedOverall += amount;
-        stakerAllocation.allocatedPerApp[app] += amount;
-        allocationsPerApp[app] += amount;
-        sendAllocatonUpdate(msg.sender, app);
-    }
-
-    /// @notice Cancel allocation of stake for the specified application
-    function cancelAllocation(address app, uint256 amount, StakingProvider stakingProvider) public {
-        // TODO restrictions? same as unstaking?
-        StakerAllocation storage stakerAllocation = allocationsPerStaker[msg.sender][stakingProvider];
-        require(amount <= stakerAllocation.allocatedPerApp[app]);
-        require(amount > 0);
-        stakerAllocation.allocatedOverall -= amount;
-        stakerAllocation.allocatedPerApp[app] -= amount;
-        allocationsPerApp[app] -= amount;
-        sendAllocatonUpdate(msg.sender, app);
-    }
-
-    /// @notice Send changes in allocation to an application
-    function sendAllocatonUpdate(address staker, address app) public {
-        uint256 allocated = getAllocated(staker, app);
-        IApplication(app).receiveAllocation(staker, allocated, allocationsPerApp[app]);
-    }
-
     /// @notice Enable/disable application for the specified staking providers
     function setApplicationAvailability(
-        address app, 
-        StakingProvider[] calldata stakingProviders, 
+        address app,
+        StakingProvider[] calldata stakingProviders,
         bool availabilty
     ) external onlyOwner {
         for (uint256 i = 0; i < stakingProviders.length; i++) {
@@ -249,4 +99,236 @@ contract TokenStaking is Ownable {
         }
     }
 
+    /// @notice Depost and stake T tokens
+    function stake(uint256 value) external {
+        require(value > 0, "Value to stake must be greater than 0");
+        TStakeInfo storage tStake = stakers[msg.sender];
+        require(
+            tStake.startUnstakingTimestamp == 0,
+            "Unstaking period was already started"
+        );
+        tStake.value += value;
+        token.safeTransferFrom(msg.sender, address(this), value);
+    }
+
+    /// @notice Start unstaking process
+    function startUnstaking() external {
+        TStakeInfo storage tStake = stakers[msg.sender];
+        require(
+            tStake.value > 0 && tStake.startUnstakingTimestamp == 0,
+            "Unstaking was started or nothing to unstake"
+        );
+        /* solhint-disable-next-line not-rely-on-time */
+        tStake.startUnstakingTimestamp = block.timestamp;
+    }
+
+    /// @notice Withdraw tokens after unstaking period is finished
+    function withdraw() external {
+        TStakeInfo storage tStake = stakers[msg.sender];
+        uint256 value = tStake.value;
+        require(
+            value > 0 &&
+                tStake.startUnstakingTimestamp + minUnstakingDuration >=
+                /* solhint-disable-next-line not-rely-on-time */
+                block.timestamp,
+            "Unstaking was not finished or nothing to withdraw"
+        );
+        tStake.value = 0;
+        tStake.startUnstakingTimestamp = 0;
+        token.safeTransfer(msg.sender, value);
+    }
+
+    /// @notice Allocate part of stake for the specified application
+    function allocate(
+        address app,
+        uint256 amount,
+        StakingProvider stakingProvider
+    ) external {
+        uint256 availableTValue = getAvailableAmount(
+            msg.sender,
+            app,
+            stakingProvider
+        );
+        require(availableTValue >= amount, "Not enough stake to allocate");
+        StakerAllocation storage stakerAllocation = allocationsPerStaker[
+            msg.sender
+        ][stakingProvider];
+        stakerAllocation.allocatedOverall += amount;
+        stakerAllocation.allocatedPerApp[app] += amount;
+        allocationsPerApp[app] += amount;
+        sendAllocatonUpdate(msg.sender, app);
+    }
+
+    /// @notice Cancel allocation of stake for the specified application
+    function cancelAllocation(
+        address app,
+        uint256 amount,
+        StakingProvider stakingProvider
+    ) external {
+        // TODO restrictions? same as unstaking?
+        StakerAllocation storage stakerAllocation = allocationsPerStaker[
+            msg.sender
+        ][stakingProvider];
+        require(
+            amount <= stakerAllocation.allocatedPerApp[app],
+            "Allocated less than requested"
+        );
+        require(
+            amount > 0,
+            "Value to cancel allocation must be greater than 0"
+        );
+        stakerAllocation.allocatedOverall -= amount;
+        stakerAllocation.allocatedPerApp[app] -= amount;
+        allocationsPerApp[app] -= amount;
+        sendAllocatonUpdate(msg.sender, app);
+    }
+
+    /// @notice Returns available amount to allocate to the specified application
+    function getAvailableAmount(address staker, address app)
+        external
+        view
+        returns (uint256 tValue)
+    {
+        tValue += getAvailableAmount(staker, app, StakingProvider.KEEP);
+        tValue += getAvailableAmount(staker, app, StakingProvider.NU);
+        tValue += getAvailableAmount(staker, app, StakingProvider.T);
+    }
+
+    /// @notice Returns allocated amount to the specified application per staker
+    function getAllocated(address[] memory stakersSet, address app)
+        external
+        view
+        returns (uint256[] memory allocated)
+    {
+        allocated = new uint256[](stakersSet.length);
+        for (uint256 i = 0; i < stakersSet.length; i++) {
+            address staker = stakersSet[i];
+            allocated[i] = getAllocated(staker, app);
+        }
+    }
+
+    /// @notice Stake information for one provider including available amount to allocate
+    function getFullStakeInfo(address staker, StakingProvider stakingProvider)
+        public
+        view
+        returns (
+            StakeStatus status,
+            uint256 tValue,
+            uint256 freeTValue
+        )
+    {
+        (status, tValue) = getStakeInfo(staker, stakingProvider);
+        StakerAllocation storage stakerAllocation = allocationsPerStaker[
+            staker
+        ][stakingProvider];
+        freeTValue = stakerAllocation.allocatedOverall <= tValue
+            ? stakerAllocation.allocatedOverall - tValue
+            : 0;
+    }
+
+    /// @notice Returns available amount from staking provider to allocate to the specified application
+    function getAvailableAmount(
+        address staker,
+        address app,
+        StakingProvider stakingProvider
+    ) public view returns (uint256 tValue) {
+        if (!appAvailability[app][stakingProvider]) {
+            return 0;
+        }
+        (StakeStatus status, , uint256 freeTValue) = getFullStakeInfo(
+            staker,
+            stakingProvider
+        );
+        return status == StakeStatus.ELIGIBLE ? freeTValue : 0;
+    }
+
+    /// @notice Returns allocated amount to the specified application from staking provider
+    function getAllocated(
+        address staker,
+        address app,
+        StakingProvider stakingProvider
+    ) public view returns (uint256) {
+        return
+            allocationsPerStaker[staker][stakingProvider].allocatedPerApp[app];
+    }
+
+    /// @notice Returns allocated amount to the specified application
+    function getAllocated(address staker, address app)
+        public
+        view
+        returns (uint256 allocated)
+    {
+        allocated = getAllocated(staker, app, StakingProvider.KEEP);
+        allocated += getAllocated(staker, app, StakingProvider.NU);
+        allocated += getAllocated(staker, app, StakingProvider.T);
+    }
+
+    /// @notice Returns stake info for NU, Keep or T staker
+    function getStakeInfo(address staker, StakingProvider stakingProvider)
+        public
+        view
+        returns (StakeStatus status, uint256 tValue)
+    {
+        uint256 stakeAmount;
+        uint256 unstakingDuration;
+        if (stakingProvider == StakingProvider.KEEP) {
+            (stakeAmount, unstakingDuration) = keepStakingContract.getStakeInfo(
+                staker
+            );
+            (tValue, ) = keepVendingMachine.conversionToT(stakeAmount);
+        } else if (stakingProvider == StakingProvider.NU) {
+            (stakeAmount, unstakingDuration) = nucypherStakingContract
+                .getStakeInfo(staker);
+            (tValue, ) = nucypherVendingMachine.conversionToT(stakeAmount);
+        } else {
+            (tValue, unstakingDuration) = getTStakeInfo(staker);
+        }
+        status = getStakeStatus(tValue, unstakingDuration);
+    }
+
+    /// @notice Returns the T staked amount and undelegation duration for `staker`
+    function getTStakeInfo(address staker)
+        public
+        view
+        returns (uint256 tValue, uint256 unstakingDuration)
+    {
+        TStakeInfo storage tStake = stakers[staker];
+        tValue = tStake.value;
+        if (tStake.startUnstakingTimestamp == 0) {
+            unstakingDuration = minUnstakingDuration;
+            /* solhint-disable-next-line not-rely-on-time */
+        } else if (block.timestamp >= tStake.startUnstakingTimestamp) {
+            unstakingDuration =
+                /* solhint-disable-next-line not-rely-on-time */
+                block.timestamp -
+                tStake.startUnstakingTimestamp;
+        } else {
+            unstakingDuration = 0;
+        }
+    }
+
+    /// @notice Send changes in allocation to the specified application
+    function sendAllocatonUpdate(address staker, address app) internal {
+        uint256 allocated = getAllocated(staker, app);
+        IApplication(app).receiveAllocation(
+            staker,
+            allocated,
+            allocationsPerApp[app]
+        );
+    }
+
+    /// @notice Returns stake status for T stake
+    function getStakeStatus(uint256 amount, uint256 unstakingDuration)
+        internal
+        view
+        returns (StakeStatus)
+    {
+        if (amount < minStakeSize || unstakingDuration == 0) {
+            return StakeStatus.INACTIVE;
+        }
+        if (unstakingDuration < minUnstakingDuration) {
+            return StakeStatus.ACTIVE;
+        }
+        return StakeStatus.ELIGIBLE;
+    }
 }
