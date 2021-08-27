@@ -17,10 +17,10 @@ interface IStakingProvider {
     function slashStaker(address staker, bytes calldata penaltyData) external;
 
     /**
-     * @dev Returns the locked stake amount and undelegation duration for `staker`
+     * @dev Returns the locked stake amount and unstaking duration for `staker`
      */
     function getStakeInfo(address staker)
         external
         view
-        returns (uint256 stakeAmount, uint256 undelegationDuration);
+        returns (uint256 stakeAmount, uint256 unstakingDuration);
 }

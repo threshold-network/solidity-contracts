@@ -33,7 +33,6 @@ contract TokenStaking is Ownable {
     }
 
     struct StakerAllocation {
-        uint256 allocatedOverall;
         mapping(address => uint256) allocatedPerApp;
     }
 
@@ -48,8 +47,9 @@ contract TokenStaking is Ownable {
 
     mapping(address => TStakeInfo) public stakers;
 
+    // TODO add getters or change type
     mapping(address => mapping(StakingProvider => StakerAllocation))
-        public allocationsPerStaker;
+        private allocationsPerStaker;
     mapping(address => uint256) public allocationsPerApp;
     mapping(address => mapping(StakingProvider => bool)) public appAvailability;
 
@@ -153,7 +153,6 @@ contract TokenStaking is Ownable {
         StakerAllocation storage stakerAllocation = allocationsPerStaker[
             msg.sender
         ][stakingProvider];
-        stakerAllocation.allocatedOverall += amount;
         stakerAllocation.allocatedPerApp[app] += amount;
         allocationsPerApp[app] += amount;
         sendAllocatonUpdate(msg.sender, app);
@@ -177,7 +176,6 @@ contract TokenStaking is Ownable {
             amount > 0,
             "Value to cancel allocation must be greater than 0"
         );
-        stakerAllocation.allocatedOverall -= amount;
         stakerAllocation.allocatedPerApp[app] -= amount;
         allocationsPerApp[app] -= amount;
         sendAllocatonUpdate(msg.sender, app);
@@ -208,21 +206,25 @@ contract TokenStaking is Ownable {
     }
 
     /// @notice Stake information for one provider including available amount to allocate
-    function getFullStakeInfo(address staker, StakingProvider stakingProvider)
+    function getFullStakeInfo(
+        address staker,
+        address app,
+        StakingProvider stakingProvider
+    )
         public
         view
         returns (
             StakeStatus status,
             uint256 tValue,
-            uint256 freeTValue
+            uint256 availableTValue
         )
     {
         (status, tValue) = getStakeInfo(staker, stakingProvider);
         StakerAllocation storage stakerAllocation = allocationsPerStaker[
             staker
         ][stakingProvider];
-        freeTValue = stakerAllocation.allocatedOverall <= tValue
-            ? stakerAllocation.allocatedOverall - tValue
+        availableTValue = stakerAllocation.allocatedPerApp[app] <= tValue
+            ? tValue - stakerAllocation.allocatedPerApp[app]
             : 0;
     }
 
@@ -235,11 +237,12 @@ contract TokenStaking is Ownable {
         if (!appAvailability[app][stakingProvider]) {
             return 0;
         }
-        (StakeStatus status, , uint256 freeTValue) = getFullStakeInfo(
+        (StakeStatus status, , uint256 availableTValue) = getFullStakeInfo(
             staker,
+            app,
             stakingProvider
         );
-        return status == StakeStatus.ELIGIBLE ? freeTValue : 0;
+        return status == StakeStatus.ELIGIBLE ? availableTValue : 0;
     }
 
     /// @notice Returns allocated amount to the specified application from staking provider
@@ -286,7 +289,7 @@ contract TokenStaking is Ownable {
         status = getStakeStatus(tValue, unstakingDuration);
     }
 
-    /// @notice Returns the T staked amount and undelegation duration for `staker`
+    /// @notice Returns the T staked amount and unstaking duration for `staker`
     function getTStakeInfo(address staker)
         public
         view
