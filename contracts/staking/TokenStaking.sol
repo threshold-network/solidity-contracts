@@ -220,20 +220,27 @@ contract TokenStaking is Ownable {
     }
 
     /// @notice Returns available amount of stake to withdraw (not applicable for Keep)
+    /// @dev Result value is in original token denomination
     function getAvailableToWithdraw(
         address staker,
         StakingProvider stakingProvider
-    ) public view returns (uint256 tValue) {
-        if (apps.length == 0) {
-            return tStakers[staker];
-        }
-        tValue = getAvailableToWithdraw(staker, apps[0], stakingProvider);
-        for (uint256 i = 1; i < apps.length; i++) {
+    ) public view returns (uint256 value) {
+        uint256 tStake = getStakeAmount(staker, stakingProvider);
+
+        uint256 tValue = tStake;
+        for (uint256 i = 0; i < apps.length; i++) {
             address app = apps[i];
             tValue = Math.min(
                 tValue,
-                getAvailableToWithdraw(staker, app, stakingProvider)
+                getAvailableToWithdraw(staker, app, stakingProvider, tStake)
             );
+        }
+        if (stakingProvider == StakingProvider.T) {
+            value = tValue;
+        } else if (stakingProvider == StakingProvider.NU) {
+            (value, ) = nucypherVendingMachine.conversionFromT(tValue);
+        } else {
+            (value, ) = keepVendingMachine.conversionFromT(tValue);
         }
     }
 
@@ -247,7 +254,7 @@ contract TokenStaking is Ownable {
             return 0;
         }
 
-        AppAllocation storage appAllocation = allocationsPerStaker[msg.sender][
+        AppAllocation storage appAllocation = allocationsPerStaker[staker][
             stakingProvider
         ][app];
         /* solhint-disable-next-line not-rely-on-time */
@@ -398,10 +405,10 @@ contract TokenStaking is Ownable {
     function getAvailableToWithdraw(
         address staker,
         address app,
-        StakingProvider stakingProvider
+        StakingProvider stakingProvider,
+        uint256 tStake
     ) internal view returns (uint256 availableTValue) {
-        uint256 tValue = getStakeAmount(staker, stakingProvider);
-        AppAllocation storage appAllocation = allocationsPerStaker[msg.sender][
+        AppAllocation storage appAllocation = allocationsPerStaker[staker][
             stakingProvider
         ][app];
         uint256 unavailable = appAllocation.allocated;
@@ -409,6 +416,6 @@ contract TokenStaking is Ownable {
         unavailable += appAllocation.endDeallocation > block.timestamp
             ? appAllocation.deallocated
             : 0;
-        availableTValue = unavailable <= tValue ? tValue - unavailable : 0;
+        availableTValue = unavailable <= tStake ? tStake - unavailable : 0;
     }
 }
