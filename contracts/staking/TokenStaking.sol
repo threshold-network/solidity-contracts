@@ -25,7 +25,7 @@ contract TokenStaking is Ownable {
     struct AppAllocation {
         uint256 allocated;
         uint256 endDeallocation;
-        uint256 deallocated;
+        uint256 deallocating;
     }
 
     struct ApplicationInfo {
@@ -154,31 +154,31 @@ contract TokenStaking is Ownable {
     }
 
     /// @notice Start deallocation process
-    function deallocate() external returns (uint256 deallocated) {
-        deallocated = 0;
+    function deallocate() external returns (uint256 deallocating) {
+        deallocating = 0;
         for (uint256 i = 0; i < apps.length; i++) {
             address app = apps[i];
-            deallocated += _deallocate(app);
+            deallocating += _deallocate(app);
         }
 
-        require(deallocated > 0, "Nothing was allocated");
+        require(deallocating > 0, "Nothing was allocated");
     }
 
     /// @notice Cancel all allocations of stake for the specified application
-    function deallocate(address app) external returns (uint256 deallocated) {
-        deallocated = _deallocate(app);
+    function deallocate(address app) external returns (uint256 deallocating) {
+        deallocating = _deallocate(app);
 
-        require(deallocated > 0, "Nothing was allocated");
+        require(deallocating > 0, "Nothing was allocated");
     }
 
     /// @notice Cancel allocation of stake for the specified application
     function deallocate(address app, StakingProvider stakingProvider)
         external
-        returns (uint256 deallocated)
+        returns (uint256 deallocating)
     {
-        deallocated = _deallocate(app, stakingProvider);
+        deallocating = _deallocate(app, stakingProvider);
 
-        require(deallocated > 0, "Nothing was allocated");
+        require(deallocating > 0, "Nothing was allocated");
 
         sendAllocationUpdate(msg.sender, app);
     }
@@ -220,7 +220,7 @@ contract TokenStaking is Ownable {
     }
 
     /// @notice Returns available amount of stake to withdraw (not applicable for Keep)
-    /// @dev Result value is in original token denomination
+    /// @dev Resulting value is in original token denomination
     function getAvailableToWithdraw(
         address staker,
         StakingProvider stakingProvider
@@ -294,14 +294,14 @@ contract TokenStaking is Ownable {
         address staker,
         address app,
         StakingProvider stakingProvider
-    ) public view returns (uint256 allocated, uint256 deallocated) {
+    ) public view returns (uint256 allocated, uint256 deallocating) {
         AppAllocation storage allocation = allocationsPerStaker[staker][
             stakingProvider
         ][app];
         allocated = allocation.allocated;
         /* solhint-disable-next-line not-rely-on-time */
-        deallocated = allocation.endDeallocation > block.timestamp
-            ? allocation.deallocated
+        deallocating = allocation.endDeallocation > block.timestamp
+            ? allocation.deallocating
             : 0;
     }
 
@@ -309,43 +309,43 @@ contract TokenStaking is Ownable {
     function getAllocated(address staker, address app)
         public
         view
-        returns (uint256 allocated, uint256 deallocated)
+        returns (uint256 allocated, uint256 deallocating)
     {
-        (allocated, deallocated) = getAllocated(staker, app, StakingProvider.T);
-        (uint256 allocatedInKeep, uint256 deallocatedInKeep) = getAllocated(
+        (allocated, deallocating) = getAllocated(staker, app, StakingProvider.T);
+        (uint256 allocatedInKeep, uint256 deallocatingInKeep) = getAllocated(
             staker,
             app,
             StakingProvider.KEEP
         );
         allocated += allocatedInKeep;
-        deallocated += deallocatedInKeep;
-        (uint256 allocatedInNU, uint256 deallocatedInNU) = getAllocated(
+        deallocating += deallocatingInKeep;
+        (uint256 allocatedInNU, uint256 deallocatingInNU) = getAllocated(
             staker,
             app,
             StakingProvider.NU
         );
         allocated += allocatedInNU;
-        deallocated += deallocatedInNU;
+        deallocating += deallocatingInNU;
     }
 
     /// @notice Send changes in allocation to the specified application
     function sendAllocationUpdate(address staker, address app) internal {
-        (uint256 allocated, uint256 deallocated) = getAllocated(staker, app);
+        (uint256 allocated, uint256 deallocating) = getAllocated(staker, app);
         IApplication(app).receiveAllocation(
             staker,
             allocated,
-            deallocated,
+            deallocating,
             appInfo[app].allocatedOverall
         );
     }
 
     /// @notice Cancel all allocations of stake for the specified application
-    function _deallocate(address app) internal returns (uint256 deallocated) {
-        deallocated = _deallocate(app, StakingProvider.KEEP);
-        deallocated += _deallocate(app, StakingProvider.NU);
-        deallocated += _deallocate(app, StakingProvider.T);
+    function _deallocate(address app) internal returns (uint256 deallocating) {
+        deallocating = _deallocate(app, StakingProvider.KEEP);
+        deallocating += _deallocate(app, StakingProvider.NU);
+        deallocating += _deallocate(app, StakingProvider.T);
 
-        if (deallocated > 0) {
+        if (deallocating > 0) {
             sendAllocationUpdate(msg.sender, app);
         }
     }
@@ -393,7 +393,7 @@ contract TokenStaking is Ownable {
             "Resulting allocation less than minimum allowed"
         );
 
-        appAllocation.deallocated = amount;
+        appAllocation.deallocating = amount;
         appAllocation.endDeallocation =
             /* solhint-disable-next-line not-rely-on-time */
             block.timestamp +
@@ -414,7 +414,7 @@ contract TokenStaking is Ownable {
         uint256 unavailable = appAllocation.allocated;
         /* solhint-disable-next-line not-rely-on-time */
         unavailable += appAllocation.endDeallocation > block.timestamp
-            ? appAllocation.deallocated
+            ? appAllocation.deallocating
             : 0;
         availableTValue = unavailable <= tStake ? tStake - unavailable : 0;
     }
