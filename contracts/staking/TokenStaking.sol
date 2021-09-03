@@ -33,6 +33,7 @@ contract TokenStaking is Ownable {
         uint256 allocatedOverall;
         uint256 deallocationDuration;
         uint256 minAllocationSize;
+        bool suspended;
     }
 
     T public immutable token;
@@ -71,6 +72,7 @@ contract TokenStaking is Ownable {
 
     /// @notice Penalizes staker `staker`; the penalty details are encoded in `penaltyData`
     function slashStaker(address staker, bytes calldata penaltyData) external {
+        // TODO check suspended flag
         // TODO check slashing event (from app)
         // TODO choose stake (and check allocation)
         // TODO prepare caldata
@@ -106,6 +108,12 @@ contract TokenStaking is Ownable {
         }
     }
 
+    /// @notice Suspend/coninue allocation for the specified app
+    function suspendApplication(address app) external onlyOwner {
+        ApplicationInfo storage info = appInfo[app];
+        info.suspended = !info.suspended;
+    }
+
     /// @notice Depost and stake T tokens
     function stake(uint256 value) external {
         require(value > 0, "Value to stake must be greater than 0");
@@ -130,6 +138,12 @@ contract TokenStaking is Ownable {
         uint256 amount,
         StakingProvider stakingProvider
     ) external {
+        ApplicationInfo storage info = appInfo[app];
+        require(
+            info.availability[stakingProvider] && !info.suspended,
+            "Application is unavailable for specified provider or suspended"
+        );
+
         AppAllocation storage appAllocation = allocationsPerStaker[msg.sender][
             stakingProvider
         ][app];
@@ -139,7 +153,6 @@ contract TokenStaking is Ownable {
             "Dealocation in progress"
         );
 
-        ApplicationInfo storage info = appInfo[app];
         require(
             appAllocation.allocated + amount >= info.minAllocationSize,
             "Allocation is too small"
@@ -179,6 +192,7 @@ contract TokenStaking is Ownable {
         external
         returns (uint256 deallocating)
     {
+        checkApplicationSuspension(app);
         deallocating = _deallocate(app, stakingProvider);
 
         require(deallocating > 0, "Nothing was allocated");
@@ -193,6 +207,7 @@ contract TokenStaking is Ownable {
         StakingProvider stakingProvider
     ) external {
         require(amount > 0, "Value to deallocation must be greater than 0");
+        checkApplicationSuspension(app);
 
         _deallocate(app, amount, stakingProvider);
         sendAllocationUpdate(msg.sender, app);
@@ -348,6 +363,7 @@ contract TokenStaking is Ownable {
 
     /// @notice Cancel all allocations of stake for the specified application
     function _deallocate(address app) internal returns (uint256 deallocating) {
+        checkApplicationSuspension(app);
         deallocating = _deallocate(app, StakingProvider.KEEP);
         deallocating += _deallocate(app, StakingProvider.NU);
         deallocating += _deallocate(app, StakingProvider.T);
@@ -406,6 +422,11 @@ contract TokenStaking is Ownable {
             block.timestamp +
             info.deallocationDuration;
         info.allocatedOverall -= amount;
+    }
+
+    /// @notice Check if application was suspended
+    function checkApplicationSuspension(address app) internal view {
+        require(appInfo[app].suspended, "Application was suspended");
     }
 
     /// @notice Returns available amount of T stake to withdraw
