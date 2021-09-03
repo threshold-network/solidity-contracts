@@ -77,16 +77,19 @@ contract TokenStaking is Ownable {
         // TODO send slashing call
     }
 
-    /// @notice Enable/disable application for the specified staking providers and reset deallocation duration
+    /// @notice Enable application for the specified staking providers and reset app parmaters
     function setupApplication(
         address app,
-        StakingProvider[] calldata stakingProviders,
-        bool availability
+        StakingProvider[] calldata stakingProviders
     ) external onlyOwner {
         ApplicationInfo storage info = appInfo[app];
         for (uint256 i = 0; i < stakingProviders.length; i++) {
             StakingProvider stakingProvider = stakingProviders[i];
-            info.availability[stakingProvider] = availability;
+            require(
+                !info.availability[stakingProvider],
+                "Availability was already set"
+            );
+            info.availability[stakingProvider] = true;
         }
         info.deallocationDuration = IApplication(app).deallocationDuration();
         info.minAllocationSize = IApplication(app).minAllocationSize();
@@ -311,7 +314,11 @@ contract TokenStaking is Ownable {
         view
         returns (uint256 allocated, uint256 deallocating)
     {
-        (allocated, deallocating) = getAllocated(staker, app, StakingProvider.T);
+        (allocated, deallocating) = getAllocated(
+            staker,
+            app,
+            StakingProvider.T
+        );
         (uint256 allocatedInKeep, uint256 deallocatingInKeep) = getAllocated(
             staker,
             app,
