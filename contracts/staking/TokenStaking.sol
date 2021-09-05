@@ -112,8 +112,6 @@ contract TokenStaking is Ownable {
             );
             info.availability[stakingProvider] = true;
         }
-        info.deallocationDuration = IApplication(app).deallocationDuration();
-        info.minAllocationSize = IApplication(app).minAllocationSize();
 
         bool existingApp = false;
         for (uint256 i = 0; i < apps.length; i++) {
@@ -125,6 +123,10 @@ contract TokenStaking is Ownable {
         if (!existingApp) {
             apps.push(app);
         }
+
+        info.deallocationDuration = IApplication(app).deallocationDuration();
+        // slither-disable-next-line reentrancy-no-eth
+        info.minAllocationSize = IApplication(app).minAllocationSize();
     }
 
     /// @notice Suspend/coninue allocation for the specified app
@@ -374,9 +376,9 @@ contract TokenStaking is Ownable {
             uint256 undelegatedAt;
             (stakeAmount, , undelegatedAt) = keepStakingContract
                 .getDelegationInfo(operator);
-            (tValue, ) = undelegatedAt == 0
-                ? keepVendingMachine.conversionToT(stakeAmount)
-                : (0, 0);
+            if (undelegatedAt == 0) {
+                (tValue, ) = keepVendingMachine.conversionToT(stakeAmount);
+            }
         } else if (stakingProvider == StakingProvider.NU) {
             stakeAmount = nucypherStakingContract.getAllTokens(operator);
             (tValue, ) = nucypherVendingMachine.conversionToT(stakeAmount);
