@@ -22,6 +22,14 @@ contract TokenStaking is Ownable {
         T
     }
 
+    struct OperatorInfo {
+        mapping(StakingProvider => mapping(address => AppAllocation)) allocations;
+        address owner;
+        address beneficiary;
+        address authorizer;
+        uint256 tStake;
+    }
+
     struct AppAllocation {
         uint256 allocated;
         uint256 endDeallocation;
@@ -42,13 +50,24 @@ contract TokenStaking is Ownable {
     VendingMachine public immutable keepVendingMachine;
     VendingMachine public immutable nucypherVendingMachine;
 
-    mapping(address => uint256) public tStakers;
-
-    mapping(address => mapping(StakingProvider => mapping(address => AppAllocation)))
-        public allocationsPerStaker;
-    // TODO public getter for availability
+    // TODO public getters for inner mappings
+    mapping(address => OperatorInfo) public operators;
     mapping(address => ApplicationInfo) public appInfo;
     address[] public apps;
+
+    modifier onlyOperatorsOwner(address operator) {
+        require(
+            operators[operator].owner == msg.sender,
+            "Only owner can call this function"
+        );
+        _;
+    }
+
+    /// @notice Check if application was suspended
+    modifier applicationSuspensionCheck(address app) {
+        require(appInfo[app].suspended, "Application was suspended");
+        _;
+    }
 
     /// @param _token Address of T token contract
     /// @param _keepStakingContract Address of Keep staking contract
@@ -70,8 +89,8 @@ contract TokenStaking is Ownable {
         nucypherVendingMachine = _nucypherVendingMachine;
     }
 
-    /// @notice Penalizes staker `staker`; the penalty details are encoded in `penaltyData`
-    function slashStaker(address staker, bytes calldata penaltyData) external {
+    /// @notice Penalizes operator `operator`; the penalty details are encoded in `penaltyData`
+    function slash(address operator, bytes calldata penaltyData) external {
         // TODO check suspended flag
         // TODO check slashing event (from app)
         // TODO choose stake (and check allocation)
@@ -114,37 +133,86 @@ contract TokenStaking is Ownable {
         info.suspended = !info.suspended;
     }
 
-    /// @notice Depost and stake T tokens
-    function stake(uint256 value) external {
-        require(value > 0, "Value to stake must be greater than 0");
-        tStakers[msg.sender] += value;
-        token.safeTransferFrom(msg.sender, address(this), value);
+    /// @notice Deposit and stake T tokens
+    /// @dev Applicable only for the first deposit
+    function stake(
+        uint256 value,
+        address operator,
+        address authorizer,
+        address beneficiary
+    ) external {
+        require(operator != address(0), "Operator must be specified");
+        require(
+            operators[operator].owner == address(0),
+            "Applicable only for the first deposit"
+        );
+        _stake(value, operator, authorizer, beneficiary);
+    }
+
+    /// @notice Deposit and stake T tokens
+    function topUp(uint256 value, address operator)
+        external
+        onlyOperatorsOwner(operator)
+    {
+        _stake(value, operator, address(0), address(0));
+    }
+
+    /// @notice Set or change authorizer role
+    function setAuthorizer(address operator, address authorizer)
+        external
+        onlyOperatorsOwner(operator)
+    {
+        operators[operator].authorizer = authorizer != address(0)
+            ? authorizer
+            : msg.sender;
+    }
+
+    /// @notice Set or change beneficiary role
+    function setBeneficiary(address operator, address beneficiary)
+        external
+        onlyOperatorsOwner(operator)
+    {
+        operators[operator].beneficiary = beneficiary != address(0)
+            ? beneficiary
+            : msg.sender;
     }
 
     /// @notice Withdraw tokens after unstaking period is finished
-    function withdraw(uint256 value) external {
+    function withdraw(address operator, uint256 value) external {
+        OperatorInfo storage operatorInfo = operators[operator];
+        require(
+            operatorInfo.owner == msg.sender,
+            "Only owner can withdraw tokens"
+        );
         require(
             value > 0 &&
-                getAvailableToWithdraw(msg.sender, StakingProvider.T) >= value,
+                getAvailableToWithdraw(operator, StakingProvider.T) >= value,
             "Not enough tokens to withdraw"
         );
-        tStakers[msg.sender] -= value;
+        operatorInfo.tStake -= value;
         token.safeTransfer(msg.sender, value);
     }
 
     /// @notice Allocate part of stake for the specified application
     function allocate(
+        address operator,
         address app,
         uint256 amount,
         StakingProvider stakingProvider
     ) external {
-        ApplicationInfo storage info = appInfo[app];
+        ApplicationInfo storage application = appInfo[app];
         require(
-            info.availability[stakingProvider] && !info.suspended,
+            application.availability[stakingProvider] && !application.suspended,
             "Application is unavailable for specified provider or suspended"
         );
 
-        AppAllocation storage appAllocation = allocationsPerStaker[msg.sender][
+        OperatorInfo storage operatorInfo = operators[operator];
+        require(
+            operatorInfo.authorizer == msg.sender,
+            "Not operator authorizer"
+        );
+
+        AppAllocation storage appAllocation = operatorInfo.allocations[
             stakingProvider
         ][app];
         require(
@@ -154,103 +222,109 @@ contract TokenStaking is Ownable {
         );
 
         require(
-            appAllocation.allocated + amount >= info.minAllocationSize,
+            appAllocation.allocated + amount >= application.minAllocationSize,
             "Allocation is too small"
         );
 
         uint256 availableTValue = getAvailableToAllocate(
-            msg.sender,
+            operator,
             app,
             stakingProvider
         );
         require(availableTValue >= amount, "Not enough stake to allocate");
         appAllocation.allocated += amount;
-        info.allocatedOverall += amount;
-        sendAllocationUpdate(msg.sender, app);
+        application.allocatedOverall += amount;
+        sendAllocationUpdate(operator, app);
     }
 
     /// @notice Start deallocation process
-    function deallocate() external returns (uint256 deallocating) {
+    function deallocate(address operator)
+        external
+        returns (uint256 deallocating)
+    {
         deallocating = 0;
         for (uint256 i = 0; i < apps.length; i++) {
             address app = apps[i];
-            deallocating += _deallocate(app);
+            deallocating += _deallocate(operator, app);
         }
 
         require(deallocating > 0, "Nothing was allocated");
     }
 
     /// @notice Cancel all allocations of stake for the specified application
-    function deallocate(address app) external returns (uint256 deallocating) {
-        deallocating = _deallocate(app);
-
-        require(deallocating > 0, "Nothing was allocated");
-    }
-
-    /// @notice Cancel allocation of stake for the specified application
-    function deallocate(address app, StakingProvider stakingProvider)
+    function deallocate(address operator, address app)
         external
         returns (uint256 deallocating)
     {
-        checkApplicationSuspension(app);
-        deallocating = _deallocate(app, stakingProvider);
+        deallocating = _deallocate(operator, app);
 
         require(deallocating > 0, "Nothing was allocated");
-
-        sendAllocationUpdate(msg.sender, app);
     }
 
     /// @notice Cancel allocation of stake for the specified application
     function deallocate(
+        address operator,
+        address app,
+        StakingProvider stakingProvider
+    ) external applicationSuspensionCheck(app) returns (uint256 deallocating) {
+        deallocating = _deallocate(operator, app, stakingProvider);
+
+        require(deallocating > 0, "Nothing was allocated");
+
+        sendAllocationUpdate(operator, app);
+    }
+
+    /// @notice Cancel allocation of stake for the specified application
+    function deallocate(
+        address operator,
         address app,
         uint256 amount,
         StakingProvider stakingProvider
-    ) external {
+    ) external applicationSuspensionCheck(app) {
         require(amount > 0, "Value to deallocation must be greater than 0");
-        checkApplicationSuspension(app);
 
-        _deallocate(app, amount, stakingProvider);
-        sendAllocationUpdate(msg.sender, app);
+        _deallocate(operator, app, amount, stakingProvider);
+        sendAllocationUpdate(operator, app);
     }
 
     /// @notice Returns available amount to allocate to the specified application
-    function getAvailableToAllocate(address staker, address app)
+    function getAvailableToAllocate(address operator, address app)
         external
         view
         returns (uint256 tValue)
     {
-        tValue += getAvailableToAllocate(staker, app, StakingProvider.KEEP);
-        tValue += getAvailableToAllocate(staker, app, StakingProvider.NU);
-        tValue += getAvailableToAllocate(staker, app, StakingProvider.T);
+        tValue += getAvailableToAllocate(operator, app, StakingProvider.KEEP);
+        tValue += getAvailableToAllocate(operator, app, StakingProvider.NU);
+        tValue += getAvailableToAllocate(operator, app, StakingProvider.T);
     }
 
-    /// @notice Returns allocated amount to the specified application per staker
-    function getAllocated(address[] memory stakersSet, address app)
+    /// @notice Returns allocated amount to the specified application per operator
+    function getAllocated(address[] memory operatorsSet, address app)
         external
         view
         returns (uint256[] memory allocated)
     {
-        allocated = new uint256[](stakersSet.length);
-        for (uint256 i = 0; i < stakersSet.length; i++) {
-            address staker = stakersSet[i];
-            (allocated[i], ) = getAllocated(staker, app);
+        allocated = new uint256[](operatorsSet.length);
+        for (uint256 i = 0; i < operatorsSet.length; i++) {
+            address operator = operatorsSet[i];
+            (allocated[i], ) = getAllocated(operator, app);
         }
     }
 
     /// @notice Returns available amount of stake to withdraw (not applicable for Keep)
     /// @dev Resulting value is in original token denomination
     function getAvailableToWithdraw(
-        address staker,
+        address operator,
         StakingProvider stakingProvider
     ) public view returns (uint256 value) {
-        uint256 tStake = getStakeAmount(staker, stakingProvider);
+        uint256 tStake = getStakeAmount(operator, stakingProvider);
 
         uint256 tValue = tStake;
         for (uint256 i = 0; i < apps.length; i++) {
             address app = apps[i];
             tValue = Math.min(
                 tValue,
-                getAvailableToWithdraw(staker, app, stakingProvider, tStake)
+                getAvailableToWithdraw(operator, app, stakingProvider, tStake)
             );
         }
         if (stakingProvider == StakingProvider.T) {
@@ -264,7 +338,7 @@ contract TokenStaking is Ownable {
 
     /// @notice Returns available amount from staking provider to allocate to the specified application
     function getAvailableToAllocate(
-        address staker,
+        address operator,
         address app,
         StakingProvider stakingProvider
     ) public view returns (uint256 availableTValue) {
@@ -272,7 +346,7 @@ contract TokenStaking is Ownable {
             return 0;
         }
 
-        AppAllocation storage appAllocation = allocationsPerStaker[staker][
+        AppAllocation storage appAllocation = operators[operator].allocations[
             stakingProvider
         ][app];
         /* solhint-disable-next-line not-rely-on-time */
@@ -280,40 +354,44 @@ contract TokenStaking is Ownable {
             return 0;
         }
 
-        uint256 tValue = getStakeAmount(staker, stakingProvider);
+        uint256 tValue = getStakeAmount(operator, stakingProvider);
         availableTValue = appAllocation.allocated <= tValue
             ? tValue - appAllocation.allocated
             : 0;
     }
 
     /// @notice Returns staked amount from the staking provider
-    function getStakeAmount(
-        address staker,
-        StakingProvider stakingProvider // TODO internal?
-    ) public view returns (uint256 tValue) {
+    function getStakeAmount(address operator, StakingProvider stakingProvider)
+        public
+        view
+        returns (
+            // TODO internal?
+            uint256 tValue
+        )
+    {
         uint256 stakeAmount;
         if (stakingProvider == StakingProvider.KEEP) {
             uint256 undelegatedAt;
             (stakeAmount, , undelegatedAt) = keepStakingContract
-                .getDelegationInfo(staker);
+                .getDelegationInfo(operator);
             (tValue, ) = undelegatedAt == 0
                 ? keepVendingMachine.conversionToT(stakeAmount)
                 : (0, 0);
         } else if (stakingProvider == StakingProvider.NU) {
-            stakeAmount = nucypherStakingContract.getAllTokens(staker);
+            stakeAmount = nucypherStakingContract.getAllTokens(operator);
             (tValue, ) = nucypherVendingMachine.conversionToT(stakeAmount);
         } else {
-            tValue = tStakers[staker];
+            tValue = operators[operator].tStake;
         }
     }
 
     /// @notice Returns allocated amount to the specified application from staking provider
     function getAllocated(
-        address staker,
+        address operator,
         address app,
         StakingProvider stakingProvider
     ) public view returns (uint256 allocated, uint256 deallocating) {
-        AppAllocation storage allocation = allocationsPerStaker[staker][
+        AppAllocation storage allocation = operators[operator].allocations[
             stakingProvider
         ][app];
         allocated = allocation.allocated;
@@ -324,25 +402,25 @@ contract TokenStaking is Ownable {
     }
 
     /// @notice Returns allocated amount to the specified application
-    function getAllocated(address staker, address app)
+    function getAllocated(address operator, address app)
         public
         view
         returns (uint256 allocated, uint256 deallocating)
     {
         (allocated, deallocating) = getAllocated(
-            staker,
+            operator,
             app,
             StakingProvider.T
         );
         (uint256 allocatedInKeep, uint256 deallocatingInKeep) = getAllocated(
-            staker,
+            operator,
             app,
             StakingProvider.KEEP
         );
         allocated += allocatedInKeep;
         deallocating += deallocatingInKeep;
         (uint256 allocatedInNU, uint256 deallocatingInNU) = getAllocated(
-            staker,
+            operator,
             app,
             StakingProvider.NU
         );
@@ -350,11 +428,34 @@ contract TokenStaking is Ownable {
         deallocating += deallocatingInNU;
     }
 
+    /// @notice Deposit and stake T tokens
+    function _stake(
+        uint256 value,
+        address operator,
+        address authorizer,
+        address beneficiary
+    ) internal {
+        require(value > 0, "Value to stake must be greater than 0");
+        OperatorInfo storage operatorInfo = operators[operator];
+        // first deposit
+        if (operatorInfo.owner == address(0)) {
+            operatorInfo.owner = msg.sender;
+            operatorInfo.authorizer = authorizer != address(0)
+                ? authorizer
+                : msg.sender;
+            operatorInfo.beneficiary = beneficiary != address(0)
+                ? beneficiary
+                : msg.sender;
+        }
+        operatorInfo.tStake += value;
+        token.safeTransferFrom(msg.sender, address(this), value);
+    }
+
     /// @notice Send changes in allocation to the specified application
-    function sendAllocationUpdate(address staker, address app) internal {
-        (uint256 allocated, uint256 deallocating) = getAllocated(staker, app);
+    function sendAllocationUpdate(address operator, address app) internal {
+        (uint256 allocated, uint256 deallocating) = getAllocated(operator, app);
         IApplication(app).receiveAllocation(
-            staker,
+            operator,
             allocated,
             deallocating,
             appInfo[app].allocatedOverall
@@ -362,31 +463,35 @@ contract TokenStaking is Ownable {
     }
 
     /// @notice Cancel all allocations of stake for the specified application
-    function _deallocate(address app) internal returns (uint256 deallocating) {
-        checkApplicationSuspension(app);
-        deallocating = _deallocate(app, StakingProvider.KEEP);
-        deallocating += _deallocate(app, StakingProvider.NU);
-        deallocating += _deallocate(app, StakingProvider.T);
+    function _deallocate(address operator, address app)
+        internal
+        applicationSuspensionCheck(app)
+        returns (uint256 deallocating)
+    {
+        deallocating = _deallocate(operator, app, StakingProvider.KEEP);
+        deallocating += _deallocate(operator, app, StakingProvider.NU);
+        deallocating += _deallocate(operator, app, StakingProvider.T);
 
         if (deallocating > 0) {
-            sendAllocationUpdate(msg.sender, app);
+            sendAllocationUpdate(operator, app);
         }
     }
 
     /// @notice Cancel allocation of stake for the specified application
-    function _deallocate(address app, StakingProvider stakingProvider)
-        internal
-        returns (uint256)
-    {
-        uint256 allocated = allocationsPerStaker[msg.sender][stakingProvider][
-            app
-        ].allocated;
-        _deallocate(app, allocated, stakingProvider);
+    function _deallocate(
+        address operator,
+        address app,
+        StakingProvider stakingProvider
+    ) internal returns (uint256) {
+        uint256 allocated = operators[operator]
+        .allocations[stakingProvider][app].allocated;
+        _deallocate(operator, app, allocated, stakingProvider);
         return allocated;
     }
 
     /// @notice Cancel allocation of stake for the specified application
     function _deallocate(
+        address operator,
         address app,
         uint256 amount,
         StakingProvider stakingProvider
@@ -394,8 +499,13 @@ contract TokenStaking is Ownable {
         if (amount == 0) {
             return;
         }
+        OperatorInfo storage operatorInfo = operators[operator];
+        require(
+            operator == msg.sender || operatorInfo.owner == msg.sender,
+            "Not authorized"
+        );
 
-        AppAllocation storage appAllocation = allocationsPerStaker[msg.sender][
+        AppAllocation storage appAllocation = operatorInfo.allocations[
             stakingProvider
         ][app];
         require(
@@ -424,19 +534,14 @@ contract TokenStaking is Ownable {
         info.allocatedOverall -= amount;
     }
 
-    /// @notice Check if application was suspended
-    function checkApplicationSuspension(address app) internal view {
-        require(appInfo[app].suspended, "Application was suspended");
-    }
-
     /// @notice Returns available amount of T stake to withdraw
     function getAvailableToWithdraw(
-        address staker,
+        address operator,
         address app,
         StakingProvider stakingProvider,
         uint256 tStake
     ) internal view returns (uint256 availableTValue) {
-        AppAllocation storage appAllocation = allocationsPerStaker[staker][
+        AppAllocation storage appAllocation = operators[operator].allocations[
             stakingProvider
         ][app];
         uint256 unavailable = appAllocation.allocated;
