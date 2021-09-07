@@ -1,0 +1,381 @@
+:toc: macro
+
+= RFC 1: T Staking Contract
+
+:icons: font
+:numbered:
+toc::[]
+
+== Proposal
+
+=== Goal
+
+The goal of this proposal is to specify a simple and secure stake delegation
+mechanism. It should enable T owners to have their wallets offline and their
+stake operated by operators on their behalf. All off-chain client software
+should be able to run without exposing operator’s private key and should not
+require any owner’s keys at all. The stake delegation should also optimize the
+network throughput without compromising the security of the owners’ stake.
+
+This proposal aims at implementing a minimum viable staking contract version
+allowing to support legacy KEEP and NU stakes, as well as native T delegations.
+The functionality of the staking contract can be further extended by the
+upgradeability of the contract code.
+
+=== Terminology
+
+Owner:: An address owning T tokens and tokens that could be converted to
+T: KEEP, NU, including grants. An owner is the ultimate holder of the tokens.
+Before stake delegation, the owner has full control over the tokens, and the
+tokens are returned to the owner after stake delegation has finished.
+Owner’s participation is not required in the day-to-day operations on the
+stake, so cold storage can be accommodated to the maximum extent.
+
+Operator:: An address of a party authorized to operate in the network on behalf
+of a given owner. The operator handles the everyday operations on the delegated
+stake without actually owning the staked tokens. An operator can not simply
+transfer away delegated tokens, however, it should be noted that the operator’s
+misbehavior may result in slashing tokens and thus the entire staked amount is
+indeed at stake.
+
+Beneficiary:: An address where the rewards for participation are sent, earned by
+the operator, on behalf of the owner. A beneficiary doesn’t sign or publish any
+protocol-relevant transactions, but any currency or tokens earned by the
+operator will be transferred to the beneficiary.
+
+Authorizer:: An address appointed by an owner to authorize applications on
+behalf of them. An application must be approved by the authorizer before the
+operator is eligible to participate.
+
+Delegated stake:: An owner’s staked tokens, delegated to the operator by the
+owner. Delegation enables KEEP owners to have their wallets offline and their
+stake operated by operators on their behalf.
+
+== Specification
+
+=== Functionality
+
+==== Delegating a stake
+
+Tokens are delegated by the owner. During the delegation, the owner needs to
+appoint an operator, beneficiary, and authorizer. The owner may decide to
+delegate just a portion of their tokens. The owner may delegate multiple times
+to different operators. For simplicity, the operator address can not be reused
+between delegations even if the delegation has been recovered. The only
+exception is when the delegation has been canceled. To protect against griefing
+by frontrunning stake delegation transactions and reserving operator addresses,
+staking contract should require a governable minimum stake amount for each
+delegation.
+
+Staking contract binds the owner with the operator, beneficiary, and authorizer
+for the given stake delegation and records the stake delegation amount.
+Delegation is set to active after 2 hours, once the cancellation window passes.
+
+Existing KEEP and NU stake owners also need to perform a delegation so that T
+staking contract can record their operator, beneficiary, and authorizer. Since
+these values are read-only, they should be copied from KEEP staking contract to
+T staking contract and NU stakers should set them during the delegation. For
+existing stakes, the entire stake amount is registered in T staking contract.
+
+There are 2 hours to cancel a stake without suffering an undelegation period.
+This functionality is needed e.g. in case of a typo in the operator address.
+Undelegation can not be canceled in the same transaction in which it was
+created. Once the delegation has been canceled, the operator address can be used
+again.
+
+==== Authorizing an application
+
+Before the operator is eligible to participate in the given application, the
+authorizer appointed during the stake delegation needs to review the application
+and approve it to use the stake. From the moment of approval, the application
+is authorized to slash or seize the stake.
+
+The authorizer decides up to which amount the given application is eligible to
+slash. This allows managing the risk profile of the staker individually for each
+application. The authorized stake amount can only be increased.
+
+Authorization can not be canceled.
+
+The application being authorized is notified via a callback every single time
+new authorization happens and the application may decide to revert the
+transaction if individual requirements of the application are not met. Such
+requirements could be, for example, not enough stake authorized for the
+particular application or not supported legacy stake (see Limitations section).
+
+All applications first need to be authorized in a registry of T applications
+controlled by the governance.
+
+==== Stake top-up
+
+Top-up increases the amount of tokens locked in a delegation. This increases the
+probability of being chosen for work in the network but is only effective for
+future checks of the stake amount.
+
+Top-ups can be executed for native T stakes and for legacy KEEP/NU stakes.
+
+Native T stakers can only top-up their stakes with a liquid T.
+
+Existing KEEP and NU stakers wanting to execute a top-up have two options. One
+option is to wrap their KEEP/NU to T and then, execute a top-up in T staking
+contract. The second option is to execute a top-up in their legacy staking
+contracts and notify T staking contract about the fact their legacy stake
+increased.
+
+Effectively, it means that existing KEEP stakers can mix their legacy KEEP
+stakes with liquid T stakes. Similarly, existing NU stakers can mix their legacy
+NU stakes with liquid T stakes. This functionality adds some complexity to the
+staking contract but it puts existing KEEP/NU stakers in the same spot as new T
+stakers. Without it, existing stakers would not be able to top-up their stakes
+with T earned from operating in the network, so they would be in a worse spot
+than new T stakers allowed to top-up their stakes using earned T and this way
+increasing their rewards.
+
+Anyone can execute a stake top-up for an operator using a liquid T. Stake top-up
+does not automatically increase authorization levels for applications.
+
+==== Undelegating a stake
+
+The owner or operator may choose to undelegate the stake by submitting an
+undeleagation order. Stake delegation should be marked in the staking contract
+as undelegating. Always the entire stake is getting undelegated and there is a
+fixed, non-governable, two months undelegation period. All applications should
+be designed in such a way that a two-month undelegation period is sufficient to
+retire all groups undelegating operators are involved in. The operator is not
+eligible for any new work during the stake undelegation period but it is still
+required to finish all the pending work. Authorized applications are eligible
+to slash the operator for the entire undelegation period.
+
+==== Recovering a stake
+
+Once the undelegation period finishes, anyone - even a third party - can recover
+the stake. Staking contract sets the stake as recovered and returns all
+delegated tokens to the owner. Applications shouldn't be able to slash after
+undelegation is complete, even before the stake is returned. Information about
+owner, operator, and beneficiary, is retained in the contract in case some
+application rewards are still available for withdrawal.
+
+==== Keeping information in sync
+
+To avoid expensive calls to legacy staking contracts, it is assumed that
+information in T staking contract about the staked amount is always up-to-date.
+By design, this is always the case for native T stakers but might not be the
+case for legacy KEEP/NU stakers.
+
+T staking contract should expose a function allowing to seize some amount of T
+from the operator whose stake in T contract is lower than their stake in the
+legacy staking contract. 5% of the amount seized is given to the person who
+notified about the discrepancy and the rest is burned. The amount is a
+governable parameter and can be updated at any time by the governance, with no
+governance delay.
+
+For legacy stakers, staked amount can become out-of-sync in three cases:
+
+* stake undelegated on the legacy contract,
+* stake slashed on the legacy contract,
+* stake topped-up on the legacy contract.
+
+It is expected that stake undelegation will be first performed on T staking
+contract and then on the legacy staking contract, in the same transaction.
+
+It is expected that a top-up will be first performed on the legacy staking
+contract, and then propagated to the new staking contract, in the same
+transaction. Even if it does not happen in the same transaction, this kind of
+discrepancy is not slashable given that the stake amount on the legacy contract
+is higher than the stake amount on T staking contract.
+
+In case the stake has been slashed on the legacy contract, the operator is
+required to update their information on T staking contract as soon as possible.
+In practice, with the random beacon disabled, and tBTC v1 slashing the stake
+only in case of a proven fraud that had to be committed by all operators of
+ECDSA keep, this approach is acceptable.
+
+An integral part of the staking contract should be a bot monitoring stakes and
+notifying about discrepancies. This is especially important given that the bot
+may need to voluntarily inform about discrepancies for operators that have been
+slashed to zero.
+
+==== Slashing a stake
+
+Authorized applications can slash or seize a stake. Slash operation decreases
+the stake of an operator and burns slashed tokens. Seize decreases the stake,
+burns 95% of the stake, and awards 5% to the notifier of misbehavior. 
+
+=== Limitations
+
+An absolute minimum is that existing KEEP/NU stakes should be supported in T
+network for Random Beacon, TBTC v2, and Proxy Re-Encryption. Given the fact
+supporting legacy KEEP/NU stakes forever, in every other application implemented
+for T, might not be always possible, it is expected that applications are able
+to revert authorization transactions if the delegation used in the authorization
+order does not meet the application requirements.
+
+=== Upgradeability
+
+The staking contract will be upgradeable. The exact upgradeability mechanism is
+out of the scope of this document.
+
+== Public API
+
+=== Delegating a stake
+
+==== `stake(address operator, address beneficiary, address authorizer, uint256 amount) external` 
+   
+Creates a delegation with `msg.sender` owner with the given operator,
+beneficiary, and authorizer. Transfers the given amount of T to the staking
+contract. The owner of the delegation needs to have the amount approved to
+transfer to the staking contract.
+
+==== `stakeKeep(address operator) external`
+
+Copies delegation from the legacy KEEP staking contract to T staking contract.
+No tokens are transferred. Can be called by anyone.
+
+==== `stakeNu(address operator, address beneficiary, address authorizer) external`
+
+Copies delegation from the legacy NU staking contract to T staking contract,
+additionally appointing beneficiary and authorizer roles. Can be called only by
+the original delegation owner.
+
+==== `setMinimumStakeAmount(uint256 amount) external onlyGovernance`
+
+Allows the governance to set the minimum required stake amount. This amount is
+required to protect against griefing the staking contract and individual
+applications are allowed to require higher minimum stakes if necessary.  
+
+=== Authorizing an application
+
+==== `approveApplication(address application) external onlyGovernance`
+
+Allows the governance to approve the particular application before individual
+stake authorizers are able to authorize it.
+
+==== `authorizeApplication(address operator, address application, uint256 amount) external onlyAuthorizerOf(operator)`
+
+Authorizes the particular application for the given operator. From this moment,
+the application may slash operator's stake up to the given amount. Can only be
+called by the given operator's authorizer.
+
+==== `disableApplication(address application) external onlyPanicButton`
+
+Disables the given application's eligibility to slash stakes. Can be called only
+by a panic button of the particular application. The disabled application can not
+slash stakes until it is approved again by the governance. Should be used only
+in case of an emergency.
+
+==== `setPanicButton(address application, address panicButton) external onlyGovernance`
+
+Sets the panic button role for the given application to the provided address.
+Can only be called by the governance. If the panic button for the given
+application should be disabled, the role address should can set to 0x0 address.
+
+=== Stake top-up
+
+==== `topUp(address operator, uint256 amount) external`
+
+Increases the amount of the stake for the given operator. The sender of this
+transaction needs to have the amount approved to transfer to the staking
+contract. Can be called by anyone.
+
+==== `topUpKeep(address operator) external`
+
+Propagates information about stake top-up from the legacy KEEP staking contract
+to T staking contract. Can be called by anyone.
+
+==== `topUpNu(address operator) external`
+
+Propagates information about stake top-up from the legacy NU staking contract
+to T staking contract. Can be called by anyone.
+
+=== Undelegating a stake
+
+==== `cancelStake(address operator) external`
+
+Cancels T stake delegation. Can not be called in the same transaction as the
+original delegation order. Reverts after 2 hours from the time the delegation
+order was created. Clears up information about the operator so that the
+operator's address can be reused. Can be called by owner and operator.
+
+==== `undelegate(address operator) external`
+
+Orders undelegation from the given operator. Sets the delegation state as
+undelegating. Can be called only by the owner or operator.
+
+=== Recovering a stake
+
+==== `recoverStake(address operator) external`
+
+Sets the undelegating delegation state as recovered once the undelegation period
+passes. For liquid T delegations, transfers tokens back to the original owner.
+Can be called by anyone.
+
+=== Keeping information in sync
+
+==== `notifyKeepStakeDiscrepancy(address operator)`
+
+Notifies about the discrepancy between legacy KEEP stake and stake amount in T
+staking contract. Can be called by anyone, notifier receives a reward.
+
+Optionally: reward withdrawal can be split into a separate function to protect
+against MEV frontrunners. 
+
+==== `notifyNuStakeDiscrepancy(address operator)`
+
+Notifies about the discrepancy between legacy NU stake and stake amount in T
+staking contract. Can be called by anyone, notifier receives a reward.
+
+Optionally: reward withdrawal can be split into a separate function to protect
+against MEV frontrunners. 
+
+==== `setStakeDiscrepancyPenalty(uint256 penalty, unit256 rewardMultiplier) external onlyGovernance`
+
+Sets the penalty amount for stake discrepancy and reward multiplier for
+reporting it. The penalty is seized from the operator account, and 5% of the
+penalty, scaled by the multiplier, is given to the notifier. The rest of the
+tokens are burned. Can only be called by the governance. See `seize` function.
+
+=== Slashing a stake
+
+==== `slash(uint256 amount, address[] memory operators) external onlyAuthorizedApplication`
+
+Slashes the provided amount from the stake of every operator in the array.
+Can only be called by an authorized application.
+
+==== `seize(uint256 amount, uint256 rewardMultipier, address notifier, address[] memory operators) external onlyAuthorizedApplication`
+
+Seize the provided amount from the stake of every operator in the array.
+The misbehavior notifier is rewarded with 5% of the total seized amount scaled
+by the reward adjustment parameter. The rest of the tokens are burned. Can only
+be called by an authorized application.
+
+=== Auxiliary functions
+
+==== `eligibleStake(address operator, address application) external view returns (uint256)`
+
+Returns the eligible stake amount of the operator for the application.
+An eligible stake is a stake that is not currently undelegating and the given
+application had to be approved for use by the operator's authorizer. If the
+stake is undelegation or the application was not approved, returns 0.
+
+The difference between eligible and active stake is that the active stake does
+not make the operator eligible for new work selection but it may still finish
+earlier work it is assigned to before the stake is recovered.
+
+==== `activeStake(address operator, address application) external view returns (uint256)`
+
+Returns the active stake amount of the operator for the application. An active
+stake is a stake that may be in the process of undelegation but has not been
+recovered yet. The given application had to be approved for use by the
+operator's authorizer. If the stake does not exist or if it has been recovered,
+returns 0.
+
+The difference between eligible and active stake is that the active stake does
+not make the operator eligible for new work selection but it may still finish
+earlier work it is assigned to before the stake is recovered.
+
+
+==== `hasStakeDelegated(address operator) external view returns (bool)`
+
+Checks if the specified operator has a stake delegated and if it has been
+authorized for at least one application. The stake may be in the undelegation
+process. If this function returns true, off-chain client of the given operator
+is eligible to join the network.
