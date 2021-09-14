@@ -48,7 +48,7 @@ behalf of them. An application must be approved by the authorizer before the
 operator is eligible to participate.
 
 Delegated stake:: An owner’s staked tokens, delegated to the operator by the
-owner. Delegation enables KEEP owners to have their wallets offline and their
+owner. Delegation enables token owners to have their wallets offline and their
 stake operated by operators on their behalf.
 
 == Specification
