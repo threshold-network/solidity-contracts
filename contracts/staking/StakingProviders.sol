@@ -23,6 +23,30 @@ interface IKeepTokenStaking {
             uint256 createdAt,
             uint256 undelegatedAt
         );
+
+    /// @notice Gets the stake owner for the specified operator address.
+    /// @return Stake owner address.
+    function ownerOf(address _operator) external view returns (address);
+
+    /// @notice Gets the beneficiary for the specified operator address.
+    /// @return Beneficiary address.
+    function beneficiaryOf(address _operator)
+        external
+        view
+        returns (address payable);
+
+    /// @notice Gets the authorizer for the specified operator address.
+    /// @return Authorizer address.
+    function authorizerOf(address _operator) external view returns (address);
+
+    /// @notice Checks if operator contract has access to the staked token balance of
+    /// the provided operator.
+    /// @param _operator address of stake operator.
+    /// @param _operatorContract address of operator contract.
+    function isAuthorizedForOperator(
+        address _operator,
+        address _operatorContract
+    ) external view returns (bool);
 }
 
 /**
