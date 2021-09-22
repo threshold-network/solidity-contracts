@@ -310,12 +310,6 @@ applications are allowed to require higher minimum stakes if necessary.
 Allows the governance to approve the particular application before individual
 stake authorizers are able to authorize it.
 
-==== `authorizeApplication(address operator, address application, uint256 amount) external onlyAuthorizerOf(operator)`
-
-Authorizes the particular application for the given operator. From this moment,
-the application may slash operator's stake up to the given amount. Can only be
-called by the given operator's authorizer.
-
 ==== `increaseAuthorization(address operator, address application, uint256 amount) external onlyAuthorizerOf(operator)`
 
 Increases the authorization of the given operator for the given application by
