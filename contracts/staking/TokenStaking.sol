@@ -24,9 +24,10 @@ contract TokenStaking is Ownable {
 
     struct OperatorInfo {
         address owner;
-        address beneficiary;
+        address payable beneficiary;
         address authorizer;
         mapping(address => AppAuthorization) authorizations;
+        uint256 authorizedApplications;
         uint256 nuStake;
         uint256 keepStake;
         uint256 tStake;
@@ -38,9 +39,9 @@ contract TokenStaking is Ownable {
     }
 
     struct ApplicationInfo {
-        mapping(StakingProvider => bool) availability;
         uint256 minAllocationSize;
-        bool suspended;
+        bool disabled;
+        address panicButton;
     }
 
     T public immutable token;
@@ -50,25 +51,30 @@ contract TokenStaking is Ownable {
     VendingMachine public immutable nucypherVendingMachine;
 
     uint256 public minTStakeAmount;
+    uint256 public authorizationCeiling;
 
     // TODO public getters for inner mappings
     mapping(address => OperatorInfo) public operators;
     mapping(address => ApplicationInfo) public applicationInfo;
     address[] public applications;
 
-    modifier onlyOperatorsOwner(address operator) {
-        require(
-            operators[operator].owner == msg.sender,
-            "Only owner can call this function"
-        );
+    // modifier onlyOperatorsOwner(address operator) {
+    //     require(
+    //         operators[operator].owner == msg.sender,
+    //         "Only owner can call this function"
+    //     );
+    //     _;
+    // }
+
+    modifier onlyGovernance() {
+        require(owner() == msg.sender, "Caller is not the governance");
         _;
     }
 
-    /// @notice Check if application was suspended
-    modifier applicationSuspensionCheck(address application) {
+    modifier onlyPanicButtonOf(address application) {
         require(
-            !applicationInfo[application].suspended,
-            "Application was suspended"
+            applicationInfo[application].panicButton == msg.sender,
+            "Caller is not the address of panic button"
         );
         _;
     }
@@ -106,33 +112,26 @@ contract TokenStaking is Ownable {
      * required to protect against griefing the staking contract and individual
      * applications are allowed to require higher minimum stakes if necessary.
      */
-    function setMinimumStakeAmount(uint256 amount) external onlyOwner {
+    function setMinimumStakeAmount(uint256 amount) external onlyGovernance {
         minTStakeAmount = amount;
     }
 
     /// @notice Penalizes operator `operator`; the penalty details are encoded in `penaltyData`
     function slash(address operator, bytes calldata penaltyData) external {
-        // TODO check suspended flag
+        // TODO check panic button flag
         // TODO check slashing event (from app)
-        // TODO choose stake (and check allocation)
+        // TODO choose stake (and check authorization)
         // TODO prepare caldata
         // TODO send slashing call
     }
 
-    /// @notice Enable application for the specified staking providers and reset app parmaters
-    function setupApplication(
-        address application,
-        StakingProvider[] calldata stakingProviders
-    ) external onlyOwner {
+    /**
+     * @notice Allows the governance to approve the particular application before individual
+     * stake authorizers are able to authorize it.
+     */
+    function approveApplication(address application) external onlyGovernance {
         ApplicationInfo storage info = applicationInfo[application];
-        for (uint256 i = 0; i < stakingProviders.length; i++) {
-            StakingProvider stakingProvider = stakingProviders[i];
-            require(
-                !info.availability[stakingProvider],
-                "Availability was already set"
-            );
-            info.availability[stakingProvider] = true;
-        }
+        info.disabled = false;
 
         bool existingApplication = false;
         for (uint256 i = 0; i < applications.length; i++) {
@@ -148,10 +147,37 @@ contract TokenStaking is Ownable {
         info.minAllocationSize = IApplication(application).minAllocationSize();
     }
 
-    /// @notice Suspend/coninue allocation for the specified app
-    function suspendApplication(address application) external onlyOwner {
-        ApplicationInfo storage info = applicationInfo[application];
-        info.suspended = !info.suspended;
+    /**
+     * @notice Disables the given application's eligibility to slash stakes. Can be called only
+     * by a panic button of the particular application. The disabled application can not
+     * slash stakes until it is approved again by the governance using `approveApplication`
+     * function. Should be used only in case of an emergency.
+     */
+    function disableApplication(address application)
+        external
+        onlyPanicButtonOf(application)
+    {
+        applicationInfo[application].disabled = true;
+    }
+
+    /**
+     * @notice Sets the panic button role for the given application to the provided address.
+     * Can only be called by the governance. If the panic button for the given
+     * application should be disabled, the role address should can set to 0x0 address.
+     */
+    function setPanicButton(address application, address panicButton)
+        external
+        onlyGovernance
+    {
+        applicationInfo[application].panicButton = panicButton;
+    }
+
+    /**
+     * @notice Sets the maximum number of applications one operator can authorize. Used to
+     * protect against DoSing slashing queue. Can only be called by the governance.
+     */
+    function setAuthorizationCeiling(uint256 ceiling) external onlyGovernance {
+        authorizationCeiling = ceiling;
     }
 
     /**
@@ -161,27 +187,30 @@ contract TokenStaking is Ownable {
      * transfer to the staking contract.
      */
     function stake(
-        address operator,
-        address beneficiary,
+        address _operator,
+        address payable beneficiary,
         address authorizer,
         uint256 amount
     ) external {
-        require(operator != address(0), "Operator must be specified");
-        OperatorInfo storage operatorInfo = operators[operator];
+        require(_operator != address(0), "Operator must be specified");
+        OperatorInfo storage operator = operators[_operator];
         require(
-            operatorInfo.owner == address(0),
+            operator.owner == address(0),
             "This operator is already in use"
         );
-        require(amount > 0, "Amount to stake must be greater than 0");
-        operatorInfo.owner = msg.sender;
-        operatorInfo.authorizer = authorizer != address(0)
+        require(
+            amount > minTStakeAmount,
+            "Amount to stake must be greater than 0"
+        );
+        operator.owner = msg.sender;
+        operator.authorizer = authorizer != address(0)
             ? authorizer
             : msg.sender;
-        operatorInfo.beneficiary = beneficiary != address(0)
+        operator.beneficiary = beneficiary != address(0)
             ? beneficiary
-            : msg.sender;
+            : payable(msg.sender);
 
-        operatorInfo.tStake += amount;
+        operator.tStake += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
@@ -190,53 +219,55 @@ contract TokenStaking is Ownable {
      * No tokens are transferred. Caches the active stake amount from KEEP staking
      * contract. Can be called by anyone.
      */
-    function stakeKeep(address operator) external {
-        require(operator != address(0), "Operator must be specified");
-        OperatorInfo storage operatorInfo = operators[operator];
-        require(operatorInfo.keepStake == 0, "KEEP stake is already synced");
+    function stakeKeep(address _operator) external {
+        require(_operator != address(0), "Operator must be specified");
+        OperatorInfo storage operator = operators[_operator];
+        require(operator.keepStake == 0, "KEEP stake is already synced");
 
-        address owner = keepStakingContract.ownerOf(operator);
+        address owner = keepStakingContract.ownerOf(_operator);
         // TODO can be used to steal address of operator
         require(
-            operatorInfo.owner == address(0) || operatorInfo.owner == owner,
+            operator.owner == address(0) || operator.owner == owner,
             "Owner of this operator in Keep contract is different"
         );
 
-        address authorizer = keepStakingContract.authorizerOf(operator);
+        address authorizer = keepStakingContract.authorizerOf(_operator);
         require(
-            operatorInfo.authorizer == address(0) ||
-                operatorInfo.authorizer == authorizer,
+            operator.authorizer == address(0) ||
+                operator.authorizer == authorizer,
             "Authorizer of this operator in Keep contract is different"
         );
 
-        address beneficiary = keepStakingContract.beneficiaryOf(operator);
+        address payable beneficiary = keepStakingContract.beneficiaryOf(
+            _operator
+        );
         require(
-            operatorInfo.beneficiary == address(0) ||
-                operatorInfo.beneficiary == beneficiary,
+            operator.beneficiary == address(0) ||
+                operator.beneficiary == beneficiary,
             "Beneficiary of this operator in Keep contract is different"
         );
 
         require(
             keepStakingContract.isAuthorizedForOperator(
-                operator,
+                _operator,
                 address(this)
             ),
             "T staking contract is not authorized in Keep contract"
         );
 
         (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
-            .getDelegationInfo(operator);
+            .getDelegationInfo(_operator);
         uint256 tAmount = 0;
         if (undelegatedAt == 0) {
             (tAmount, ) = keepVendingMachine.conversionToT(keepStakeAmount);
         }
         require(tAmount > 0, "Nothing to sync");
 
-        operatorInfo.keepStake = tAmount;
-        if (operatorInfo.owner == address(0)) {
-            operatorInfo.owner = owner;
-            operatorInfo.authorizer = authorizer;
-            operatorInfo.beneficiary = beneficiary;
+        operator.keepStake = tAmount;
+        if (operator.owner == address(0)) {
+            operator.owner = owner;
+            operator.authorizer = authorizer;
+            operator.beneficiary = beneficiary;
         }
     }
 
@@ -247,27 +278,27 @@ contract TokenStaking is Ownable {
      * owner.
      */
     function stakeNu(
-        address operator,
-        address beneficiary,
+        address _operator,
+        address payable beneficiary,
         address authorizer
     ) external {
-        require(operator != address(0), "Operator must be specified");
-        OperatorInfo storage operatorInfo = operators[operator];
-        require(operatorInfo.nuStake == 0, "NU stake is already synced");
+        // TODO prevent calling twice from the same owner and different operators
+        require(_operator != address(0), "Operator must be specified");
+        OperatorInfo storage operator = operators[_operator];
+        require(operator.nuStake == 0, "NU stake is already synced");
 
         require(
-            operatorInfo.owner == address(0) ||
-                operatorInfo.owner == msg.sender,
+            operator.owner == address(0) || operator.owner == msg.sender,
             "Operator has a different owner"
         );
         require(
-            operatorInfo.authorizer == address(0) ||
-                operatorInfo.authorizer == authorizer,
+            operator.authorizer == address(0) ||
+                operator.authorizer == authorizer,
             "Operator has a different authorizer than specified"
         );
         require(
-            operatorInfo.beneficiary == address(0) ||
-                operatorInfo.beneficiary == beneficiary,
+            operator.beneficiary == address(0) ||
+                operator.beneficiary == beneficiary,
             "Operator has a different beneficiary than specified"
         );
 
@@ -279,11 +310,11 @@ contract TokenStaking is Ownable {
         );
         require(tAmount > 0, "Nothing to sync");
 
-        operatorInfo.nuStake = tAmount;
-        if (operatorInfo.owner == address(0)) {
-            operatorInfo.owner = msg.sender;
-            operatorInfo.authorizer = authorizer;
-            operatorInfo.beneficiary = beneficiary;
+        operator.nuStake = tAmount;
+        if (operator.owner == address(0)) {
+            operator.owner = msg.sender;
+            operator.authorizer = authorizer;
+            operator.beneficiary = beneficiary;
         }
     }
 
@@ -292,11 +323,11 @@ contract TokenStaking is Ownable {
      * transaction needs to have the amount approved to transfer to the staking
      * contract. Can be called by anyone.
      */
-    function topUp(address operator, uint256 amount) external {
+    function topUp(address _operator, uint256 amount) external {
         require(amount > 0, "Amount to top-up must be greater than 0");
-        OperatorInfo storage operatorInfo = operators[operator];
-        require(operatorInfo.owner != address(0), "Operator has no stake");
-        operatorInfo.tStake += amount;
+        OperatorInfo storage operator = operators[_operator];
+        require(operator.owner != address(0), "Operator has no stake");
+        operator.tStake += amount;
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
@@ -320,20 +351,97 @@ contract TokenStaking is Ownable {
     //         : msg.sender;
     // }
 
-    /// @notice Withdraw T tokens if possible
-    function withdraw(address operator, uint256 value) external {
-        OperatorInfo storage operatorInfo = operators[operator];
+    /**
+     * @notice Reduces the liquid T stake amount by `amount` and withdraws `amount` of T
+     * to the owner. Reverts if there is at least one authorization higher than the sum
+     * of a legacy stake and remaining liquid T stake or if the `amount` is higher than
+     * the liquid T stake amount. Can be called only by the owner or operator.
+     */
+    function unstakeT(address _operator, uint256 amount) external {
+        OperatorInfo storage operator = operators[_operator];
         require(
-            operatorInfo.owner == msg.sender,
-            "Only owner can withdraw tokens"
+            operator.owner == msg.sender || _operator == msg.sender,
+            "Only owner and operator can unstake tokens"
         );
         require(
-            value > 0 &&
-                getAvailableToWithdraw(operator, StakingProvider.T) >= value,
-            "Not enough tokens to withdraw"
+            amount > 0 &&
+                amount + getMinStaked(_operator, StakingProvider.T) <=
+                operator.tStake,
+            "Can't unstake specified amount of tokens"
         );
-        operatorInfo.tStake -= value;
-        token.safeTransfer(msg.sender, value);
+        operator.tStake -= amount;
+        token.safeTransfer(operator.owner, amount);
+    }
+
+    /**
+     * @notice Sets the legacy staking contract active stake amount cached in T staking
+     * contract to 0. Reverts if the amount of liquid T staked in T staking contract is
+     * lower than the highest application authorization. This function allows to
+     * unstake from Keep staking contract and still being able to operate in T network
+     * and earning rewards based on the liquid T staked. Can be called only by the
+     * delegation owner and operator.
+     */
+    function unstakeKeep(address _operator) external {
+        OperatorInfo storage operator = operators[_operator];
+        require(
+            operator.owner == msg.sender || _operator == msg.sender,
+            "Only owner and operator can unstake tokens"
+        );
+        require(operator.keepStake != 0, "Nothing to unstake");
+        require(
+            getMinStaked(_operator, StakingProvider.KEEP) == 0,
+            "At least one application prevents from unstaking"
+        );
+        operator.keepStake = 0;
+    }
+
+    /**
+     * @notice Reduces cached legacy NU stake amount by `amount`. Reverts if there is at least
+     * one authorization higher than the sum of remaining legacy NU stake and liquid T
+     * stake for that operator or if amount is higher than the cached legacy stake
+     * amount. If succeeded, the legacy NU stake can be partially or fully undelegated
+     * on the legacy staking contract. This function allows to unstake from NU staking
+     * contract and still being able to operate in T network and earning rewards based
+     * on the liquid T staked. Can be called only by the delegation owner and operator.
+     */
+    function unstakeNu(address _operator, uint256 amount) external {
+        OperatorInfo storage operator = operators[_operator];
+        require(
+            operator.owner == msg.sender || _operator == msg.sender,
+            "Only owner and operator can unstake tokens"
+        );
+        require(
+            amount > 0 &&
+                amount + getMinStaked(_operator, StakingProvider.NU) <=
+                operator.nuStake,
+            "Can't unstake specified amount of tokens"
+        );
+        operator.nuStake -= amount;
+    }
+
+    /**
+     * @notice Sets cached legacy stake amount to 0, sets the liquid T stake amount to 0 and
+     * withdraws all liquid T from the stake to the owner. Reverts if there is at least one
+     * non-zero authorization. Can be called only by the delegation owner and operator.
+     */
+    function unstakeAll(address _operator) external {
+        OperatorInfo storage operator = operators[_operator];
+        require(
+            operator.owner == msg.sender || _operator == msg.sender,
+            "Only owner and operator can unstake tokens"
+        );
+        require(
+            operator.authorizedApplications == 0,
+            "At least one application is still authorized"
+        );
+
+        uint256 amount = operator.tStake;
+        operator.tStake = 0;
+        operator.keepStake = 0;
+        operator.nuStake = 0;
+        if (amount > 0) {
+            token.safeTransfer(operator.owner, amount);
+        }
     }
 
     /**
@@ -343,28 +451,39 @@ contract TokenStaking is Ownable {
      * by the given operator's authorizer.
      */
     function increaseAuthorization(
-        address operator,
+        address _operator,
         address _application,
         uint256 amount
-    ) external onlyAuthorizerOf(operator) {
+    ) external onlyAuthorizerOf(_operator) {
         // TODO extract or remove?
         ApplicationInfo storage application = applicationInfo[_application];
-        require(!application.suspended, "Application is suspended");
+        require(!application.disabled, "Application is disabled");
 
-        AppAuthorization storage authorization = operators[operator]
-            .authorizations[_application];
+        OperatorInfo storage operator = operators[_operator];
+        AppAuthorization storage authorization = operator.authorizations[
+            _application
+        ];
+        if (authorization.authorized == 0) {
+            operator.authorizedApplications += 1;
+            require(
+                authorizationCeiling == 0 ||
+                    operator.authorizedApplications <= authorizationCeiling,
+                "Can't authorize more applications"
+            );
+        }
+
         require(
             authorization.authorized + amount >= application.minAllocationSize,
             "Authorization is too small for the specified application"
         );
 
         uint256 availableTValue = getAvailableToAuthorize(
-            operator,
+            _operator,
             _application
         );
         require(availableTValue >= amount, "Not enough stake to authorize");
         authorization.authorized += amount;
-        IApplication(_application).authorizationIncreased(operator, amount);
+        IApplication(_application).authorizationIncreased(_operator, amount);
     }
 
     /**
@@ -372,19 +491,24 @@ contract TokenStaking is Ownable {
      * authorization decrease request. Can only be called by the application that
      * was previously requested to decrease the authorization for that operator.
      */
-    function approveAuthorizationDecrease(address operator) external {
+    function approveAuthorizationDecrease(address _operator) external {
         // TODO extract or remove?
         ApplicationInfo storage application = applicationInfo[msg.sender];
-        require(!application.suspended, "Application is suspended");
+        require(!application.disabled, "Application is disabled");
 
-        AppAuthorization storage authorization = operators[operator]
-            .authorizations[msg.sender];
+        OperatorInfo storage operator = operators[_operator];
+        AppAuthorization storage authorization = operator.authorizations[
+            msg.sender
+        ];
         require(
             authorization.deauthorizing > 0,
-            "Sender was not authorized as application"
+            "Caller must be authorized application"
         );
         authorization.authorized -= authorization.deauthorizing;
         authorization.deauthorizing = 0;
+        if (authorization.authorized == 0) {
+            operator.authorizedApplications -= 1;
+        }
     }
 
     /**
@@ -435,6 +559,36 @@ contract TokenStaking is Ownable {
         return operators[operator].authorizations[application].authorized;
     }
 
+    /// @notice Returns staked amount of NU for the specified operator
+    function stakedNu(address operator)
+        external
+        view
+        returns (uint256 nuAmount)
+    {
+        (nuAmount, ) = nucypherVendingMachine.conversionFromT(
+            operators[operator].nuStake
+        );
+    }
+
+    /// @notice Gets the beneficiary for the specified operator address.
+    /// @return Beneficiary address.
+    function beneficiaryOf(address operator)
+        external
+        view
+        returns (address payable)
+    {
+        return operators[operator].beneficiary;
+    }
+
+    /**
+     * @notice Checks if the specified operator has a stake delegated and if it has been
+     * authorized for at least one application. If this function returns true,
+     * off-chain client of the given operator is eligible to join the network.
+     */
+    function hasStakeDelegated(address operator) external view returns (bool) {
+        return operators[operator].authorizedApplications > 0;
+    }
+
     /**
      * @notice Requests decrease of the authorization for the given operator on the given
      * application by the provided amount. Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
@@ -449,7 +603,7 @@ contract TokenStaking is Ownable {
     ) public onlyAuthorizerOf(operator) {
         // TODO extract or remove?
         ApplicationInfo storage application = applicationInfo[_application];
-        require(!application.suspended, "Application is suspended");
+        require(!application.disabled, "Application is disabled");
 
         require(
             amount > 0,
@@ -469,64 +623,55 @@ contract TokenStaking is Ownable {
             "Resulting authorization is less than the minimum allowed"
         );
 
-        authorization.deauthorizing = amount; // TODO maybe remove?
+        authorization.deauthorizing = amount;
         IApplication(_application).authorizationDecreaseRequested(
             operator,
             amount
         );
     }
 
-    /// @notice Returns available amount of stake to withdraw (not applicable for Keep)
-    /// @dev Resulting value is in original token denomination
-    function getAvailableToWithdraw(
-        address operator,
-        StakingProvider stakingProvider
-    ) public view returns (uint256 value) {
-        OperatorInfo storage operatorInfo = operators[operator];
-        uint256 cumulativeStake = operatorInfo.tStake +
-            operatorInfo.nuStake +
-            operatorInfo.keepStake;
-
+    /// @notice Returns minimum possible stake for T, KEEP or NU
+    function getMinStaked(address _operator, StakingProvider stakingProviders)
+        public
+        view
+        returns (uint256)
+    {
+        OperatorInfo storage operator = operators[_operator];
         uint256 maxAuthorization = 0;
         for (uint256 i = 0; i < applications.length; i++) {
             address application = applications[i];
             maxAuthorization = Math.max(
                 maxAuthorization,
-                operatorInfo.authorizations[application].authorized
+                operator.authorizations[application].authorized
             );
         }
 
-        cumulativeStake -= maxAuthorization;
-        if (stakingProvider == StakingProvider.T) {
-            value = cumulativeStake;
-        } else if (stakingProvider == StakingProvider.NU) {
-            (value, ) = nucypherVendingMachine.conversionFromT(cumulativeStake);
-        } else {
-            (value, ) = keepVendingMachine.conversionFromT(cumulativeStake);
+        if (maxAuthorization == 0) {
+            return 0;
         }
+        if (stakingProviders != StakingProvider.T) {
+            maxAuthorization -= Math.min(maxAuthorization, operator.tStake);
+        }
+        if (stakingProviders != StakingProvider.NU) {
+            maxAuthorization -= Math.min(maxAuthorization, operator.nuStake);
+        }
+        if (stakingProviders != StakingProvider.KEEP) {
+            maxAuthorization -= Math.min(maxAuthorization, operator.keepStake);
+        }
+        return maxAuthorization;
     }
 
     /// @notice Returns available amount to authorize for the specified application
-    function getAvailableToAuthorize(address operator, address application)
+    function getAvailableToAuthorize(address _operator, address application)
         public
         view
         returns (uint256 availableTValue)
     {
-        availableTValue = 0;
-        OperatorInfo storage operatorInfo = operators[operator];
-
-        if (applicationInfo[application].availability[StakingProvider.T]) {
-            availableTValue += operatorInfo.tStake;
-        }
-
-        if (applicationInfo[application].availability[StakingProvider.KEEP]) {
-            availableTValue += operatorInfo.keepStake;
-        }
-
-        if (applicationInfo[application].availability[StakingProvider.NU]) {
-            availableTValue += operatorInfo.nuStake;
-        }
-
-        availableTValue -= operatorInfo.authorizations[application].authorized;
+        OperatorInfo storage operator = operators[_operator];
+        availableTValue =
+            operator.tStake +
+            operator.keepStake +
+            operator.nuStake;
+        availableTValue -= operator.authorizations[application].authorized;
     }
 }
