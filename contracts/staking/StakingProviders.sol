@@ -56,8 +56,7 @@ interface IKeepTokenStaking {
 interface INuCypherStakingEscrow {
     // TODO add slash and seize endpoints
 
-    /**
-     * @notice Get all tokens belonging to the staker
-     */
-    function getAllTokens(address staker) external view returns (uint256);
+    /// @notice Request merge between NuCypher staking contract and T staking contract.
+    ///         Returns amount of staked tokens
+    function requestMerge(address staker) external view returns (uint256);
 }

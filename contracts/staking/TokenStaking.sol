@@ -202,12 +202,17 @@ contract TokenStaking is Ownable {
         address payable beneficiary,
         address authorizer
     ) external {
-        // TODO prevent calling twice from the same owner and different operators
         require(_operator != address(0), "Operator must be specified");
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner == address(0), "Operator is already in use");
+        (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
+            _operator
+        );
+        require(
+            createdAt == 0 && operator.owner == address(0),
+            "Operator is already in use"
+        );
 
-        uint256 nuStakeAmount = nucypherStakingContract.getAllTokens(
+        uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
             msg.sender
         );
         (uint256 tAmount, ) = nucypherVendingMachine.conversionToT(
@@ -469,15 +474,14 @@ contract TokenStaking is Ownable {
     /// @notice Propagates information about stake top-up from the legacy NU
     ///         staking contract to T staking contract. Can be called by anyone.
     function topUpNu(address _operator) external {
-        // TODO prevent calling twice from the same owner and different operators
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner != address(0),
             "Operator is not synced with NuCypher staking contract"
         );
 
-        uint256 nuStakeAmount = nucypherStakingContract.getAllTokens(
-            msg.sender // TODO proper way to get owner
+        uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
+            operator.owner
         );
         (uint256 tAmount, ) = nucypherVendingMachine.conversionToT(
             nuStakeAmount
