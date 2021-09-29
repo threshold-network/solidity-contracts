@@ -2,12 +2,22 @@
 
 pragma solidity 0.8.4;
 
-/**
- * @title IKeepTokenStaking
- * @notice Interface for Keep TokenStaking contract
- */
+/// @title IKeepTokenStaking
+/// @notice Interface for Keep TokenStaking contract
 interface IKeepTokenStaking {
-    // TODO add slash and seize endpoints
+    /// @notice Seize provided token amount from every member in the misbehaved
+    /// operators array. The tattletale is rewarded with 5% of the total seized
+    /// amount scaled by the reward adjustment parameter and the rest 95% is burned.
+    /// @param amountToSeize Token amount to seize from every misbehaved operator.
+    /// @param rewardMultiplier Reward adjustment in percentage. Min 1% and 100% max.
+    /// @param tattletale Address to receive the 5% reward.
+    /// @param misbehavedOperators Array of addresses to seize the tokens from.
+    function seize(
+        uint256 amountToSeize,
+        uint256 rewardMultiplier,
+        address tattletale,
+        address[] memory misbehavedOperators
+    ) external;
 
     /// @notice Gets stake delegation info for the given operator.
     /// @param _operator Operator address.
@@ -49,14 +59,25 @@ interface IKeepTokenStaking {
     ) external view returns (bool);
 }
 
-/**
- * @title INuCypherStakingEscrow
- * @notice Interface for NuCypher StakingEscrow contract
- */
+/// @title INuCypherStakingEscrow
+/// @notice Interface for NuCypher StakingEscrow contract
 interface INuCypherStakingEscrow {
-    // TODO add slash and seize endpoints
+    /// @notice Slash the staker's stake and reward the investigator
+    /// @param _staker Staker's address
+    /// @param _penalty Penalty
+    /// @param _investigator Investigator
+    /// @param _reward Reward for the investigator
+    function slashStaker(
+        address _staker,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    ) external;
 
     /// @notice Request merge between NuCypher staking contract and T staking contract.
     ///         Returns amount of staked tokens
     function requestMerge(address staker) external view returns (uint256);
+
+    /// @notice Get all tokens belonging to the staker
+    function getAllTokens(address _staker) external view returns (uint256);
 }
