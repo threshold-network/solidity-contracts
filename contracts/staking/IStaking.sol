@@ -23,7 +23,7 @@ interface IStaking {
     ///      transfer to the staking contract.
     function stake(
         address operator,
-        address beneficiary,
+        address payable beneficiary,
         address authorizer,
         uint256 amount
     ) external;
@@ -40,7 +40,7 @@ interface IStaking {
     ///         contract. Can be called only by the original delegation owner.
     function stakeNu(
         address operator,
-        address beneficiary,
+        address payable beneficiary,
         address authorizer
     ) external;
 

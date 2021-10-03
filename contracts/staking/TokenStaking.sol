@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.4;
 
+import "./IStaking.sol";
 import "./StakingProviders.sol";
 import "./IApplication.sol";
 import "../token/T.sol";
@@ -21,7 +22,7 @@ library PercentUtils {
 }
 
 /// @notice Meta staking contract. 3 roles: app, meta staking, app manager
-contract TokenStaking is Ownable {
+contract TokenStaking is Ownable, IStaking {
     using SafeERC20 for T;
     using PercentUtils for uint256;
 
@@ -152,7 +153,7 @@ contract TokenStaking is Ownable {
         address payable beneficiary,
         address authorizer,
         uint256 amount
-    ) external {
+    ) external override {
         require(_operator != address(0), "Operator must be specified");
         OperatorInfo storage operator = operators[_operator];
         (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
@@ -185,7 +186,7 @@ contract TokenStaking is Ownable {
     ///         staking contract. No tokens are transferred. Caches the active
     ///         stake amount from KEEP staking contract. Can be called by
     ///         anyone.
-    function stakeKeep(address _operator) external {
+    function stakeKeep(address _operator) external override {
         require(_operator != address(0), "Operator must be specified");
         OperatorInfo storage operator = operators[_operator];
 
@@ -227,7 +228,7 @@ contract TokenStaking is Ownable {
         address _operator,
         address payable beneficiary,
         address authorizer
-    ) external {
+    ) external override {
         require(_operator != address(0), "Operator must be specified");
         OperatorInfo storage operator = operators[_operator];
         (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
@@ -256,7 +257,11 @@ contract TokenStaking is Ownable {
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
     ///         higher minimum stakes if necessary.
-    function setMinimumStakeAmount(uint256 amount) external onlyGovernance {
+    function setMinimumStakeAmount(uint256 amount)
+        external
+        override
+        onlyGovernance
+    {
         minTStakeAmount = amount;
     }
 
@@ -288,7 +293,11 @@ contract TokenStaking is Ownable {
 
     /// @notice Allows the Governance to approve the particular application
     ///         before individual stake authorizers are able to authorize it.
-    function approveApplication(address application) external onlyGovernance {
+    function approveApplication(address application)
+        external
+        override
+        onlyGovernance
+    {
         ApplicationInfo storage info = applicationInfo[application];
         info.approved = true;
         info.disabled = false;
@@ -315,7 +324,7 @@ contract TokenStaking is Ownable {
         address _operator,
         address _application,
         uint256 amount
-    ) external onlyAuthorizerOf(_operator) {
+    ) external override onlyAuthorizerOf(_operator) {
         ApplicationInfo storage application = applicationInfo[_application];
         require(application.approved, "Application is not approved");
         require(!application.disabled, "Application is disabled"); // TODO ?
@@ -393,7 +402,7 @@ contract TokenStaking is Ownable {
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
     ///         decrease the authorization for that operator.
-    function approveAuthorizationDecrease(address _operator) external {
+    function approveAuthorizationDecrease(address _operator) external override {
         ApplicationInfo storage application = applicationInfo[msg.sender];
         require(!application.disabled, "Application is disabled"); // TODO ?
 
@@ -419,6 +428,7 @@ contract TokenStaking is Ownable {
     ///         function. Should be used only in case of an emergency.
     function disableApplication(address application)
         external
+        override
         onlyPanicButtonOf(application)
     {
         applicationInfo[application].disabled = true;
@@ -430,6 +440,7 @@ contract TokenStaking is Ownable {
     ///         role address should can set to 0x0 address.
     function setPanicButton(address application, address panicButton)
         external
+        override
         onlyGovernance
     {
         applicationInfo[application].panicButton = panicButton;
@@ -438,7 +449,11 @@ contract TokenStaking is Ownable {
     /// @notice Sets the maximum number of applications one operator can
     ///         authorize. Used to protect against DoSing slashing queue.
     ///         Can only be called by the Governance.
-    function setAuthorizationCeiling(uint256 ceiling) external onlyGovernance {
+    function setAuthorizationCeiling(uint256 ceiling)
+        external
+        override
+        onlyGovernance
+    {
         authorizationCeiling = ceiling;
     }
 
@@ -452,7 +467,7 @@ contract TokenStaking is Ownable {
     ///         Can be called by anyone.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
-    function topUp(address _operator, uint256 amount) external {
+    function topUp(address _operator, uint256 amount) external override {
         require(amount > 0, "Amount to top-up must be greater than 0");
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
@@ -462,7 +477,7 @@ contract TokenStaking is Ownable {
 
     /// @notice Propagates information about stake top-up from the legacy KEEP
     ///         staking contract to T staking contract. Can be called by anyone.
-    function topUpKeep(address _operator) external {
+    function topUpKeep(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner != address(0),
@@ -498,7 +513,7 @@ contract TokenStaking is Ownable {
 
     /// @notice Propagates information about stake top-up from the legacy NU
     ///         staking contract to T staking contract. Can be called by anyone.
-    function topUpNu(address _operator) external {
+    function topUpNu(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner != address(0),
@@ -531,7 +546,7 @@ contract TokenStaking is Ownable {
     ///         remaining liquid T stake or if the unstake amount is higher than
     ///         the liquid T stake amount. Can be called only by the owner or
     ///         operator.
-    function unstakeT(address _operator, uint256 amount) external {
+    function unstakeT(address _operator, uint256 amount) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner == msg.sender || _operator == msg.sender,
@@ -561,7 +576,7 @@ contract TokenStaking is Ownable {
     ///         KEEP staking contract and sill being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
     ///         called only by the delegation owner and operator.
-    function unstakeKeep(address _operator) external {
+    function unstakeKeep(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner == msg.sender || _operator == msg.sender,
@@ -585,7 +600,7 @@ contract TokenStaking is Ownable {
     ///         still being able to operate in T network and earning rewards
     ///         based on the liquid T staked. Can be called only by the
     ///         delegation owner and operator.
-    function unstakeNu(address _operator, uint256 amount) external {
+    function unstakeNu(address _operator, uint256 amount) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner == msg.sender || _operator == msg.sender,
@@ -604,7 +619,7 @@ contract TokenStaking is Ownable {
     ///         amount to 0 and withdraws all liquid T from the stake to the
     ///         owner. Reverts if there is at least one non-zero authorization.
     ///         Can be called only by the delegation owner and operator.
-    function unstakeAll(address _operator) external {
+    function unstakeAll(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner == msg.sender || _operator == msg.sender,
@@ -637,7 +652,7 @@ contract TokenStaking is Ownable {
     ///         of all affected applications and execute an involuntary
     ///         allocation decrease on all affected applications. Can be called
     ///         by anyone, notifier receives a reward.
-    function notifyKeepStakeDiscrepancy(address _operator) external {
+    function notifyKeepStakeDiscrepancy(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
         require(operator.keepStake > 0, "Nothing to slash");
 
@@ -679,7 +694,7 @@ contract TokenStaking is Ownable {
     ///         authorizations of all affected applications and execute an
     ///         involuntary allocation decrease on all affected applications.
     ///         Can be called by anyone, notifier receives a reward.
-    function notifyNuStakeDiscrepancy(address _operator) external {
+    function notifyNuStakeDiscrepancy(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
         require(operator.nuStake > 0, "Nothing to slash");
 
@@ -713,7 +728,7 @@ contract TokenStaking is Ownable {
     function setStakeDiscrepancyPenalty(
         uint256 penalty,
         uint256 rewardMultiplier
-    ) external onlyGovernance {
+    ) external override onlyGovernance {
         stakeDiscrepancyPenalty = penalty;
         stakeDiscrepancyRewardMultiplier = rewardMultiplier;
     }
@@ -731,7 +746,10 @@ contract TokenStaking is Ownable {
     /// @notice Adds operators to the slashing queue along with the amount that
     ///         should be slashed from each one of them. Can only be called by
     ///         application authorized for all operators in the array.
-    function slash(uint256 amount, address[] memory _operators) external {
+    function slash(uint256 amount, address[] memory _operators)
+        external
+        override
+    {
         _seize(amount, 0, address(0), _operators);
     }
 
@@ -745,7 +763,7 @@ contract TokenStaking is Ownable {
         uint256 rewardMultiplier,
         address notifier,
         address[] memory _operators
-    ) external {
+    ) external override {
         _seize(amount, rewardMultiplier, notifier, _operators);
     }
 
@@ -756,7 +774,7 @@ contract TokenStaking is Ownable {
     ///         created by the application with seize call.
     ///         Executes `involuntaryAllocationDecrease` function on each
     ///         affected application.
-    function processSlashing(uint256 count) external {
+    function processSlashing(uint256 count) external override {
         require(
             slashingQueueIndex < slashingQueue.length,
             "Nothing to process"
@@ -865,6 +883,7 @@ contract TokenStaking is Ownable {
     function authorizedStake(address operator, address application)
         external
         view
+        override
         returns (uint256)
     {
         return operators[operator].authorizations[application].authorized;
@@ -895,7 +914,12 @@ contract TokenStaking is Ownable {
     ///         has been authorized for at least one application. If this
     ///         function returns true, off-chain client of the given operator is
     ///         eligible to join the network.
-    function hasStakeDelegated(address operator) external view returns (bool) {
+    function hasStakeDelegated(address operator)
+        external
+        view
+        override
+        returns (bool)
+    {
         return operators[operator].authorizedApplicationsNumber > 0;
     }
 
@@ -911,7 +935,7 @@ contract TokenStaking is Ownable {
         address operator,
         address _application,
         uint256 amount
-    ) public onlyAuthorizerOf(operator) {
+    ) public override onlyAuthorizerOf(operator) {
         ApplicationInfo storage application = applicationInfo[_application];
         require(!application.disabled, "Application is disabled"); // TODO ?
 
