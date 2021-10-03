@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./TokenholderGovernorVotes.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
 import "@openzeppelin/contracts/governance/compatibility/GovernorCompatibilityBravo.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";   
+import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 
 contract TokenholderGovernor is
@@ -13,8 +13,9 @@ contract TokenholderGovernor is
     TokenholderGovernorVotes,
     GovernorTimelockControl
 {
-    uint256 constant private INITIAL_QUORUM_NUMERATOR = 150;  // Defined in basis points, i.e., 1.5%
-    uint256 constant private INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25;  // Defined in basis points, i.e., 0.25%
+    uint256 private constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
+    uint256 private constant INITIAL_QUORUM_NUMERATOR = 150; // Defined in basis points, i.e., 1.5%
+    uint256 private constant INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25; // Defined in basis points, i.e., 0.25%
 
     constructor(
         ERC20Votes _token,
@@ -23,23 +24,24 @@ contract TokenholderGovernor is
     )
         Governor("TokenholderGovernor")
         GovernorVotes(_token)
-        GovernorVotesQuorumFraction(INITIAL_QUORUM_NUMERATOR)  
+        GovernorVotesQuorumFraction(INITIAL_QUORUM_NUMERATOR)
         TokenholderGovernorVotes(_staking)
         GovernorTimelockControl(_timelock)
     {}
 
     function votingDelay() public pure override returns (uint256) {
-        return 6575; // 1 day
+        return (2 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
     }
 
     function votingPeriod() public pure override returns (uint256) {
-        return 46027; // 1 week
+        return (10 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
     }
 
     //TODO: functions to update threshold, events, common logic with quorum
     function proposalThreshold() public view override returns (uint256) {
-        return (_getPastTotalSupply(block.number - 1) * INITIAL_PROPOSAL_THRESHOLD_NUMERATOR) /
-            quorumDenominator();
+        return
+            (_getPastTotalSupply(block.number - 1) *
+                INITIAL_PROPOSAL_THRESHOLD_NUMERATOR) / quorumDenominator();
     }
 
     // The functions below are overrides required by Solidity.
