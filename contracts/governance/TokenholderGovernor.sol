@@ -13,6 +13,9 @@ contract TokenholderGovernor is
     TokenholderGovernorVotes,
     GovernorTimelockControl
 {
+    uint256 constant private INITIAL_QUORUM_NUMERATOR = 150;  // Defined in basis points, i.e., 1.5%
+    uint256 constant private INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25;  // Defined in basis points, i.e., 0.25%
+
     constructor(
         ERC20Votes _token,
         IVotesHistory _staking,
@@ -20,7 +23,7 @@ contract TokenholderGovernor is
     )
         Governor("TokenholderGovernor")
         GovernorVotes(_token)
-        GovernorVotesQuorumFraction(4)
+        GovernorVotesQuorumFraction(INITIAL_QUORUM_NUMERATOR)  
         TokenholderGovernorVotes(_staking)
         GovernorTimelockControl(_timelock)
     {}
@@ -33,8 +36,10 @@ contract TokenholderGovernor is
         return 46027; // 1 week
     }
 
-    function proposalThreshold() public pure override returns (uint256) {
-        return 0;
+    //TODO: functions to update threshold, events, common logic with quorum
+    function proposalThreshold() public view override returns (uint256) {
+        return (_getPastTotalSupply(block.number - 1) * INITIAL_PROPOSAL_THRESHOLD_NUMERATOR) /
+            quorumDenominator();
     }
 
     // The functions below are overrides required by Solidity.
@@ -76,6 +81,10 @@ contract TokenholderGovernor is
         override(Governor, GovernorCompatibilityBravo, IGovernor)
         returns (uint256)
     {
+        require(
+            getVotes(msg.sender, block.number - 1) >= proposalThreshold(),
+            "Proposal below threshold"
+        );
         return super.propose(targets, values, calldatas, description);
     }
 

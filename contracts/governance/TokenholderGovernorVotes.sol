@@ -54,6 +54,8 @@ abstract contract TokenholderGovernorVotes is GovernorVotesQuorumFraction {
         // FIXME: Account for vending machines' balance of T
     }
 
+    /// @notice Compute the required amount of voting power to reach quorum
+    /// @param blockNumber The block number to get the quorum at
     function quorum(uint256 blockNumber)
         public
         view
@@ -64,5 +66,13 @@ abstract contract TokenholderGovernorVotes is GovernorVotesQuorumFraction {
         return
             (_getPastTotalSupply(blockNumber) * quorumNumerator()) /
             quorumDenominator();
+    }
+
+    function fractionDenominator() public view virtual returns (uint256) {
+        return 10000;
+    }
+
+    function quorumDenominator() public view virtual override returns (uint256) {
+        return fractionDenominator();
     }
 }
