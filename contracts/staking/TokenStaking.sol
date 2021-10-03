@@ -39,7 +39,7 @@ contract TokenStaking is Ownable, IStaking {
         address payable beneficiary;
         address authorizer;
         mapping(address => AppAuthorization) authorizations;
-        uint256 authorizedApplicationsNumber;
+        address[] authorizedApplications;
         uint256 nuStake;
         uint256 keepStake;
         uint256 tStake;
@@ -334,13 +334,13 @@ contract TokenStaking is Ownable, IStaking {
             _application
         ];
         if (authorization.authorized == 0) {
-            operator.authorizedApplicationsNumber += 1;
             require(
                 authorizationCeiling == 0 ||
-                    operator.authorizedApplicationsNumber <=
+                    operator.authorizedApplications.length <
                     authorizationCeiling,
                 "Can't authorize more applications"
             );
+            operator.authorizedApplications.push(_application);
         }
 
         uint256 availableTValue = getAvailableToAuthorize(
@@ -380,8 +380,8 @@ contract TokenStaking is Ownable, IStaking {
     function requestAuthorizationDecrease(address _operator) external {
         OperatorInfo storage operator = operators[_operator];
         uint256 deauthorizing = 0;
-        for (uint256 i = 0; i < applications.length; i++) {
-            address application = applications[i];
+        for (uint256 i = 0; i < operator.authorizedApplications.length; i++) {
+            address application = operator.authorizedApplications[i];
             uint256 authorized = operator
                 .authorizations[application]
                 .authorized;
@@ -417,7 +417,15 @@ contract TokenStaking is Ownable, IStaking {
         authorization.authorized -= authorization.deauthorizing;
         authorization.deauthorizing = 0;
         if (authorization.authorized == 0) {
-            operator.authorizedApplicationsNumber -= 1;
+            uint256 length = operator.authorizedApplications.length;
+            for (uint256 index = 0; index < length - 1; index++) {
+                if (operator.authorizedApplications[index] == msg.sender) {
+                    operator.authorizedApplications[index] = operator
+                        .authorizedApplications[length - 1];
+                    break;
+                }
+            }
+            operator.authorizedApplications.pop();
         }
     }
 
@@ -626,7 +634,7 @@ contract TokenStaking is Ownable, IStaking {
             "Only owner and operator can unstake tokens"
         );
         require(
-            operator.authorizedApplicationsNumber == 0,
+            operator.authorizedApplications.length == 0,
             "At least one application is still authorized"
         );
 
@@ -920,7 +928,7 @@ contract TokenStaking is Ownable, IStaking {
         override
         returns (bool)
     {
-        return operators[operator].authorizedApplicationsNumber > 0;
+        return operators[operator].authorizedApplications.length > 0;
     }
 
     /// @notice Requests decrease of the authorization for the given operator on
@@ -966,8 +974,8 @@ contract TokenStaking is Ownable, IStaking {
     {
         OperatorInfo storage operator = operators[_operator];
         uint256 maxAuthorization = 0;
-        for (uint256 i = 0; i < applications.length; i++) {
-            address application = applications[i];
+        for (uint256 i = 0; i < operator.authorizedApplications.length; i++) {
+            address application = operator.authorizedApplications[i];
             maxAuthorization = Math.max(
                 maxAuthorization,
                 operator.authorizations[application].authorized
@@ -1048,8 +1056,8 @@ contract TokenStaking is Ownable, IStaking {
         uint256 totalStake = operator.tStake +
             operator.nuStake +
             operator.keepStake;
-        for (uint256 i = 0; i < applications.length; i++) {
-            address application = applications[i];
+        for (uint256 i = 0; i < operator.authorizedApplications.length; i++) {
+            address application = operator.authorizedApplications[i];
             uint256 authorized = operator
                 .authorizations[application]
                 .authorized;
