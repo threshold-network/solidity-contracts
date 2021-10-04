@@ -7,12 +7,8 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
- * NOTE: Extracted from OpenZeppelin ERCVotes.sol. Maybe worth trying to push it upstream there
- *
- * @dev Abstract contract to support Compound-like voting and delegation. This version is more generic than Compound's,
- * and supports token supply up to 2^224^ - 1, while COMP is limited to 2^96^ - 1.
- *
- * NOTE: If exact COMP compatibility is required, use the {ERC20VotesComp} variant of this module.  (//FIXME)
+ * @dev Abstract contract to support checkpoints for Compound-like voting and delegation.
+ * This implementation supports token supply up to 2^96^ - 1.
  *
  * This contract keeps a history (checkpoints) of each account's vote power. Vote power can be delegated either
  * by calling the {delegate} function directly, or by providing a signature to be used with {delegateBySig}. Voting
@@ -23,17 +19,17 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
  * Enabling self-delegation can easily be done by overriding the {delegates} function. Keep in mind however that this
  * will significantly increase the base gas cost of transfers.
  *
- * _Available since v4.2._  (//FIXME)
+ * NOTE: Extracted from OpenZeppelin ERCVotes.sol. Maybe worth trying to push it upstream there.
  */
 abstract contract Checkpoints {
     struct Checkpoint {
         uint32 fromBlock;
-        uint224 votes;
+        uint96 votes;
     }
 
     mapping(address => address) internal _delegates;
-    mapping(address => Checkpoint[]) internal _checkpoints;
-    Checkpoint[] internal _totalSupplyCheckpoints;
+    mapping(address => uint128[]) internal _checkpoints;
+    uint128[] internal _totalSupplyCheckpoints;
 
     /**
      * @dev Emitted when an account changes their delegate.
@@ -53,6 +49,9 @@ abstract contract Checkpoints {
         uint256 newBalance
     );
 
+    //FIXME: Add this as an abstract function of Checkpoints
+    // function delegate(address delegator, address delegatee) internal virtual;
+
     /**
      * @dev Get the `pos`-th checkpoint for `account`.
      */
@@ -60,9 +59,12 @@ abstract contract Checkpoints {
         public
         view
         virtual
-        returns (Checkpoint memory)
+        returns (Checkpoint memory checkpoint)
     {
-        return _checkpoints[account][pos];
+        (uint32 fromBlock, uint96 votes) = decodeCheckpoint(
+            _checkpoints[account][pos]
+        );
+        checkpoint = Checkpoint(fromBlock, votes);
     }
 
     /**
@@ -89,7 +91,7 @@ abstract contract Checkpoints {
      */
     function getVotes(address account) public view returns (uint256) {
         uint256 pos = _checkpoints[account].length;
-        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;
+        return pos == 0 ? 0 : decodeValue(_checkpoints[account][pos - 1]);
     }
 
     /**
@@ -104,7 +106,6 @@ abstract contract Checkpoints {
         view
         returns (uint256)
     {
-        require(blockNumber < block.number, "ERC20Votes: block not yet mined");
         return _checkpointsLookup(_checkpoints[account], blockNumber);
     }
 
@@ -121,14 +122,42 @@ abstract contract Checkpoints {
         view
         returns (uint256)
     {
-        require(blockNumber < block.number, "ERC20Votes: block not yet mined");
         return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);
+    }
+
+    function encodeCheckpoint(uint32 blockNumber, uint96 value)
+        internal
+        pure
+        returns (uint128)
+    {
+        return uint128((uint256(blockNumber) << 96) | uint256(value));
+    }
+
+    function decodeBlockNumber(uint128 _checkpoint)
+        internal
+        pure
+        returns (uint32)
+    {
+        return uint32(bytes4(bytes16(_checkpoint)));
+    }
+
+    function decodeValue(uint128 _checkpoint) internal pure returns (uint96) {
+        return uint96(_checkpoint);
+    }
+
+    function decodeCheckpoint(uint128 _checkpoint)
+        internal
+        pure
+        returns (uint32 blockNumber, uint96 value)
+    {
+        blockNumber = decodeBlockNumber(_checkpoint);
+        value = decodeValue(_checkpoint);
     }
 
     /**
      * @dev Lookup a value in a list of (sorted) checkpoints.
      */
-    function _checkpointsLookup(Checkpoint[] storage ckpts, uint256 blockNumber)
+    function _checkpointsLookup(uint128[] storage ckpts, uint256 blockNumber)
         internal
         view
         returns (uint256)
@@ -144,25 +173,28 @@ abstract contract Checkpoints {
         // Note that if the latest checkpoint available is exactly for `blockNumber`, we end up with an index that is
         // past the end of the array, so we technically don't find a checkpoint after `blockNumber`, but it works out
         // the same.
+        require(blockNumber < block.number, "Block not yet determined");
+
         uint256 high = ckpts.length;
         uint256 low = 0;
         while (low < high) {
             uint256 mid = Math.average(low, high);
-            if (ckpts[mid].fromBlock > blockNumber) {
+            uint32 midBlock = decodeBlockNumber(ckpts[mid]);
+            if (midBlock > blockNumber) {
                 high = mid;
             } else {
                 low = mid + 1;
             }
         }
 
-        return high == 0 ? 0 : ckpts[high - 1].votes;
+        return high == 0 ? 0 : decodeValue(ckpts[high - 1]);
     }
 
     /**
-     * @dev Maximum token supply. Defaults to `type(uint224).max` (2^224^ - 1).
+     * @dev Maximum token supply. Defaults to `type(uint96).max` (2^96^ - 1).
      */
-    function _maxSupply() internal view virtual returns (uint224) {
-        return type(uint224).max;
+    function _maxSupply() internal view virtual returns (uint96) {
+        return type(uint96).max;
     }
 
     function _moveVotingPower(
@@ -192,30 +224,39 @@ abstract contract Checkpoints {
     }
 
     function _writeCheckpoint(
-        Checkpoint[] storage ckpts,
+        uint128[] storage ckpts,
         function(uint256, uint256) view returns (uint256) op,
         uint256 delta
     ) internal returns (uint256 oldWeight, uint256 newWeight) {
         uint256 pos = ckpts.length;
-        oldWeight = pos == 0 ? 0 : ckpts[pos - 1].votes;
+        oldWeight = pos == 0 ? 0 : decodeValue(ckpts[pos - 1]);
         newWeight = op(oldWeight, delta);
 
-        if (pos > 0 && ckpts[pos - 1].fromBlock == block.number) {
-            ckpts[pos - 1].votes = SafeCast.toUint224(newWeight);
-        } else {
-            ckpts.push(
-                Checkpoint({
-                    fromBlock: SafeCast.toUint32(block.number),
-                    votes: SafeCast.toUint224(newWeight)
-                })
-            );
+        if (pos > 0) {
+            uint32 fromBlock = decodeBlockNumber(ckpts[pos - 1]);
+            if (fromBlock == block.number) {
+                ckpts[pos - 1] = encodeCheckpoint(
+                    fromBlock,
+                    SafeCast.toUint96(newWeight)
+                );
+                return (oldWeight, newWeight);
+            }
         }
+
+        ckpts.push(
+            encodeCheckpoint(
+                SafeCast.toUint32(block.number),
+                SafeCast.toUint96(newWeight)
+            )
+        );
     }
 
+    // slither-disable-next-line dead-code
     function _add(uint256 a, uint256 b) internal pure returns (uint256) {
         return a + b;
     }
 
+    // slither-disable-next-line dead-code
     function _subtract(uint256 a, uint256 b) internal pure returns (uint256) {
         return a - b;
     }
