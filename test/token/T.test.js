@@ -51,7 +51,7 @@ describe("T token", () => {
       it("should revert", async () => {
         await expect(
           t.getPriorVotes(tokenHolder.address, await lastBlockNumber())
-        ).to.be.revertedWith("Not yet determined")
+        ).to.be.revertedWith("Checkpoints: block not yet mined")
       })
     })
   })
