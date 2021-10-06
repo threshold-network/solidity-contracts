@@ -4,6 +4,7 @@ const {
   to1e18,
   lastBlockNumber,
   lastBlockTime,
+  mineBlock,
   ZERO_ADDRESS,
   MAX_UINT96,
 } = require("../helpers/contract-test-helpers")
@@ -51,7 +52,7 @@ describe("T token", () => {
       it("should revert", async () => {
         await expect(
           t.getPriorVotes(tokenHolder.address, await lastBlockNumber())
-        ).to.be.revertedWith("Checkpoints: block not yet mined")
+        ).to.be.revertedWith("Block not yet determined")
       })
     })
   })
@@ -679,6 +680,13 @@ describe("T token", () => {
   })
 
   describe("mint", () => {
+    context("when minting", () => {
+      it("historic supply should be tracked", async () => {
+        const block = await mineBlock()
+        expect(await t.getPastTotalSupply(block - 1)).to.equal(initialBalance)
+      })
+    })
+
     context("when trying to mint more than the checkpoint can store", () => {
       context("in one step", () => {
         it("should revert", async () => {
@@ -708,6 +716,24 @@ describe("T token", () => {
         await t.connect(deployer).mint(thirdParty.address, initialBalance)
         expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
       })
+
+      it("but historical supply should be tracked", async () => {
+        const block1 = await mineBlock()
+        expect(await t.getPastTotalSupply(block1 - 1)).to.equal(initialBalance)
+
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        const block2 = await mineBlock()
+        expect(await t.getPastTotalSupply(block2 - 1)).to.equal(
+          initialBalance.mul(2)
+        )
+
+        // one more time, when not starting from zero balance
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        const block3 = await mineBlock()
+        expect(await t.getPastTotalSupply(block3 - 1)).to.equal(
+          initialBalance.mul(3)
+        )
+      })
     })
 
     context("when delegated to someone else", () => {
@@ -722,6 +748,26 @@ describe("T token", () => {
         expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
         expect(await t.getCurrentVotes(delegatee.address)).to.equal(
           initialBalance
+        )
+      })
+
+      it("historical supply should be tracked", async () => {
+        const block1 = await mineBlock()
+        expect(await t.getPastTotalSupply(block1 - 1)).to.equal(
+          initialBalance.mul(2)
+        )
+
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        const block2 = await mineBlock()
+        expect(await t.getPastTotalSupply(block2 - 1)).to.equal(
+          initialBalance.mul(3)
+        )
+
+        // one more time, when not starting from zero balance
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        const block3 = await mineBlock()
+        expect(await t.getPastTotalSupply(block3 - 1)).to.equal(
+          initialBalance.mul(4)
         )
       })
 
@@ -743,6 +789,26 @@ describe("T token", () => {
       it("should update current votes", async () => {
         expect(await t.getCurrentVotes(thirdParty.address)).to.equal(
           initialBalance
+        )
+      })
+
+      it("historical supply should be tracked", async () => {
+        const block1 = await mineBlock()
+        expect(await t.getPastTotalSupply(block1 - 1)).to.equal(
+          initialBalance.mul(2)
+        )
+
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        const block2 = await mineBlock()
+        expect(await t.getPastTotalSupply(block2 - 1)).to.equal(
+          initialBalance.mul(3)
+        )
+
+        // one more time, when not starting from zero balance
+        await t.connect(deployer).mint(thirdParty.address, initialBalance)
+        const block3 = await mineBlock()
+        expect(await t.getPastTotalSupply(block3 - 1)).to.equal(
+          initialBalance.mul(4)
         )
       })
 
@@ -790,9 +856,21 @@ describe("T token", () => {
 
   const describeBurn = (doBurn) => {
     context("when no delegation was done", () => {
+      const amount = to1e18(10)
+
+      beforeEach(async () => {
+        await doBurn(amount)
+      })
+
       it("should keep current votes at zero", async () => {
-        t.connect(tokenHolder).burn(to1e18(10))
         expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
+      })
+
+      it("historical supply should be reduced", async () => {
+        const block1 = await mineBlock()
+        expect(await t.getPastTotalSupply(block1 - 1)).to.equal(
+          initialBalance.sub(amount)
+        )
       })
     })
 
@@ -821,6 +899,13 @@ describe("T token", () => {
             initialBalance.sub(amount)
           )
       })
+
+      it("historical supply should be reduced", async () => {
+        const block1 = await mineBlock()
+        expect(await t.getPastTotalSupply(block1 - 1)).to.equal(
+          initialBalance.sub(amount)
+        )
+      })
     })
 
     context("when self-delegated", () => {
@@ -847,6 +932,13 @@ describe("T token", () => {
             initialBalance.sub(amount)
           )
       })
+
+      it("historical supply should be reduced", async () => {
+        const block1 = await mineBlock()
+        expect(await t.getPastTotalSupply(block1 - 1)).to.equal(
+          initialBalance.sub(amount)
+        )
+      })
     })
 
     context("when burned several times", () => {
@@ -854,15 +946,20 @@ describe("T token", () => {
       let block2
       let block3
 
+      const amount1 = to1e18(3)
+      const amount2 = to1e18(1)
+      const amount3 = to1e18(5)
+      const amount4 = to1e18(2)
+
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(delegatee.address)
-        await doBurn(to1e18(3))
+        await doBurn(amount1)
         block1 = await lastBlockNumber()
-        await doBurn(to1e18(1))
+        await doBurn(amount2)
         block2 = await lastBlockNumber()
-        await doBurn(to1e18(5))
+        await doBurn(amount3)
         block3 = await lastBlockNumber()
-        await doBurn(to1e18(2))
+        await doBurn(amount4)
       })
 
       it("should update current votes", async () => {
@@ -874,13 +971,30 @@ describe("T token", () => {
 
       it("should keep track of prior votes", async () => {
         expect(await t.getPriorVotes(delegatee.address, block1)).to.equal(
-          initialBalance.sub(to1e18(3))
+          initialBalance.sub(amount1)
         )
         expect(await t.getPriorVotes(delegatee.address, block2)).to.equal(
-          initialBalance.sub(to1e18(4))
+          initialBalance.sub(amount1).sub(amount2)
         )
         expect(await t.getPriorVotes(delegatee.address, block3)).to.equal(
-          initialBalance.sub(to1e18(9))
+          initialBalance.sub(amount1).sub(amount2).sub(amount3)
+        )
+      })
+
+      it("historical supply should decrease every time", async () => {
+        expect(await t.getPastTotalSupply(block1)).to.equal(
+          initialBalance.sub(amount1)
+        )
+        expect(await t.getPastTotalSupply(block2)).to.equal(
+          initialBalance.sub(amount1).sub(amount2)
+        )
+        expect(await t.getPastTotalSupply(block3)).to.equal(
+          initialBalance.sub(amount1).sub(amount2).sub(amount3)
+        )
+        await mineBlock()
+        const block4 = (await lastBlockNumber()) - 1
+        expect(await t.getPastTotalSupply(block4)).to.equal(
+          initialBalance.sub(amount1).sub(amount2).sub(amount3).sub(amount4)
         )
       })
     })
