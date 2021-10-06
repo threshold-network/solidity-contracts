@@ -31,4 +31,10 @@ contract TestStakingCheckpoints is Checkpoints {
 
         tToken.transfer(msg.sender, amount);
     }
+
+    function delegate(address delegator, address delegatee)
+        internal
+        virtual
+        override
+    {}
 }

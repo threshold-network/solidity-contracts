@@ -125,7 +125,11 @@ contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
         _moveVotingPower(delegates(from), delegates(to), safeAmount);
     }
 
-    function delegate(address delegator, address delegatee) internal virtual {
+    function delegate(address delegator, address delegatee)
+        internal
+        virtual
+        override
+    {
         address currentDelegate = delegates(delegator);
         uint96 delegatorBalance = SafeCast.toUint96(balanceOf[delegator]);
         _delegates[delegator] = delegatee;

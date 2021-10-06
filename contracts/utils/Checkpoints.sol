@@ -49,8 +49,7 @@ abstract contract Checkpoints {
         uint256 newBalance
     );
 
-    //FIXME: Add this as an abstract function of Checkpoints
-    // function delegate(address delegator, address delegatee) internal virtual;
+    function delegate(address delegator, address delegatee) internal virtual;
 
     /**
      * @dev Get the `pos`-th checkpoint for `account`.
