@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.4;
 
-import "../utils/Checkpoints.sol";
+import "../governance/Checkpoints.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@thesis/solidity-contracts/contracts/token/ERC20WithPermit.sol";
 import "@thesis/solidity-contracts/contracts/token/MisfundRecovery.sol";
