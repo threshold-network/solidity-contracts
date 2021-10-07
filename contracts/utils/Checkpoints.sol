@@ -88,7 +88,7 @@ abstract contract Checkpoints {
     /**
      * @dev Gets the current votes balance for `account`
      */
-    function getVotes(address account) public view returns (uint256) {
+    function getVotes(address account) public view returns (uint96) {
         uint256 pos = _checkpoints[account].length;
         return pos == 0 ? 0 : decodeValue(_checkpoints[account][pos - 1]);
     }
@@ -103,7 +103,7 @@ abstract contract Checkpoints {
     function getPastVotes(address account, uint256 blockNumber)
         public
         view
-        returns (uint256)
+        returns (uint96)
     {
         return _checkpointsLookup(_checkpoints[account], blockNumber);
     }
@@ -119,7 +119,7 @@ abstract contract Checkpoints {
     function getPastTotalSupply(uint256 blockNumber)
         public
         view
-        returns (uint256)
+        returns (uint96)
     {
         return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);
     }
@@ -129,7 +129,7 @@ abstract contract Checkpoints {
         pure
         returns (uint128)
     {
-        return uint128((uint256(blockNumber) << 96) | uint256(value));
+        return (uint128(blockNumber) << 96) | uint128(value);
     }
 
     function decodeBlockNumber(uint128 _checkpoint)
@@ -159,7 +159,7 @@ abstract contract Checkpoints {
     function _checkpointsLookup(uint128[] storage ckpts, uint256 blockNumber)
         internal
         view
-        returns (uint256)
+        returns (uint96)
     {
         // We run a binary search to look for the earliest checkpoint taken after `blockNumber`.
         //
