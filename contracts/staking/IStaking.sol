@@ -25,7 +25,7 @@ interface IStaking {
         address operator,
         address payable beneficiary,
         address authorizer,
-        uint256 amount
+        uint96 amount
     ) external;
 
     /// @notice Copies delegation from the legacy KEEP staking contract to T
@@ -48,7 +48,7 @@ interface IStaking {
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
     ///         higher minimum stakes if necessary.
-    function setMinimumStakeAmount(uint256 amount) external;
+    function setMinimumStakeAmount(uint96 amount) external;
 
     //
     //
@@ -69,7 +69,7 @@ interface IStaking {
     function increaseAuthorization(
         address operator,
         address application,
-        uint256 amount
+        uint96 amount
     ) external;
 
     /// @notice Requests decrease of the authorization for the given operator on
@@ -83,7 +83,7 @@ interface IStaking {
     function requestAuthorizationDecrease(
         address operator,
         address application,
-        uint256 amount
+        uint96 amount
     ) external;
 
     /// @notice Called by the application at its discretion to approve the
@@ -120,7 +120,7 @@ interface IStaking {
     ///         Can be called by anyone.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
-    function topUp(address operator, uint256 amount) external;
+    function topUp(address operator, uint96 amount) external;
 
     /// @notice Propagates information about stake top-up from the legacy KEEP
     ///         staking contract to T staking contract. Can be called by anyone.
@@ -142,7 +142,7 @@ interface IStaking {
     ///         remaining liquid T stake or if the unstake amount is higher than
     ///         the liquid T stake amount. Can be called only by the owner or
     ///         operator.
-    function unstakeT(address operator, uint256 amount) external;
+    function unstakeT(address operator, uint96 amount) external;
 
     /// @notice Sets the legacy KEEP staking contract active stake amount cached
     ///         in T staking contract to 0. Reverts if the amount of liquid T
@@ -163,7 +163,7 @@ interface IStaking {
     ///         still being able to operate in T network and earning rewards
     ///         based on the liquid T staked. Can be called only by the
     ///         delegation owner and operator.
-    function unstakeNu(address operator, uint256 amount) external;
+    function unstakeNu(address operator, uint96 amount) external;
 
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
     ///         amount to 0 and withdraws all liquid T from the stake to the
@@ -201,14 +201,14 @@ interface IStaking {
     ///         multiplier, is given to the notifier. The rest of the tokens are
     ///         burned. Can only be called by the Governance. See `seize` function.
     function setStakeDiscrepancyPenalty(
-        uint256 penalty,
+        uint96 penalty,
         uint256 rewardMultiplier
     ) external;
 
     /// @notice Adds operators to the slashing queue along with the amount that
     ///         should be slashed from each one of them. Can only be called by
     ///         application authorized for all operators in the array.
-    function slash(uint256 amount, address[] memory operators) external;
+    function slash(uint96 amount, address[] memory operators) external;
 
     /// @notice Adds operators to the slashing queue along with the amount,
     ///         reward multiplier and notifier address. The notifier will
@@ -216,7 +216,7 @@ interface IStaking {
     ///         parameter once the seize order will be processed. Can only be
     ///         called by application authorized for all operators in the array.
     function seize(
-        uint256 amount,
+        uint96 amount,
         uint256 rewardMultipier,
         address notifier,
         address[] memory operators
@@ -242,7 +242,7 @@ interface IStaking {
     function authorizedStake(address operator, address application)
         external
         view
-        returns (uint256);
+        returns (uint96);
 
     /// @notice Checks if the specified operator has a stake delegated and if it
     ///         has been authorized for at least one application. If this

@@ -11,11 +11,13 @@ import "../utils/PercentUtils.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /// @notice Meta staking contract. 3 roles: app, meta staking, app manager
 contract TokenStaking is Ownable, IStaking {
     using SafeERC20 for T;
     using PercentUtils for uint256;
+    using SafeCast for uint256;
 
     enum StakingProvider {
         NU,
@@ -29,15 +31,15 @@ contract TokenStaking is Ownable, IStaking {
         address authorizer;
         mapping(address => AppAuthorization) authorizations;
         address[] authorizedApplications;
-        uint256 nuStake;
-        uint256 keepStake;
-        uint256 tStake;
+        uint96 nuStake;
+        uint96 keepStake;
+        uint96 tStake;
         uint256 startTStakingTimestamp;
     }
 
     struct AppAuthorization {
-        uint256 authorized;
-        uint256 deauthorizing;
+        uint96 authorized;
+        uint96 deauthorizing;
     }
 
     struct ApplicationInfo {
@@ -48,7 +50,7 @@ contract TokenStaking is Ownable, IStaking {
 
     struct SlashingEvent {
         address operator;
-        uint256 amount; // TODO optimization: uint256 -> uint96
+        uint96 amount;
     }
 
     uint256 public constant SLASHING_REWARD_PERCENT = 5;
@@ -61,9 +63,9 @@ contract TokenStaking is Ownable, IStaking {
     VendingMachine public immutable keepVendingMachine;
     VendingMachine public immutable nucypherVendingMachine;
 
-    uint256 public minTStakeAmount;
+    uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
-    uint256 public stakeDiscrepancyPenalty;
+    uint96 public stakeDiscrepancyPenalty;
     uint256 public stakeDiscrepancyRewardMultiplier;
 
     uint256 public notifiersTreasury;
@@ -83,24 +85,24 @@ contract TokenStaking is Ownable, IStaking {
         address indexed operator,
         address indexed beneficiary,
         address indexed authorizer,
-        uint256 amount
+        uint96 amount
     );
-    event MinimumStakeAmountSet(uint256 amount);
+    event MinimumStakeAmountSet(uint96 amount);
     event ApplicationApproved(address indexed application);
     event AuthorizationIncreased(
         address indexed operator,
         address indexed application,
-        uint256 amount
+        uint96 amount
     );
     event AuthorizationDecreaseRequested(
         address indexed operator,
         address indexed application,
-        uint256 amount
+        uint96 amount
     );
     event AuthorizationDecreaseApproved(
         address indexed operator,
         address indexed application,
-        uint256 amount
+        uint96 amount
     );
     event ApplicationDisabled(address indexed application);
     event PanicButtonSet(
@@ -108,12 +110,12 @@ contract TokenStaking is Ownable, IStaking {
         address indexed panicButton
     );
     event AuthorizationCeilingSet(uint256 ceiling);
-    event ToppedUp(address indexed operator, uint256 amount);
-    event Unstaked(address indexed operator, uint256 amount);
-    event TokensSeized(address indexed operator, uint256 amount);
-    event StakeDiscrepancyPenaltySet(uint256 penalty, uint256 rewardMultiplier);
-    event NotificationRewardSet(uint256 reward);
-    event NotificationRewardPushed(uint256 reward);
+    event ToppedUp(address indexed operator, uint96 amount);
+    event Unstaked(address indexed operator, uint96 amount);
+    event TokensSeized(address indexed operator, uint96 amount);
+    event StakeDiscrepancyPenaltySet(uint96 penalty, uint256 rewardMultiplier);
+    event NotificationRewardSet(uint96 reward);
+    event NotificationRewardPushed(uint96 reward);
     event NotifierRewarded(address indexed notifier, uint256 amount);
 
     // modifier onlyOperatorsOwner(address operator) {
@@ -188,7 +190,7 @@ contract TokenStaking is Ownable, IStaking {
         address _operator,
         address payable _beneficiary,
         address _authorizer,
-        uint256 _amount
+        uint96 _amount
     ) external override {
         require(_operator != address(0), "Operator must be specified");
         OperatorInfo storage operator = operators[_operator];
@@ -233,7 +235,7 @@ contract TokenStaking is Ownable, IStaking {
             "Can't stake KEEP for this operator"
         );
 
-        uint256 tAmount = getKeepAmountInT(_operator);
+        uint96 tAmount = getKeepAmountInT(_operator);
 
         operator.keepStake = tAmount;
         operator.owner = keepStakingContract.ownerOf(_operator);
@@ -275,20 +277,25 @@ contract TokenStaking is Ownable, IStaking {
         );
         require(tAmount > 0, "Nothing to sync");
 
-        operator.nuStake = tAmount;
+        operator.nuStake = tAmount.toUint96();
         operator.owner = msg.sender;
         operator.authorizer = _authorizer;
         operator.beneficiary = _beneficiary;
 
         emit NuStaked(msg.sender, _operator);
-        emit OperatorStaked(_operator, _beneficiary, _authorizer, tAmount);
+        emit OperatorStaked(
+            _operator,
+            _beneficiary,
+            _authorizer,
+            operator.nuStake
+        );
     }
 
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
     ///         higher minimum stakes if necessary.
-    function setMinimumStakeAmount(uint256 amount)
+    function setMinimumStakeAmount(uint96 amount)
         external
         override
         onlyGovernance
@@ -357,7 +364,7 @@ contract TokenStaking is Ownable, IStaking {
     function increaseAuthorization(
         address _operator,
         address _application,
-        uint256 _amount
+        uint96 _amount
     ) external override onlyAuthorizerOf(_operator) {
         ApplicationInfo storage application = applicationInfo[_application];
         require(application.approved, "Application is not approved");
@@ -378,7 +385,7 @@ contract TokenStaking is Ownable, IStaking {
             operator.authorizedApplications.push(_application);
         }
 
-        uint256 availableTValue = getAvailableToAuthorize(
+        uint96 availableTValue = getAvailableToAuthorize(
             _operator,
             _application
         );
@@ -399,7 +406,7 @@ contract TokenStaking is Ownable, IStaking {
     function requestAuthorizationDecrease(address operator, address application)
         external
     {
-        uint256 authorized = operators[operator]
+        uint96 authorized = operators[operator]
             .authorizations[application]
             .authorized;
         requestAuthorizationDecrease(operator, application, authorized);
@@ -415,12 +422,10 @@ contract TokenStaking is Ownable, IStaking {
     ///      for each authorized application. See `IApplication`.
     function requestAuthorizationDecrease(address _operator) external {
         OperatorInfo storage operator = operators[_operator];
-        uint256 deauthorizing = 0;
+        uint96 deauthorizing = 0;
         for (uint256 i = 0; i < operator.authorizedApplications.length; i++) {
             address application = operator.authorizedApplications[i];
-            uint256 authorized = operator
-                .authorizations[application]
-                .authorized;
+            uint96 authorized = operator.authorizations[application].authorized;
             if (authorized > 0) {
                 requestAuthorizationDecrease(
                     _operator,
@@ -523,7 +528,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         Can be called by anyone.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
-    function topUp(address _operator, uint256 _amount) external override {
+    function topUp(address _operator, uint96 _amount) external override {
         require(_amount > 0, "Amount to top-up must be greater than 0");
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
@@ -541,7 +546,7 @@ contract TokenStaking is Ownable, IStaking {
             "Operator is not synced with Keep staking contract"
         );
 
-        uint256 tAmount = getKeepAmountInT(_operator);
+        uint96 tAmount = getKeepAmountInT(_operator);
         require(
             tAmount > operator.keepStake,
             "Amount in Keep contract is equal to or less than the stored amount"
@@ -566,13 +571,14 @@ contract TokenStaking is Ownable, IStaking {
         (uint256 tAmount, ) = nucypherVendingMachine.conversionToT(
             nuStakeAmount
         );
+        uint96 safeAmount = tAmount.toUint96();
         require(
-            tAmount > operator.nuStake,
+            safeAmount > operator.nuStake,
             "Amount in NuCypher contract is equal to or less than the stored amount"
         );
 
-        emit ToppedUp(_operator, tAmount - operator.nuStake);
-        operator.nuStake = tAmount;
+        emit ToppedUp(_operator, safeAmount - operator.nuStake);
+        operator.nuStake = safeAmount;
     }
 
     //
@@ -587,7 +593,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         remaining liquid T stake or if the unstake amount is higher than
     ///         the liquid T stake amount. Can be called only by the owner or
     ///         operator.
-    function unstakeT(address _operator, uint256 _amount) external override {
+    function unstakeT(address _operator, uint96 _amount) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner == msg.sender || _operator == msg.sender,
@@ -643,7 +649,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         still being able to operate in T network and earning rewards
     ///         based on the liquid T staked. Can be called only by the
     ///         delegation owner and operator.
-    function unstakeNu(address _operator, uint256 _amount) external override {
+    function unstakeNu(address _operator, uint96 _amount) external override {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.owner == msg.sender || _operator == msg.sender,
@@ -678,7 +684,7 @@ contract TokenStaking is Ownable, IStaking {
             _operator,
             operator.tStake + operator.keepStake + operator.nuStake
         );
-        uint256 amount = operator.tStake;
+        uint96 amount = operator.tStake;
         operator.tStake = 0;
         operator.keepStake = 0;
         operator.nuStake = 0;
@@ -707,13 +713,14 @@ contract TokenStaking is Ownable, IStaking {
         (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
             .getDelegationInfo(_operator);
         (uint256 tAmount, ) = keepVendingMachine.conversionToT(keepStakeAmount);
+        uint96 safeAmount = tAmount.toUint96();
 
         require(
-            operator.keepStake > tAmount ||
+            operator.keepStake > safeAmount ||
                 (operator.keepStake != 0 && undelegatedAt != 0),
             "There is no discrepancy"
         );
-        operator.keepStake = tAmount;
+        operator.keepStake = safeAmount;
         seizeKeep(
             operator,
             _operator,
@@ -721,7 +728,7 @@ contract TokenStaking is Ownable, IStaking {
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(_operator, tAmount - operator.keepStake);
+        emit TokensSeized(_operator, safeAmount - operator.keepStake);
         if (undelegatedAt != 0) {
             operator.keepStake = 0;
         }
@@ -746,16 +753,17 @@ contract TokenStaking is Ownable, IStaking {
         (uint256 tAmount, ) = nucypherVendingMachine.conversionToT(
             nuStakeAmount
         );
+        uint96 safeAmount = tAmount.toUint96();
 
-        require(operator.nuStake > tAmount, "There is no discrepancy");
-        operator.nuStake = tAmount;
+        require(operator.nuStake > safeAmount, "There is no discrepancy");
+        operator.nuStake = safeAmount;
         seizeNu(
             operator,
             stakeDiscrepancyPenalty,
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(_operator, tAmount - operator.nuStake);
+        emit TokensSeized(_operator, safeAmount - operator.nuStake);
         authorizationDecrease(_operator, operator);
     }
 
@@ -765,7 +773,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         multiplier, is given to the notifier. The rest of the tokens are
     ///         burned. Can only be called by the Governance. See `seize` function.
     function setStakeDiscrepancyPenalty(
-        uint256 penalty,
+        uint96 penalty,
         uint256 rewardMultiplier
     ) external override onlyGovernance {
         // TODO optimization: can be saved NU and KEEP equivalents to exclude conversion during slashing
@@ -775,13 +783,13 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Sets reward in T tokens for notification of misbehaviour of one operator
-    function setNotificationReward(uint256 reward) external onlyGovernance {
+    function setNotificationReward(uint96 reward) external onlyGovernance {
         notificationReward = reward;
         emit NotificationRewardSet(reward);
     }
 
     /// @notice Transfer some amount of T tokens as reward for notifications of misbehaviour
-    function pushNotificationReward(uint256 reward) external {
+    function pushNotificationReward(uint96 reward) external {
         notifiersTreasury += reward;
         emit NotificationRewardPushed(reward);
         token.safeTransferFrom(msg.sender, address(this), reward);
@@ -790,7 +798,7 @@ contract TokenStaking is Ownable, IStaking {
     /// @notice Adds operators to the slashing queue along with the amount that
     ///         should be slashed from each one of them. Can only be called by
     ///         application authorized for all operators in the array.
-    function slash(uint256 amount, address[] memory _operators)
+    function slash(uint96 amount, address[] memory _operators)
         external
         override
     {
@@ -803,7 +811,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         parameter once the seize order will be processed. Can only be
     ///         called by application authorized for all operators in the array.
     function seize(
-        uint256 amount,
+        uint96 amount,
         uint256 rewardMultiplier,
         address notifier,
         address[] memory _operators
@@ -825,7 +833,7 @@ contract TokenStaking is Ownable, IStaking {
         );
 
         uint256 maxIndex = slashingQueueIndex + count;
-        uint256 tAmountToBurn = 0;
+        uint96 tAmountToBurn = 0;
         for (
             ;
             slashingQueueIndex < slashingQueue.length &&
@@ -837,10 +845,10 @@ contract TokenStaking is Ownable, IStaking {
         }
 
         if (tAmountToBurn > 0) {
-            uint256 tProcessorReward = tAmountToBurn.percent(
+            uint256 tProcessorReward = uint256(tAmountToBurn).percent(
                 SLASHING_REWARD_PERCENT
             );
-            notifiersTreasury += tAmountToBurn - tProcessorReward;
+            notifiersTreasury += tAmountToBurn - tProcessorReward.toUint96();
             token.safeTransfer(msg.sender, tProcessorReward);
         }
     }
@@ -857,7 +865,7 @@ contract TokenStaking is Ownable, IStaking {
         external
         view
         override
-        returns (uint256)
+        returns (uint96)
     {
         return operators[operator].authorizations[application].authorized;
     }
@@ -907,7 +915,7 @@ contract TokenStaking is Ownable, IStaking {
     function requestAuthorizationDecrease(
         address _operator,
         address _application,
-        uint256 _amount
+        uint96 _amount
     ) public override onlyAuthorizerOf(_operator) {
         ApplicationInfo storage application = applicationInfo[_application];
         // TODO suggestion: disable all functionality when app is disabled
@@ -937,7 +945,7 @@ contract TokenStaking is Ownable, IStaking {
     function getMinStaked(address _operator, StakingProvider stakingProviders)
         public
         view
-        returns (uint256)
+        returns (uint96)
     {
         OperatorInfo storage operator = operators[_operator];
         uint256 maxAuthorization = 0;
@@ -961,14 +969,14 @@ contract TokenStaking is Ownable, IStaking {
         if (stakingProviders != StakingProvider.KEEP) {
             maxAuthorization -= Math.min(maxAuthorization, operator.keepStake);
         }
-        return maxAuthorization;
+        return maxAuthorization.toUint96();
     }
 
     /// @notice Returns available amount to authorize for the specified application
     function getAvailableToAuthorize(address _operator, address application)
         public
         view
-        returns (uint256 availableTValue)
+        returns (uint96 availableTValue)
     {
         OperatorInfo storage operator = operators[_operator];
         availableTValue =
@@ -984,7 +992,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         parameter once the seize order will be processed. Can only be
     ///         called by application authorized for all operators in the array.
     function notify(
-        uint256 amount,
+        uint96 amount,
         uint256 rewardMultiplier,
         address notifier,
         address[] memory _operators
@@ -1026,10 +1034,10 @@ contract TokenStaking is Ownable, IStaking {
     ///         affected application.
     function processSlashing(SlashingEvent storage slashing)
         internal
-        returns (uint256 tAmountToBurn)
+        returns (uint96 tAmountToBurn)
     {
         OperatorInfo storage operator = operators[slashing.operator];
-        uint256 tAmountToSlash = slashing.amount;
+        uint96 tAmountToSlash = slashing.amount;
 
         // slash T
         if (operator.tStake > 0) {
@@ -1051,7 +1059,7 @@ contract TokenStaking is Ownable, IStaking {
             (uint256 tAmount, ) = keepVendingMachine.conversionToT(
                 keepStakeAmount
             );
-            operator.keepStake = tAmount;
+            operator.keepStake = tAmount.toUint96();
 
             tAmountToSlash = seizeKeep(
                 operator,
@@ -1075,7 +1083,7 @@ contract TokenStaking is Ownable, IStaking {
         address operatorAddress,
         OperatorInfo storage operator
     ) internal {
-        uint256 totalStake = operator.tStake +
+        uint96 totalStake = operator.tStake +
             operator.nuStake +
             operator.keepStake;
         for (uint256 i = 0; i < operator.authorizedApplications.length; i++) {
@@ -1104,10 +1112,10 @@ contract TokenStaking is Ownable, IStaking {
     function seizeKeep(
         OperatorInfo storage operator,
         address operatorAddress,
-        uint256 tAmountToSlash,
+        uint96 tAmountToSlash,
         uint256 rewardMultiplier
-    ) internal returns (uint256) {
-        uint256 tPenalty;
+    ) internal returns (uint96) {
+        uint96 tPenalty;
         if (tAmountToSlash <= operator.keepStake) {
             tPenalty = tAmountToSlash;
             operator.keepStake -= tAmountToSlash;
@@ -1118,8 +1126,9 @@ contract TokenStaking is Ownable, IStaking {
 
         (uint256 keepPenalty, uint256 tRemainder) = keepVendingMachine
             .conversionFromT(tPenalty);
-        operator.keepStake += tRemainder;
-        tAmountToSlash -= tPenalty - tRemainder;
+        uint96 safeTRemainder = tRemainder.toUint96();
+        operator.keepStake += safeTRemainder;
+        tAmountToSlash -= tPenalty - safeTRemainder;
 
         address[] memory operatorWrapper = new address[](1);
         operatorWrapper[0] = operatorAddress;
@@ -1136,10 +1145,10 @@ contract TokenStaking is Ownable, IStaking {
     ///         Returns remainder of slashing amount in T
     function seizeNu(
         OperatorInfo storage operator,
-        uint256 tAmountToSlash,
+        uint96 tAmountToSlash,
         uint256 rewardMultiplier
-    ) internal returns (uint256) {
-        uint256 tPenalty;
+    ) internal returns (uint96) {
+        uint96 tPenalty;
         if (tAmountToSlash <= operator.nuStake) {
             operator.nuStake -= tAmountToSlash;
             tPenalty = tAmountToSlash;
@@ -1150,8 +1159,9 @@ contract TokenStaking is Ownable, IStaking {
 
         (uint256 nuPenalty, uint256 tRemainder) = nucypherVendingMachine
             .conversionFromT(tPenalty);
-        operator.nuStake += tRemainder;
-        tAmountToSlash -= tPenalty - tRemainder;
+        uint96 safeTRemainder = tRemainder.toUint96();
+        operator.nuStake += safeTRemainder;
+        tAmountToSlash -= tPenalty - safeTRemainder;
 
         uint256 nuReward = nuPenalty.percent(SLASHING_REWARD_PERCENT).percent(
             rewardMultiplier
@@ -1167,11 +1177,7 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Returns amount of Keep stake in the Keep staking contract for the specified operator.
     ///         Resulting value in T denomination
-    function getKeepAmountInT(address operator)
-        internal
-        view
-        returns (uint256)
-    {
+    function getKeepAmountInT(address operator) internal view returns (uint96) {
         (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
             operator
         );
@@ -1185,6 +1191,6 @@ contract TokenStaking is Ownable, IStaking {
         if (keepStakeAmount > 0) {
             (tAmount, ) = keepVendingMachine.conversionToT(keepStakeAmount);
         }
-        return tAmount;
+        return tAmount.toUint96();
     }
 }
