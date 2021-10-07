@@ -9,6 +9,10 @@ import "@thesis/solidity-contracts/contracts/token/MisfundRecovery.sol";
 
 /// @title T token
 /// @notice Threshold Network T token.
+/// @dev By default, token balance does not account for voting power.
+///      This makes transfers cheaper. The downside is that it requires users
+///      to delegate to themselves to activate checkpoints and have their
+///      voting power tracked.
 contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
     /// @notice The EIP-712 typehash for the delegation struct used by
     ///         `delegateBySig`.
@@ -89,18 +93,18 @@ contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
             // Does not allow to mint more than uint96 can fit. Otherwise, the
             // Checkpoint might not fit the balance.
             require(
-                totalSupply + amount <= _maxSupply(),
+                totalSupply + amount <= maxSupply(),
                 "Maximum total supply exceeded"
             );
-            _writeCheckpoint(_totalSupplyCheckpoints, _add, safeAmount);
+            writeCheckpoint(_totalSupplyCheckpoints, add, safeAmount);
         }
 
         // When burning:
         if (to == address(0)) {
-            _writeCheckpoint(_totalSupplyCheckpoints, _subtract, safeAmount);
+            writeCheckpoint(_totalSupplyCheckpoints, subtract, safeAmount);
         }
 
-        _moveVotingPower(delegates(from), delegates(to), safeAmount);
+        moveVotingPower(delegates(from), delegates(to), safeAmount);
     }
 
     function delegate(address delegator, address delegatee)
@@ -114,6 +118,6 @@ contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
 
-        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);
+        moveVotingPower(currentDelegate, delegatee, delegatorBalance);
     }
 }
