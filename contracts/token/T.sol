@@ -23,12 +23,6 @@ contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
 
     constructor() ERC20WithPermit("Threshold Network Token", "T") {}
 
-    /// @notice Delegate votes from `msg.sender` to `delegatee`.
-    /// @param delegatee The address to delegate votes to
-    function delegate(address delegatee) public virtual {
-        return delegate(msg.sender, delegatee);
-    }
-
     /// @notice Delegates votes from signatory to `delegatee`
     /// @param delegatee The address to delegate votes to
     /// @param deadline The time at which to expire the signature
@@ -78,6 +72,12 @@ contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
         );
 
         return delegate(signatory, delegatee);
+    }
+
+    /// @notice Delegate votes from `msg.sender` to `delegatee`.
+    /// @param delegatee The address to delegate votes to
+    function delegate(address delegatee) public virtual {
+        return delegate(msg.sender, delegatee);
     }
 
     // slither-disable-next-line dead-code

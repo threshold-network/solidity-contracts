@@ -40,8 +40,6 @@ abstract contract Checkpoints {
         uint256 newBalance
     );
 
-    function delegate(address delegator, address delegatee) internal virtual;
-
     function checkpoints(address account, uint32 pos)
         public
         view
@@ -105,88 +103,8 @@ abstract contract Checkpoints {
         return lookupCheckpoint(_totalSupplyCheckpoints, blockNumber);
     }
 
-    /// @notice Encodes a `blockNumber` and `value` into a single `uint128`
-    ///         checkpoint.
-    /// @dev `blockNumber` is stored in the first 32 bits, while `value` in the
-    ///      remaining 96 bits.
-    function encodeCheckpoint(uint32 blockNumber, uint96 value)
-        internal
-        pure
-        returns (uint128)
-    {
-        return (uint128(blockNumber) << 96) | uint128(value);
-    }
-
-    /// @notice Decodes a block number from a `uint128` `checkpoint`.
-    function decodeBlockNumber(uint128 checkpoint)
-        internal
-        pure
-        returns (uint32)
-    {
-        return uint32(bytes4(bytes16(checkpoint)));
-    }
-
-    /// @notice Decodes a voting value from a `uint128` `checkpoint`.
-    function decodeValue(uint128 checkpoint) internal pure returns (uint96) {
-        return uint96(checkpoint);
-    }
-
-    /// @notice Decodes a block number and voting value from a `uint128`
-    ///         `checkpoint`.
-    function decodeCheckpoint(uint128 checkpoint)
-        internal
-        pure
-        returns (uint32 blockNumber, uint96 value)
-    {
-        blockNumber = decodeBlockNumber(checkpoint);
-        value = decodeValue(checkpoint);
-    }
-
-    /// @notice Lookup a value in a list of (sorted) checkpoints.
-    /// @param ckpts The checkpoints array to use
-    /// @param blockNumber Block number when we want to get the checkpoint at
-    function lookupCheckpoint(uint128[] storage ckpts, uint256 blockNumber)
-        internal
-        view
-        returns (uint96)
-    {
-        // We run a binary search to look for the earliest checkpoint taken
-        // after `blockNumber`. During the loop, the index of the wanted
-        // checkpoint remains in the range [low-1, high). With each iteration,
-        // either `low` or `high` is moved towards the middle of the range to
-        // maintain the invariant.
-        // - If the middle checkpoint is after `blockNumber`,
-        //   we look in [low, mid)
-        // - If the middle checkpoint is before or equal to `blockNumber`,
-        //   we look in [mid+1, high)
-        // Once we reach a single value (when low == high), we've found the
-        // right checkpoint at the index high-1, if not out of bounds (in that
-        // case we're looking too far in the past and the result is 0).
-        // Note that if the latest checkpoint available is exactly for
-        // `blockNumber`, we end up with an index that is past the end of the
-        // array, so we technically don't find a checkpoint after
-        // `blockNumber`, but it works out the same.
-        require(blockNumber < block.number, "Block not yet determined");
-
-        uint256 high = ckpts.length;
-        uint256 low = 0;
-        while (low < high) {
-            uint256 mid = Math.average(low, high);
-            uint32 midBlock = decodeBlockNumber(ckpts[mid]);
-            if (midBlock > blockNumber) {
-                high = mid;
-            } else {
-                low = mid + 1;
-            }
-        }
-
-        return high == 0 ? 0 : decodeValue(ckpts[high - 1]);
-    }
-
-    /// @notice Maximum token supply. Defaults to `type(uint96).max` (2^96 - 1)
-    function maxSupply() internal view virtual returns (uint96) {
-        return type(uint96).max;
-    }
+    /// @notice Change delegation for `delegator` to `delegatee`.
+    function delegate(address delegator, address delegatee) internal virtual;
 
     /// @notice Moves voting power from one delegate to another
     /// @param src Address of old delegate
@@ -252,6 +170,89 @@ abstract contract Checkpoints {
                 SafeCast.toUint96(newWeight)
             )
         );
+    }
+
+    /// @notice Lookup a value in a list of (sorted) checkpoints.
+    /// @param ckpts The checkpoints array to use
+    /// @param blockNumber Block number when we want to get the checkpoint at
+    function lookupCheckpoint(uint128[] storage ckpts, uint256 blockNumber)
+        internal
+        view
+        returns (uint96)
+    {
+        // We run a binary search to look for the earliest checkpoint taken
+        // after `blockNumber`. During the loop, the index of the wanted
+        // checkpoint remains in the range [low-1, high). With each iteration,
+        // either `low` or `high` is moved towards the middle of the range to
+        // maintain the invariant.
+        // - If the middle checkpoint is after `blockNumber`,
+        //   we look in [low, mid)
+        // - If the middle checkpoint is before or equal to `blockNumber`,
+        //   we look in [mid+1, high)
+        // Once we reach a single value (when low == high), we've found the
+        // right checkpoint at the index high-1, if not out of bounds (in that
+        // case we're looking too far in the past and the result is 0).
+        // Note that if the latest checkpoint available is exactly for
+        // `blockNumber`, we end up with an index that is past the end of the
+        // array, so we technically don't find a checkpoint after
+        // `blockNumber`, but it works out the same.
+        require(blockNumber < block.number, "Block not yet determined");
+
+        uint256 high = ckpts.length;
+        uint256 low = 0;
+        while (low < high) {
+            uint256 mid = Math.average(low, high);
+            uint32 midBlock = decodeBlockNumber(ckpts[mid]);
+            if (midBlock > blockNumber) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
+        }
+
+        return high == 0 ? 0 : decodeValue(ckpts[high - 1]);
+    }
+
+    /// @notice Maximum token supply. Defaults to `type(uint96).max` (2^96 - 1)
+    function maxSupply() internal view virtual returns (uint96) {
+        return type(uint96).max;
+    }
+
+    /// @notice Encodes a `blockNumber` and `value` into a single `uint128`
+    ///         checkpoint.
+    /// @dev `blockNumber` is stored in the first 32 bits, while `value` in the
+    ///      remaining 96 bits.
+    function encodeCheckpoint(uint32 blockNumber, uint96 value)
+        internal
+        pure
+        returns (uint128)
+    {
+        return (uint128(blockNumber) << 96) | uint128(value);
+    }
+
+    /// @notice Decodes a block number from a `uint128` `checkpoint`.
+    function decodeBlockNumber(uint128 checkpoint)
+        internal
+        pure
+        returns (uint32)
+    {
+        return uint32(bytes4(bytes16(checkpoint)));
+    }
+
+    /// @notice Decodes a voting value from a `uint128` `checkpoint`.
+    function decodeValue(uint128 checkpoint) internal pure returns (uint96) {
+        return uint96(checkpoint);
+    }
+
+    /// @notice Decodes a block number and voting value from a `uint128`
+    ///         `checkpoint`.
+    function decodeCheckpoint(uint128 checkpoint)
+        internal
+        pure
+        returns (uint32 blockNumber, uint96 value)
+    {
+        blockNumber = decodeBlockNumber(checkpoint);
+        value = decodeValue(checkpoint);
     }
 
     // slither-disable-next-line dead-code
