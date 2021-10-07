@@ -57,6 +57,22 @@ interface IKeepTokenStaking {
         address _operator,
         address _operatorContract
     ) external view returns (bool);
+
+    /// @notice Gets the eligible stake balance of the specified address.
+    /// An eligible stake is a stake that passed the initialization period
+    /// and is not currently undelegating. Also, the operator had to approve
+    /// the specified operator contract.
+    ///
+    /// Operator with a minimum required amount of eligible stake can join the
+    /// network and participate in new work selection.
+    ///
+    /// @param _operator address of stake operator.
+    /// @param _operatorContract address of operator contract.
+    /// @return balance an uint256 representing the eligible stake balance.
+    function eligibleStake(address _operator, address _operatorContract)
+        external
+        view
+        returns (uint256 balance);
 }
 
 /// @title INuCypherStakingEscrow

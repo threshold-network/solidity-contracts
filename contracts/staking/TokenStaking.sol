@@ -48,13 +48,12 @@ contract TokenStaking is Ownable, IStaking {
 
     struct SlashingEvent {
         address operator;
-        uint256 amount; // TODO uint256 -> uint96
-        // address notifier;
-        // uint256 rewardMultiplier;
+        uint256 amount; // TODO optimization: uint256 -> uint96
     }
 
     uint256 public constant SLASHING_REWARD_PERCENT = 5;
     uint256 public constant MIN_STAKE_TIME = 24 hours;
+    uint256 public constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
 
     T public immutable token;
     IKeepTokenStaking public immutable keepStakingContract;
@@ -70,7 +69,6 @@ contract TokenStaking is Ownable, IStaking {
     uint256 public notifiersTreasury;
     uint256 public notificationReward;
 
-    // TODO public getters for inner mappings
     mapping(address => OperatorInfo) public operators;
     mapping(address => ApplicationInfo) public applicationInfo;
     address[] public applications;
@@ -159,11 +157,19 @@ contract TokenStaking is Ownable, IStaking {
         VendingMachine _keepVendingMachine,
         VendingMachine _nucypherVendingMachine
     ) {
-        // TODO check contracts and input variables
+        require(
+            _token.totalSupply() > 0 &&
+                _keepStakingContract.ownerOf(address(0)) == address(0) &&
+                _nucypherStakingContract.getAllTokens(address(0)) == 0 &&
+                address(_keepVendingMachine.wrappedToken()) != address(0) &&
+                address(_nucypherVendingMachine.wrappedToken()) != address(0),
+            "Wrong input parameters"
+        );
         token = _token;
         keepStakingContract = _keepStakingContract;
         nucypherStakingContract = _nucypherStakingContract;
-        keepVendingMachine = _keepVendingMachine; // TODO save ratio (and additional code) instead of contract
+        // TODO optimization: save ratio (and additional code) instead of contract
+        keepVendingMachine = _keepVendingMachine;
         nucypherVendingMachine = _nucypherVendingMachine;
     }
 
@@ -291,6 +297,7 @@ contract TokenStaking is Ownable, IStaking {
         emit MinimumStakeAmountSet(amount);
     }
 
+    // TODO question: which roles can be changed later?
     // /// @notice Set or change authorizer role
     // function setAuthorizer(address operator, address authorizer)
     //     external
@@ -354,7 +361,8 @@ contract TokenStaking is Ownable, IStaking {
     ) external override onlyAuthorizerOf(_operator) {
         ApplicationInfo storage application = applicationInfo[_application];
         require(application.approved, "Application is not approved");
-        require(!application.disabled, "Application is disabled"); // TODO ?
+        // TODO suggestion: disable all functionality when app is disabled
+        require(!application.disabled, "Application is disabled");
 
         OperatorInfo storage operator = operators[_operator];
         AppAuthorization storage authorization = operator.authorizations[
@@ -432,7 +440,8 @@ contract TokenStaking is Ownable, IStaking {
     ///         decrease the authorization for that operator.
     function approveAuthorizationDecrease(address _operator) external override {
         ApplicationInfo storage application = applicationInfo[msg.sender];
-        require(!application.disabled, "Application is disabled"); // TODO ?
+        // TODO suggestion: disable all functionality when app is disabled
+        require(!application.disabled, "Application is disabled");
 
         OperatorInfo storage operator = operators[_operator];
         AppAuthorization storage authorization = operator.authorizations[
@@ -700,7 +709,8 @@ contract TokenStaking is Ownable, IStaking {
         (uint256 tAmount, ) = keepVendingMachine.conversionToT(keepStakeAmount);
 
         require(
-            operator.keepStake > tAmount || undelegatedAt != 0,
+            operator.keepStake > tAmount ||
+                (operator.keepStake != 0 && undelegatedAt != 0),
             "There is no discrepancy"
         );
         operator.keepStake = tAmount;
@@ -758,7 +768,7 @@ contract TokenStaking is Ownable, IStaking {
         uint256 penalty,
         uint256 rewardMultiplier
     ) external override onlyGovernance {
-        // TODO ?can be saved NU and KEEP equivalents to exclude conversion during slashing
+        // TODO optimization: can be saved NU and KEEP equivalents to exclude conversion during slashing
         stakeDiscrepancyPenalty = penalty;
         stakeDiscrepancyRewardMultiplier = rewardMultiplier;
         emit StakeDiscrepancyPenaltySet(penalty, rewardMultiplier);
@@ -900,7 +910,8 @@ contract TokenStaking is Ownable, IStaking {
         uint256 _amount
     ) public override onlyAuthorizerOf(_operator) {
         ApplicationInfo storage application = applicationInfo[_application];
-        require(!application.disabled, "Application is disabled"); // TODO ?
+        // TODO suggestion: disable all functionality when app is disabled
+        require(!application.disabled, "Application is disabled");
 
         require(
             _amount > 0,
@@ -994,7 +1005,7 @@ contract TokenStaking is Ownable, IStaking {
                     amount,
                 "Operator didn't authorize sufficient amount for application"
             );
-            slashingQueue.push(SlashingEvent(operator, amount)); //, notifier, rewardMultiplier));
+            slashingQueue.push(SlashingEvent(operator, amount));
         }
 
         if (notifier != address(0)) {
@@ -1035,7 +1046,13 @@ contract TokenStaking is Ownable, IStaking {
 
         // slash KEEP
         if (tAmountToSlash > 0 && operator.keepStake > 0) {
-            // TODO sync keep stake or skip or ???
+            (uint256 keepStakeAmount, , ) = keepStakingContract
+                .getDelegationInfo(slashing.operator);
+            (uint256 tAmount, ) = keepVendingMachine.conversionToT(
+                keepStakeAmount
+            );
+            operator.keepStake = tAmount;
+
             tAmountToSlash = seizeKeep(
                 operator,
                 slashing.operator,
@@ -1063,15 +1080,21 @@ contract TokenStaking is Ownable, IStaking {
             operator.keepStake;
         for (uint256 i = 0; i < operator.authorizedApplications.length; i++) {
             address application = operator.authorizedApplications[i];
-            uint256 authorized = operator
-                .authorizations[application]
-                .authorized;
-            if (authorized > totalStake) {
-                IApplication(application).involuntaryAuthorizationDecrease(
-                    operatorAddress,
-                    authorized - totalStake
-                ); // TODO cut gas usage
-                operator.authorizations[application].authorized = totalStake;
+            AppAuthorization storage authorization = operator.authorizations[
+                application
+            ];
+            if (authorization.authorized <= totalStake) {
+                continue;
+            }
+
+            try
+                IApplication(application).involuntaryAuthorizationDecrease{
+                    gas: GAS_LIMIT_AUTHORIZATION_DECREASE
+                }(operatorAddress, authorization.authorized - totalStake)
+            {} catch {}
+            authorization.authorized = totalStake;
+            if (authorization.deauthorizing > totalStake) {
+                authorization.deauthorizing = totalStake;
             }
         }
     }
@@ -1149,23 +1172,17 @@ contract TokenStaking is Ownable, IStaking {
         view
         returns (uint256)
     {
-        (
-            uint256 keepStakeAmount,
-            uint256 createdAt,
-            uint256 undelegatedAt
-        ) = keepStakingContract.getDelegationInfo(operator);
+        (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
+            operator
+        );
         require(createdAt != 0, "Nothing to sync");
-        // TODO check isInitialized? or use eligibleStake?
 
-        require(
-            keepStakingContract.isAuthorizedForOperator(
-                operator,
-                address(this)
-            ),
-            "T staking contract is not authorized in Keep contract"
+        uint256 keepStakeAmount = keepStakingContract.eligibleStake(
+            operator,
+            address(this)
         );
         uint256 tAmount = 0;
-        if (undelegatedAt == 0) {
+        if (keepStakeAmount > 0) {
             (tAmount, ) = keepVendingMachine.conversionToT(keepStakeAmount);
         }
         return tAmount;
