@@ -39,19 +39,19 @@ describe("T token", () => {
     return (await lastBlockNumber()) - 1
   }
 
-  describe("getCurrentVotes", () => {
+  describe("getVotes", () => {
     context("when no delegation was done", () => {
       it("should return zero votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
       })
     })
   })
 
-  describe("getPriorVotes", () => {
+  describe("getPastVotes", () => {
     context("when executed for the last block", () => {
       it("should revert", async () => {
         await expect(
-          t.getPriorVotes(tokenHolder.address, await lastBlockNumber())
+          t.getPastVotes(tokenHolder.address, await lastBlockNumber())
         ).to.be.revertedWith("Block not yet determined")
       })
     })
@@ -68,10 +68,8 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(delegator.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
-          initialBalance
-        )
+        expect(await t.getVotes(delegator.address)).to.equal(0)
+        expect(await t.getVotes(delegatee.address)).to.equal(initialBalance)
       })
 
       it("should update delegatee address", async () => {
@@ -101,9 +99,7 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(delegator.address)).to.equal(
-          initialBalance
-        )
+        expect(await t.getVotes(delegator.address)).to.equal(initialBalance)
       })
 
       it("should update delegatee address", async () => {
@@ -144,37 +140,35 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(delegator.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee2.address)).to.equal(
-          initialBalance
-        )
+        expect(await t.getVotes(delegator.address)).to.equal(0)
+        expect(await t.getVotes(delegatee.address)).to.equal(0)
+        expect(await t.getVotes(delegatee2.address)).to.equal(initialBalance)
       })
 
       it("should keep track of prior votes", async () => {
-        expect(await t.getPriorVotes(delegator.address, block1)).to.equal(0)
-        expect(await t.getPriorVotes(delegatee.address, block1)).to.equal(
+        expect(await t.getPastVotes(delegator.address, block1)).to.equal(0)
+        expect(await t.getPastVotes(delegatee.address, block1)).to.equal(
           initialBalance
         )
-        expect(await t.getPriorVotes(delegatee2.address, block1)).to.equal(0)
+        expect(await t.getPastVotes(delegatee2.address, block1)).to.equal(0)
 
-        expect(await t.getPriorVotes(delegator.address, block2)).to.equal(0)
-        expect(await t.getPriorVotes(delegatee.address, block2)).to.equal(0)
-        expect(await t.getPriorVotes(delegatee2.address, block2)).to.equal(
+        expect(await t.getPastVotes(delegator.address, block2)).to.equal(0)
+        expect(await t.getPastVotes(delegatee.address, block2)).to.equal(0)
+        expect(await t.getPastVotes(delegatee2.address, block2)).to.equal(
           initialBalance
         )
 
-        expect(await t.getPriorVotes(delegator.address, block3)).to.equal(0)
-        expect(await t.getPriorVotes(delegatee.address, block3)).to.equal(
+        expect(await t.getPastVotes(delegator.address, block3)).to.equal(0)
+        expect(await t.getPastVotes(delegatee.address, block3)).to.equal(
           initialBalance
         )
-        expect(await t.getPriorVotes(delegatee2.address, block3)).to.equal(0)
+        expect(await t.getPastVotes(delegatee2.address, block3)).to.equal(0)
 
-        expect(await t.getPriorVotes(delegator.address, block4)).to.equal(
+        expect(await t.getPastVotes(delegator.address, block4)).to.equal(
           initialBalance
         )
-        expect(await t.getPriorVotes(delegatee.address, block4)).to.equal(0)
-        expect(await t.getPriorVotes(delegatee2.address, block4)).to.equal(0)
+        expect(await t.getPastVotes(delegatee.address, block4)).to.equal(0)
+        expect(await t.getPastVotes(delegatee2.address, block4)).to.equal(0)
       })
     })
   }
@@ -302,19 +296,16 @@ describe("T token", () => {
       })
 
       it("should keep current votes at zero", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-        expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(0)
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(tokenRecipient.address)).to.equal(0)
       })
 
       it("should keep prior votes at zero", async () => {
         expect(
-          await t.getPriorVotes(
-            tokenHolder.address,
-            await previousBlockNumber()
-          )
+          await t.getPastVotes(tokenHolder.address, await previousBlockNumber())
         ).to.equal(0)
         expect(
-          await t.getPriorVotes(
+          await t.getPastVotes(
             tokenRecipient.address,
             await previousBlockNumber()
           )
@@ -335,35 +326,32 @@ describe("T token", () => {
         })
 
         it("should update current votes", async () => {
-          expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+          expect(await t.getVotes(delegatee.address)).to.equal(
             initialBalance.sub(amount)
           )
-          expect(await t.getCurrentVotes(delegatee2.address)).to.equal(amount)
-          expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-          expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(0)
+          expect(await t.getVotes(delegatee2.address)).to.equal(amount)
+          expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+          expect(await t.getVotes(tokenRecipient.address)).to.equal(0)
         })
 
         it("should keep track of prior votes", async () => {
           expect(
-            await t.getPriorVotes(
-              delegatee.address,
-              await previousBlockNumber()
-            )
+            await t.getPastVotes(delegatee.address, await previousBlockNumber())
           ).to.equal(initialBalance)
           expect(
-            await t.getPriorVotes(
+            await t.getPastVotes(
               delegatee2.address,
               await previousBlockNumber()
             )
           ).to.equal(0)
           expect(
-            await t.getPriorVotes(
+            await t.getPastVotes(
               tokenHolder.address,
               await previousBlockNumber()
             )
           ).to.equal(0)
           expect(
-            await t.getPriorVotes(
+            await t.getPastVotes(
               tokenRecipient.address,
               await previousBlockNumber()
             )
@@ -397,22 +385,19 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(
+        expect(await t.getVotes(tokenHolder.address)).to.equal(
           initialBalance.sub(amount)
         )
-        expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(amount)
+        expect(await t.getVotes(tokenRecipient.address)).to.equal(amount)
       })
 
       it("should keep track of prior votes", async () => {
         expect(
-          await t.getPriorVotes(
-            tokenHolder.address,
-            await previousBlockNumber()
-          )
+          await t.getPastVotes(tokenHolder.address, await previousBlockNumber())
         ).to.equal(initialBalance)
 
         expect(
-          await t.getPriorVotes(
+          await t.getPastVotes(
             tokenRecipient.address,
             await previousBlockNumber()
           )
@@ -444,25 +429,22 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+        expect(await t.getVotes(delegatee.address)).to.equal(
           initialBalance.sub(amount)
         )
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-        expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(0)
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(tokenRecipient.address)).to.equal(0)
       })
 
       it("should keep track of prior votes", async () => {
         expect(
-          await t.getPriorVotes(delegatee.address, await previousBlockNumber())
+          await t.getPastVotes(delegatee.address, await previousBlockNumber())
         ).to.equal(initialBalance)
         expect(
-          await t.getPriorVotes(
-            tokenHolder.address,
-            await previousBlockNumber()
-          )
+          await t.getPastVotes(tokenHolder.address, await previousBlockNumber())
         ).to.equal(0)
         expect(
-          await t.getPriorVotes(
+          await t.getPastVotes(
             tokenRecipient.address,
             await previousBlockNumber()
           )
@@ -490,21 +472,18 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(
+        expect(await t.getVotes(tokenHolder.address)).to.equal(
           initialBalance.sub(amount)
         )
-        expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(0)
+        expect(await t.getVotes(tokenRecipient.address)).to.equal(0)
       })
 
       it("should keep track of prior votes", async () => {
         expect(
-          await t.getPriorVotes(
-            tokenHolder.address,
-            await previousBlockNumber()
-          )
+          await t.getPastVotes(tokenHolder.address, await previousBlockNumber())
         ).to.equal(initialBalance)
         expect(
-          await t.getPriorVotes(
+          await t.getPastVotes(
             tokenRecipient.address,
             await previousBlockNumber()
           )
@@ -532,23 +511,20 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(delegatee2.address)).to.equal(amount)
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-        expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(0)
+        expect(await t.getVotes(delegatee2.address)).to.equal(amount)
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(tokenRecipient.address)).to.equal(0)
       })
 
       it("should keep track of prior votes", async () => {
         expect(
-          await t.getPriorVotes(delegatee2.address, await previousBlockNumber())
+          await t.getPastVotes(delegatee2.address, await previousBlockNumber())
         ).to.equal(0)
         expect(
-          await t.getPriorVotes(
-            tokenHolder.address,
-            await previousBlockNumber()
-          )
+          await t.getPastVotes(tokenHolder.address, await previousBlockNumber())
         ).to.equal(0)
         expect(
-          await t.getPriorVotes(
+          await t.getPastVotes(
             tokenRecipient.address,
             await previousBlockNumber()
           )
@@ -572,19 +548,16 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-        expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(amount)
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(tokenRecipient.address)).to.equal(amount)
       })
 
       it("should keep track of prior votes", async () => {
         expect(
-          await t.getPriorVotes(
-            tokenHolder.address,
-            await previousBlockNumber()
-          )
+          await t.getPastVotes(tokenHolder.address, await previousBlockNumber())
         ).to.equal(0)
         expect(
-          await t.getPriorVotes(
+          await t.getPastVotes(
             tokenRecipient.address,
             await previousBlockNumber()
           )
@@ -617,45 +590,39 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-        expect(await t.getCurrentVotes(tokenRecipient.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(tokenRecipient.address)).to.equal(0)
+        expect(await t.getVotes(delegatee.address)).to.equal(
           initialBalance.sub(to1e18(10))
         )
-        expect(await t.getCurrentVotes(delegatee2.address)).to.equal(to1e18(10))
+        expect(await t.getVotes(delegatee2.address)).to.equal(to1e18(10))
       })
 
       it("should keep track of prior votes", async () => {
-        expect(await t.getPriorVotes(tokenHolder.address, block1)).to.equal(0)
-        expect(await t.getPriorVotes(tokenRecipient.address, block1)).to.equal(
-          0
-        )
-        expect(await t.getPriorVotes(delegatee.address, block1)).to.equal(
+        expect(await t.getPastVotes(tokenHolder.address, block1)).to.equal(0)
+        expect(await t.getPastVotes(tokenRecipient.address, block1)).to.equal(0)
+        expect(await t.getPastVotes(delegatee.address, block1)).to.equal(
           initialBalance.sub(to1e18(1))
         )
-        expect(await t.getPriorVotes(delegatee2.address, block1)).to.equal(
+        expect(await t.getPastVotes(delegatee2.address, block1)).to.equal(
           to1e18(1)
         )
 
-        expect(await t.getPriorVotes(tokenHolder.address, block2)).to.equal(0)
-        expect(await t.getPriorVotes(tokenRecipient.address, block2)).to.equal(
-          0
-        )
-        expect(await t.getPriorVotes(delegatee.address, block2)).to.equal(
+        expect(await t.getPastVotes(tokenHolder.address, block2)).to.equal(0)
+        expect(await t.getPastVotes(tokenRecipient.address, block2)).to.equal(0)
+        expect(await t.getPastVotes(delegatee.address, block2)).to.equal(
           initialBalance.sub(to1e18(3))
         )
-        expect(await t.getPriorVotes(delegatee2.address, block2)).to.equal(
+        expect(await t.getPastVotes(delegatee2.address, block2)).to.equal(
           to1e18(3)
         )
 
-        expect(await t.getPriorVotes(tokenHolder.address, block3)).to.equal(0)
-        expect(await t.getPriorVotes(tokenRecipient.address, block3)).to.equal(
-          0
-        )
-        expect(await t.getPriorVotes(delegatee.address, block3)).to.equal(
+        expect(await t.getPastVotes(tokenHolder.address, block3)).to.equal(0)
+        expect(await t.getPastVotes(tokenRecipient.address, block3)).to.equal(0)
+        expect(await t.getPastVotes(delegatee.address, block3)).to.equal(
           initialBalance.sub(to1e18(6))
         )
-        expect(await t.getPriorVotes(delegatee2.address, block3)).to.equal(
+        expect(await t.getPastVotes(delegatee2.address, block3)).to.equal(
           to1e18(6)
         )
       })
@@ -710,11 +677,11 @@ describe("T token", () => {
     context("when no delegation was done", () => {
       it("should keep current votes at zero", async () => {
         await t.connect(deployer).mint(thirdParty.address, initialBalance)
-        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
+        expect(await t.getVotes(thirdParty.address)).to.equal(0)
 
         // one more time, when not starting from zero balance
         await t.connect(deployer).mint(thirdParty.address, initialBalance)
-        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
+        expect(await t.getVotes(thirdParty.address)).to.equal(0)
       })
 
       it("but historical supply should be tracked", async () => {
@@ -745,10 +712,8 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
-          initialBalance
-        )
+        expect(await t.getVotes(thirdParty.address)).to.equal(0)
+        expect(await t.getVotes(delegatee.address)).to.equal(initialBalance)
       })
 
       it("historical supply should be tracked", async () => {
@@ -787,9 +752,7 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(
-          initialBalance
-        )
+        expect(await t.getVotes(thirdParty.address)).to.equal(initialBalance)
       })
 
       it("historical supply should be tracked", async () => {
@@ -836,18 +799,18 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(thirdParty.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(to1e18(54))
+        expect(await t.getVotes(thirdParty.address)).to.equal(0)
+        expect(await t.getVotes(delegatee.address)).to.equal(to1e18(54))
       })
 
       it("should keep track of prior votes", async () => {
-        expect(await t.getPriorVotes(delegatee.address, block1)).to.equal(
+        expect(await t.getPastVotes(delegatee.address, block1)).to.equal(
           to1e18(10)
         )
-        expect(await t.getPriorVotes(delegatee.address, block2)).to.equal(
+        expect(await t.getPastVotes(delegatee.address, block2)).to.equal(
           to1e18(22)
         )
-        expect(await t.getPriorVotes(delegatee.address, block3)).to.equal(
+        expect(await t.getPastVotes(delegatee.address, block3)).to.equal(
           to1e18(37)
         )
       })
@@ -863,7 +826,7 @@ describe("T token", () => {
       })
 
       it("should keep current votes at zero", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
       })
 
       it("historical supply should be reduced", async () => {
@@ -884,8 +847,8 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(delegatee.address)).to.equal(
           initialBalance.sub(amount)
         )
       })
@@ -918,7 +881,7 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(
+        expect(await t.getVotes(tokenHolder.address)).to.equal(
           initialBalance.sub(amount)
         )
       })
@@ -963,20 +926,20 @@ describe("T token", () => {
       })
 
       it("should update current votes", async () => {
-        expect(await t.getCurrentVotes(tokenHolder.address)).to.equal(0)
-        expect(await t.getCurrentVotes(delegatee.address)).to.equal(
+        expect(await t.getVotes(tokenHolder.address)).to.equal(0)
+        expect(await t.getVotes(delegatee.address)).to.equal(
           initialBalance.sub(to1e18(11))
         )
       })
 
       it("should keep track of prior votes", async () => {
-        expect(await t.getPriorVotes(delegatee.address, block1)).to.equal(
+        expect(await t.getPastVotes(delegatee.address, block1)).to.equal(
           initialBalance.sub(amount1)
         )
-        expect(await t.getPriorVotes(delegatee.address, block2)).to.equal(
+        expect(await t.getPastVotes(delegatee.address, block2)).to.equal(
           initialBalance.sub(amount1).sub(amount2)
         )
-        expect(await t.getPriorVotes(delegatee.address, block3)).to.equal(
+        expect(await t.getPastVotes(delegatee.address, block3)).to.equal(
           initialBalance.sub(amount1).sub(amount2).sub(amount3)
         )
       })
