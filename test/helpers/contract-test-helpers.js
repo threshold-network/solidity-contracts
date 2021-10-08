@@ -20,11 +20,17 @@ async function lastBlockTime() {
   return (await ethers.provider.getBlock("latest")).timestamp
 }
 
+async function mineBlock() {
+  await ethers.provider.send("evm_mine")
+  return await lastBlockNumber()
+}
+
 module.exports.to1e18 = to1e18
 module.exports.to1ePrecision = to1ePrecision
 module.exports.getBlockTime = getBlockTime
 module.exports.lastBlockNumber = lastBlockNumber
 module.exports.lastBlockTime = lastBlockTime
+module.exports.mineBlock = mineBlock
 
 module.exports.ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 module.exports.MAX_UINT96 = ethers.BigNumber.from(

@@ -574,6 +574,11 @@
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.2.0.tgz#260d921d99356e48013d9d760caaa6cea35dc642"
   integrity sha512-LD4NnkKpHHSMo5z9MvFsG4g1xxZUDqV3A3Futu3nvyfs4wPwXxqOgMaxOoa2PeyGL2VNeSlbxT54enbQzGcgJQ==
 
+"@openzeppelin/contracts@^4.3":
+  version "4.3.1"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.3.1.tgz#c01f791ce6c9d3989ac1a643267501dbe336b9e3"
+  integrity sha512-QjgbPPlmDK2clK1hzjw2ROfY8KA5q+PfhDUUxZFEBCZP9fi6d5FuNoh/Uq0oCTMEKPmue69vhX2jcl0N/tFKGw==
+
 "@resolver-engine/core@^0.3.3":
   version "0.3.3"
   resolved "https://registry.yarnpkg.com/@resolver-engine/core/-/core-0.3.3.tgz#590f77d85d45bc7ecc4e06c654f41345db6ca967"
@@ -3021,8 +3026,9 @@ eslint-config-google@^0.13.0:
   version "0.3.0"
   resolved "https://codeload.github.com/keep-network/eslint-config-keep/tar.gz/0c27ade54e725f980e971c3d91ea88bab76b2330"
   dependencies:
+    "@keep-network/prettier-config-keep" "github:keep-network/prettier-config-keep"
     eslint-config-google "^0.13.0"
-    eslint-config-prettier "^6.10.0"
+    eslint-config-prettier "^6.15.0"
     eslint-plugin-no-only-tests "^2.3.1"
     eslint-plugin-prettier "^3.1.2"
 
