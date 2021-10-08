@@ -60,8 +60,11 @@ contract TokenStaking is Ownable, IStaking {
     T public immutable token;
     IKeepTokenStaking public immutable keepStakingContract;
     INuCypherStakingEscrow public immutable nucypherStakingContract;
-    VendingMachine public immutable keepVendingMachine;
-    VendingMachine public immutable nucypherVendingMachine;
+
+    uint256 internal immutable keepFloatingPointDivisor;
+    uint256 internal immutable keepRatio;
+    uint256 internal immutable nucypherFloatingPointDivisor;
+    uint256 internal immutable nucypherRatio;
 
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
@@ -118,14 +121,6 @@ contract TokenStaking is Ownable, IStaking {
     event NotificationRewardPushed(uint96 reward);
     event NotifierRewarded(address indexed notifier, uint256 amount);
 
-    // modifier onlyOperatorsOwner(address operator) {
-    //     require(
-    //         operators[operator].owner == msg.sender,
-    //         "Only owner can call this function"
-    //     );
-    //     _;
-    // }
-
     modifier onlyGovernance() {
         require(owner() == msg.sender, "Caller is not the governance");
         _;
@@ -162,17 +157,18 @@ contract TokenStaking is Ownable, IStaking {
         require(
             _token.totalSupply() > 0 &&
                 _keepStakingContract.ownerOf(address(0)) == address(0) &&
-                _nucypherStakingContract.getAllTokens(address(0)) == 0 &&
-                address(_keepVendingMachine.wrappedToken()) != address(0) &&
-                address(_nucypherVendingMachine.wrappedToken()) != address(0),
+                _nucypherStakingContract.getAllTokens(address(0)) == 0,
             "Wrong input parameters"
         );
         token = _token;
         keepStakingContract = _keepStakingContract;
         nucypherStakingContract = _nucypherStakingContract;
-        // TODO optimization: save ratio (and additional code) instead of contract
-        keepVendingMachine = _keepVendingMachine;
-        nucypherVendingMachine = _nucypherVendingMachine;
+
+        keepFloatingPointDivisor = _keepVendingMachine.FLOATING_POINT_DIVISOR();
+        keepRatio = _keepVendingMachine.ratio();
+        nucypherFloatingPointDivisor = _nucypherVendingMachine
+            .FLOATING_POINT_DIVISOR();
+        nucypherRatio = _nucypherVendingMachine.ratio();
     }
 
     //
@@ -272,23 +268,16 @@ contract TokenStaking is Ownable, IStaking {
         uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
             msg.sender
         );
-        (uint256 tAmount, ) = nucypherVendingMachine.conversionToT(
-            nuStakeAmount
-        );
+        (uint96 tAmount, ) = nuToT(nuStakeAmount);
         require(tAmount > 0, "Nothing to sync");
 
-        operator.nuStake = tAmount.toUint96();
+        operator.nuStake = tAmount;
         operator.owner = msg.sender;
         operator.authorizer = _authorizer;
         operator.beneficiary = _beneficiary;
 
         emit NuStaked(msg.sender, _operator);
-        emit OperatorStaked(
-            _operator,
-            _beneficiary,
-            _authorizer,
-            operator.nuStake
-        );
+        emit OperatorStaked(_operator, _beneficiary, _authorizer, tAmount);
     }
 
     /// @notice Allows the Governance to set the minimum required stake amount.
@@ -303,27 +292,6 @@ contract TokenStaking is Ownable, IStaking {
         minTStakeAmount = amount;
         emit MinimumStakeAmountSet(amount);
     }
-
-    // TODO question: which roles can be changed later?
-    // /// @notice Set or change authorizer role
-    // function setAuthorizer(address operator, address authorizer)
-    //     external
-    //     onlyOperatorsOwner(operator)
-    // {
-    //     operators[operator].authorizer = authorizer != address(0)
-    //         ? authorizer
-    //         : msg.sender;
-    // }
-
-    // /// @notice Set or change beneficiary role
-    // function setBeneficiary(address operator, address beneficiary)
-    //     external
-    //     onlyOperatorsOwner(operator)
-    // {
-    //     operators[operator].beneficiary = beneficiary != address(0)
-    //         ? beneficiary
-    //         : msg.sender;
-    // }
 
     //
     //
@@ -368,7 +336,6 @@ contract TokenStaking is Ownable, IStaking {
     ) external override onlyAuthorizerOf(_operator) {
         ApplicationInfo storage application = applicationInfo[_application];
         require(application.approved, "Application is not approved");
-        // TODO suggestion: disable all functionality when app is disabled
         require(!application.disabled, "Application is disabled");
 
         OperatorInfo storage operator = operators[_operator];
@@ -445,7 +412,6 @@ contract TokenStaking is Ownable, IStaking {
     ///         decrease the authorization for that operator.
     function approveAuthorizationDecrease(address _operator) external override {
         ApplicationInfo storage application = applicationInfo[msg.sender];
-        // TODO suggestion: disable all functionality when app is disabled
         require(!application.disabled, "Application is disabled");
 
         OperatorInfo storage operator = operators[_operator];
@@ -509,6 +475,7 @@ contract TokenStaking is Ownable, IStaking {
     /// @notice Sets the maximum number of applications one operator can
     ///         authorize. Used to protect against DoSing slashing queue.
     ///         Can only be called by the Governance.
+    // TODO update docs
     function setAuthorizationCeiling(uint256 ceiling)
         external
         override
@@ -568,17 +535,14 @@ contract TokenStaking is Ownable, IStaking {
         uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
             operator.owner
         );
-        (uint256 tAmount, ) = nucypherVendingMachine.conversionToT(
-            nuStakeAmount
-        );
-        uint96 safeAmount = tAmount.toUint96();
+        (uint96 tAmount, ) = nuToT(nuStakeAmount);
         require(
-            safeAmount > operator.nuStake,
+            tAmount > operator.nuStake,
             "Amount in NuCypher contract is equal to or less than the stored amount"
         );
 
-        emit ToppedUp(_operator, safeAmount - operator.nuStake);
-        operator.nuStake = safeAmount;
+        emit ToppedUp(_operator, tAmount - operator.nuStake);
+        operator.nuStake = tAmount;
     }
 
     //
@@ -712,15 +676,14 @@ contract TokenStaking is Ownable, IStaking {
 
         (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
             .getDelegationInfo(_operator);
-        (uint256 tAmount, ) = keepVendingMachine.conversionToT(keepStakeAmount);
-        uint96 safeAmount = tAmount.toUint96();
+        (uint96 tAmount, ) = keepToT(keepStakeAmount);
 
         require(
-            operator.keepStake > safeAmount ||
+            operator.keepStake > tAmount ||
                 (operator.keepStake != 0 && undelegatedAt != 0),
             "There is no discrepancy"
         );
-        operator.keepStake = safeAmount;
+        operator.keepStake = tAmount;
         seizeKeep(
             operator,
             _operator,
@@ -728,7 +691,7 @@ contract TokenStaking is Ownable, IStaking {
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(_operator, safeAmount - operator.keepStake);
+        emit TokensSeized(_operator, tAmount - operator.keepStake);
         if (undelegatedAt != 0) {
             operator.keepStake = 0;
         }
@@ -750,20 +713,17 @@ contract TokenStaking is Ownable, IStaking {
         uint256 nuStakeAmount = nucypherStakingContract.getAllTokens(
             operator.owner
         );
-        (uint256 tAmount, ) = nucypherVendingMachine.conversionToT(
-            nuStakeAmount
-        );
-        uint96 safeAmount = tAmount.toUint96();
+        (uint96 tAmount, ) = nuToT(nuStakeAmount);
 
-        require(operator.nuStake > safeAmount, "There is no discrepancy");
-        operator.nuStake = safeAmount;
+        require(operator.nuStake > tAmount, "There is no discrepancy");
+        operator.nuStake = tAmount;
         seizeNu(
             operator,
             stakeDiscrepancyPenalty,
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(_operator, safeAmount - operator.nuStake);
+        emit TokensSeized(_operator, tAmount - operator.nuStake);
         authorizationDecrease(_operator, operator);
     }
 
@@ -810,6 +770,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         receive 1% of the slashed amount scaled by the reward adjustment
     ///         parameter once the seize order will be processed. Can only be
     ///         called by application authorized for all operators in the array.
+    // TODO update docs
     function seize(
         uint96 amount,
         uint256 rewardMultiplier,
@@ -876,9 +837,7 @@ contract TokenStaking is Ownable, IStaking {
         view
         returns (uint256 nuAmount)
     {
-        (nuAmount, ) = nucypherVendingMachine.conversionFromT(
-            operators[operator].nuStake
-        );
+        (nuAmount, ) = tToNu(operators[operator].nuStake);
     }
 
     /// @notice Gets the beneficiary for the specified operator address.
@@ -918,7 +877,6 @@ contract TokenStaking is Ownable, IStaking {
         uint96 _amount
     ) public override onlyAuthorizerOf(_operator) {
         ApplicationInfo storage application = applicationInfo[_application];
-        // TODO suggestion: disable all functionality when app is disabled
         require(!application.disabled, "Application is disabled");
 
         require(
@@ -991,6 +949,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         receive 1% of the slashed amount scaled by the reward adjustment
     ///         parameter once the seize order will be processed. Can only be
     ///         called by application authorized for all operators in the array.
+    // TODO update docs
     function notify(
         uint96 amount,
         uint256 rewardMultiplier,
@@ -1056,10 +1015,8 @@ contract TokenStaking is Ownable, IStaking {
         if (tAmountToSlash > 0 && operator.keepStake > 0) {
             (uint256 keepStakeAmount, , ) = keepStakingContract
                 .getDelegationInfo(slashing.operator);
-            (uint256 tAmount, ) = keepVendingMachine.conversionToT(
-                keepStakeAmount
-            );
-            operator.keepStake = tAmount.toUint96();
+            (uint96 tAmount, ) = keepToT(keepStakeAmount);
+            operator.keepStake = tAmount;
 
             tAmountToSlash = seizeKeep(
                 operator,
@@ -1124,11 +1081,9 @@ contract TokenStaking is Ownable, IStaking {
             operator.keepStake = 0;
         }
 
-        (uint256 keepPenalty, uint256 tRemainder) = keepVendingMachine
-            .conversionFromT(tPenalty);
-        uint96 safeTRemainder = tRemainder.toUint96();
-        operator.keepStake += safeTRemainder;
-        tAmountToSlash -= tPenalty - safeTRemainder;
+        (uint256 keepPenalty, uint96 tRemainder) = tToKeep(tPenalty);
+        operator.keepStake += tRemainder;
+        tAmountToSlash -= tPenalty - tRemainder;
 
         address[] memory operatorWrapper = new address[](1);
         operatorWrapper[0] = operatorAddress;
@@ -1157,11 +1112,9 @@ contract TokenStaking is Ownable, IStaking {
             operator.nuStake = 0;
         }
 
-        (uint256 nuPenalty, uint256 tRemainder) = nucypherVendingMachine
-            .conversionFromT(tPenalty);
-        uint96 safeTRemainder = tRemainder.toUint96();
-        operator.nuStake += safeTRemainder;
-        tAmountToSlash -= tPenalty - safeTRemainder;
+        (uint256 nuPenalty, uint96 tRemainder) = tToNu(tPenalty);
+        operator.nuStake += tRemainder;
+        tAmountToSlash -= tPenalty - tRemainder;
 
         uint256 nuReward = nuPenalty.percent(SLASHING_REWARD_PERCENT).percent(
             rewardMultiplier
@@ -1187,10 +1140,62 @@ contract TokenStaking is Ownable, IStaking {
             operator,
             address(this)
         );
-        uint256 tAmount = 0;
+        uint96 tAmount = 0;
         if (keepStakeAmount > 0) {
-            (tAmount, ) = keepVendingMachine.conversionToT(keepStakeAmount);
+            (tAmount, ) = keepToT(keepStakeAmount);
         }
-        return tAmount.toUint96();
+        return tAmount;
+    }
+
+    /// @notice Returns the T token amount that's obtained from `amount` wrapped
+    ///         tokens (KEEP), and the remainder that can't be converted.
+    function keepToT(uint256 keepAmount)
+        internal
+        view
+        returns (uint96 tAmount, uint256 keepRemainder)
+    {
+        keepRemainder = keepAmount % keepFloatingPointDivisor;
+        uint256 convertibleAmount = keepAmount - keepRemainder;
+        tAmount = ((convertibleAmount * keepRatio) / keepFloatingPointDivisor)
+            .toUint96();
+    }
+
+    /// @notice The amount of wrapped tokens (KEEP) that's obtained from
+    ///         `amount` T tokens, and the remainder that can't be converted.
+    function tToKeep(uint96 tAmount)
+        internal
+        view
+        returns (uint256 keepAmount, uint96 tRemainder)
+    {
+        tRemainder = (tAmount % keepRatio).toUint96();
+        uint256 convertibleAmount = tAmount - tRemainder;
+        keepAmount = (convertibleAmount * keepFloatingPointDivisor) / keepRatio;
+    }
+
+    /// @notice Returns the T token amount that's obtained from `amount` wrapped
+    ///         tokens (NU), and the remainder that can't be converted.
+    function nuToT(uint256 nuAmount)
+        internal
+        view
+        returns (uint96 tAmount, uint256 nuRemainder)
+    {
+        nuRemainder = nuAmount % nucypherFloatingPointDivisor;
+        uint256 convertibleAmount = nuAmount - nuRemainder;
+        tAmount = ((convertibleAmount * nucypherRatio) /
+            nucypherFloatingPointDivisor).toUint96();
+    }
+
+    /// @notice The amount of wrapped tokens (NU) that's obtained from
+    ///         `amount` T tokens, and the remainder that can't be converted.
+    function tToNu(uint96 tAmount)
+        internal
+        view
+        returns (uint256 nuAmount, uint96 tRemainder)
+    {
+        tRemainder = (tAmount % nucypherRatio).toUint96();
+        uint256 convertibleAmount = tAmount - tRemainder;
+        nuAmount =
+            (convertibleAmount * nucypherFloatingPointDivisor) /
+            nucypherRatio;
     }
 }
