@@ -49,15 +49,6 @@ interface IKeepTokenStaking {
     /// @return Authorizer address.
     function authorizerOf(address _operator) external view returns (address);
 
-    /// @notice Checks if operator contract has access to the staked token balance of
-    /// the provided operator.
-    /// @param _operator address of stake operator.
-    /// @param _operatorContract address of operator contract.
-    function isAuthorizedForOperator(
-        address _operator,
-        address _operatorContract
-    ) external view returns (bool);
-
     /// @notice Gets the eligible stake balance of the specified address.
     /// An eligible stake is a stake that passed the initialization period
     /// and is not currently undelegating. Also, the operator had to approve

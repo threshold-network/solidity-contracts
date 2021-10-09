@@ -61,10 +61,10 @@ contract TokenStaking is Ownable, IStaking {
     IKeepTokenStaking public immutable keepStakingContract;
     INuCypherStakingEscrow public immutable nucypherStakingContract;
 
-    uint256 internal immutable keepFloatingPointDivisor;
-    uint256 internal immutable keepRatio;
-    uint256 internal immutable nucypherFloatingPointDivisor;
-    uint256 internal immutable nucypherRatio;
+    uint256 public immutable keepFloatingPointDivisor;
+    uint256 public immutable keepRatio;
+    uint256 public immutable nucypherFloatingPointDivisor;
+    uint256 public immutable nucypherRatio;
 
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
@@ -199,7 +199,7 @@ contract TokenStaking is Ownable, IStaking {
         );
         require(
             _amount > minTStakeAmount,
-            "Amount to stake must be greater than 0"
+            "Amount to stake must be greater than minimum"
         );
         operator.owner = msg.sender;
         operator.authorizer = _authorizer != address(0)
@@ -214,7 +214,12 @@ contract TokenStaking is Ownable, IStaking {
         operator.startTStakingTimestamp = block.timestamp;
 
         emit TStaked(msg.sender, _operator);
-        emit OperatorStaked(_operator, _beneficiary, _authorizer, _amount);
+        emit OperatorStaked(
+            _operator,
+            operator.beneficiary,
+            operator.authorizer,
+            _amount
+        );
         token.safeTransferFrom(msg.sender, address(this), _amount);
     }
 
