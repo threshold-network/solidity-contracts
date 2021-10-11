@@ -278,11 +278,20 @@ contract TokenStaking is Ownable, IStaking {
 
         operator.nuStake = tAmount;
         operator.owner = msg.sender;
-        operator.authorizer = _authorizer;
-        operator.beneficiary = _beneficiary;
+        operator.authorizer = _authorizer != address(0)
+            ? _authorizer
+            : msg.sender;
+        operator.beneficiary = _beneficiary != address(0)
+            ? _beneficiary
+            : payable(msg.sender);
 
         emit NuStaked(msg.sender, _operator);
-        emit OperatorStaked(_operator, _beneficiary, _authorizer, tAmount);
+        emit OperatorStaked(
+            _operator,
+            operator.beneficiary,
+            operator.authorizer,
+            tAmount
+        );
     }
 
     /// @notice Allows the Governance to set the minimum required stake amount.

@@ -5,6 +5,7 @@ const {
   to1e18,
   to1ePrecision,
 } = require("../helpers/contract-test-helpers")
+const zeroBigNumber = ethers.BigNumber.from(0)
 
 describe("TokenStaking", () => {
   let tToken
@@ -13,28 +14,51 @@ describe("TokenStaking", () => {
   let keepStakingMock
   let nucypherStakingMock
 
+  const floatingPointDivisor = to1ePrecision(1, 15)
   const tAllocation = to1e18("4500000000") // 4.5 Billion
   const maxKeepWrappedTokens = to1e18("1100000000") // 1.1 Billion
   const maxNuWrappedTokens = to1e18("900000000") // 0.9 Billion
+  const keepRatio = floatingPointDivisor
+    .mul(tAllocation)
+    .div(maxKeepWrappedTokens)
+  const nuRatio = floatingPointDivisor.mul(tAllocation).div(maxNuWrappedTokens)
+
+  function convertToT(amount, ratio) {
+    amount = ethers.BigNumber.from(amount)
+    const wrappedRemainder = amount.mod(floatingPointDivisor)
+    amount = amount.sub(wrappedRemainder)
+    return {
+      result: amount.mul(ratio).div(floatingPointDivisor),
+      remainder: wrappedRemainder,
+    }
+  }
+
+  function convertFromT(amount, ratio) {
+    amount = ethers.BigNumber.from(amount)
+    const tRemainder = amount.mod(ratio)
+    amount = amount.sub(tRemainder)
+    return {
+      result: amount.mul(floatingPointDivisor).div(ratio),
+      remainder: tRemainder,
+    }
+  }
 
   let tokenStaking
 
   let deployer
-  // Token staker has 5 T tokens
-  let tStaker
+  // Token staker has 5 (T/NU/KEEP) tokens
+  let staker
   const initialStakerBalance = to1e18(5)
   let operator
   let authorizer
   let beneficiary
 
-  let keepTokenStaker
-  let nuTokenStaker
   let otherStaker
 
   beforeEach(async () => {
     ;[
       deployer,
-      tStaker,
+      staker,
       operator,
       authorizer,
       beneficiary,
@@ -50,7 +74,7 @@ describe("TokenStaking", () => {
     await tToken.mint(deployer.address, tAllocation)
     await tToken
       .connect(deployer)
-      .transfer(tStaker.address, initialStakerBalance)
+      .transfer(staker.address, initialStakerBalance)
     await tToken
       .connect(deployer)
       .transfer(otherStaker.address, initialStakerBalance)
@@ -91,7 +115,7 @@ describe("TokenStaking", () => {
 
   describe("setup", () => {
     context("once deployed", () => {
-      it("contracts addresses should be correct", async () => {
+      it("should set contracts addresses correctly", async () => {
         expect(await tokenStaking.token()).to.equal(tToken.address)
         expect(await tokenStaking.keepStakingContract()).to.equal(
           keepStakingMock.address
@@ -100,16 +124,42 @@ describe("TokenStaking", () => {
           nucypherStakingMock.address
         )
       })
-      it("conversion ratios were copied correctly", async () => {
+      it("should set conversion ratios correctly", async () => {
         expect(await tokenStaking.keepFloatingPointDivisor()).to.equal(
-          await keepVendingMachine.FLOATING_POINT_DIVISOR()
+          floatingPointDivisor
         )
-        expect(await tokenStaking.keepRatio()).to.equal(
-          await keepVendingMachine.ratio()
-        )
-        expect(await tokenStaking.nucypherRatio()).to.equal(
-          await nucypherVendingMachine.ratio()
-        )
+        expect(await tokenStaking.keepRatio()).to.equal(keepRatio)
+        expect(await tokenStaking.nucypherRatio()).to.equal(nuRatio)
+      })
+    })
+  })
+
+  describe("setting minimum stake amount", () => {
+    const amount = 1
+
+    context("caller is not the governance", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(staker).setMinimumStakeAmount(amount)
+        ).to.be.revertedWith("Caller is not the governance")
+      })
+    })
+
+    context("caller is the governance", () => {
+      let tx
+
+      beforeEach(async () => {
+        tx = await tokenStaking.connect(deployer).setMinimumStakeAmount(amount)
+      })
+
+      it("should set minimum amount", async () => {
+        expect(await tokenStaking.minTStakeAmount()).to.equal(amount)
+      })
+
+      it("should emit MinimumStakeAmountSet event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "MinimumStakeAmountSet")
+          .withArgs(amount)
       })
     })
   })
@@ -120,7 +170,7 @@ describe("TokenStaking", () => {
         amount = 0
         await expect(
           tokenStaking
-            .connect(tStaker)
+            .connect(staker)
             .stake(ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, amount)
         ).to.be.revertedWith("Operator must be specified")
       })
@@ -136,10 +186,10 @@ describe("TokenStaking", () => {
           await tokenStaking
             .connect(otherStaker)
             .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
-          await tToken.connect(tStaker).approve(tokenStaking.address, amount)
+          await tToken.connect(staker).approve(tokenStaking.address, amount)
           await expect(
             tokenStaking
-              .connect(tStaker)
+              .connect(staker)
               .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
           ).to.be.revertedWith("Operator is already in use")
         })
@@ -150,7 +200,7 @@ describe("TokenStaking", () => {
           const createdAt = 1
           await keepStakingMock.setOperator(
             operator.address,
-            keepTokenStaker.address,
+            otherStaker.address,
             ZERO_ADDRESS,
             ZERO_ADDRESS,
             createdAt,
@@ -160,7 +210,7 @@ describe("TokenStaking", () => {
           const amount = 0
           await expect(
             tokenStaking
-              .connect(tStaker)
+              .connect(staker)
               .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
           ).to.be.revertedWith("Operator is already in use")
         })
@@ -173,7 +223,7 @@ describe("TokenStaking", () => {
           amount = 0
           await expect(
             tokenStaking
-              .connect(tStaker)
+              .connect(staker)
               .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
           ).to.be.revertedWith("Amount to stake must be greater than minimum")
         })
@@ -185,10 +235,10 @@ describe("TokenStaking", () => {
           await tokenStaking
             .connect(deployer)
             .setMinimumStakeAmount(amount.add(1))
-          await tToken.connect(tStaker).approve(tokenStaking.address, amount)
+          await tToken.connect(staker).approve(tokenStaking.address, amount)
           await expect(
             tokenStaking
-              .connect(tStaker)
+              .connect(staker)
               .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
           ).to.be.revertedWith("Amount to stake must be greater than minimum")
         })
@@ -202,20 +252,20 @@ describe("TokenStaking", () => {
 
       context("when authorizer and beneficiary were not provided", () => {
         beforeEach(async () => {
-          await tToken.connect(tStaker).approve(tokenStaking.address, amount)
+          await tToken.connect(staker).approve(tokenStaking.address, amount)
           tx = await tokenStaking
-            .connect(tStaker)
+            .connect(staker)
             .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
           blockTimestamp = await lastBlockTime()
         })
 
         it("should set roles equal to the caller address", async () => {
           expect(await tokenStaking.operators(operator.address)).to.deep.equal([
-            tStaker.address,
-            tStaker.address,
-            tStaker.address,
-            ethers.BigNumber.from(0),
-            ethers.BigNumber.from(0),
+            staker.address,
+            staker.address,
+            staker.address,
+            zeroBigNumber,
+            zeroBigNumber,
             amount,
             ethers.BigNumber.from(blockTimestamp),
           ])
@@ -228,24 +278,19 @@ describe("TokenStaking", () => {
         it("should emit TStaked and OperatorStaked events", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TStaked")
-            .withArgs(tStaker.address, operator.address)
+            .withArgs(staker.address, operator.address)
 
           await expect(tx)
             .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              operator.address,
-              tStaker.address,
-              tStaker.address,
-              amount
-            )
+            .withArgs(operator.address, staker.address, staker.address, amount)
         })
       })
 
       context("when authorizer and beneficiary were provided", () => {
         beforeEach(async () => {
-          await tToken.connect(tStaker).approve(tokenStaking.address, amount)
+          await tToken.connect(staker).approve(tokenStaking.address, amount)
           tx = await tokenStaking
-            .connect(tStaker)
+            .connect(staker)
             .stake(
               operator.address,
               beneficiary.address,
@@ -257,11 +302,11 @@ describe("TokenStaking", () => {
 
         it("should set roles equal to the provided values", async () => {
           expect(await tokenStaking.operators(operator.address)).to.deep.equal([
-            tStaker.address,
+            staker.address,
             beneficiary.address,
             authorizer.address,
-            ethers.BigNumber.from(0),
-            ethers.BigNumber.from(0),
+            zeroBigNumber,
+            zeroBigNumber,
             amount,
             ethers.BigNumber.from(blockTimestamp),
           ])
@@ -274,7 +319,7 @@ describe("TokenStaking", () => {
         it("should emit TStaked and OperatorStaked events", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TStaked")
-            .withArgs(tStaker.address, operator.address)
+            .withArgs(staker.address, operator.address)
 
           await expect(tx)
             .to.emit(tokenStaking, "OperatorStaked")
@@ -284,6 +329,287 @@ describe("TokenStaking", () => {
               authorizer.address,
               amount
             )
+        })
+      })
+    })
+  })
+
+  describe("stake Keep", () => {
+    context("when caller did not provide operator", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(staker).stakeKeep(ZERO_ADDRESS)
+        ).to.be.revertedWith("Operator must be specified")
+      })
+    })
+
+    context("when operator is in use", () => {
+      it("should revert", async () => {
+        const amount = initialStakerBalance
+        await tToken.connect(otherStaker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(otherStaker)
+          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+        await expect(
+          tokenStaking.connect(staker).stakeKeep(operator.address)
+        ).to.be.revertedWith("Can't stake KEEP for this operator")
+      })
+    })
+
+    context("when specified address never was an operator in Keep", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(staker).stakeKeep(operator.address)
+        ).to.be.revertedWith("Nothing to sync")
+      })
+    })
+
+    context("when operator exists in Keep staking contract", () => {
+      let tx
+
+      context("when stake was canceled/withdrawn or not eligible", () => {
+        beforeEach(async () => {
+          const createdAt = 1
+          await keepStakingMock.setOperator(
+            operator.address,
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            createdAt,
+            0,
+            0
+          )
+          tx = await tokenStaking.connect(staker).stakeKeep(operator.address)
+        })
+
+        it("should set roles equal to the Keep values", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should emit KeepStaked and OperatorStaked events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "KeepStaked")
+            .withArgs(staker.address, operator.address)
+
+          await expect(tx)
+            .to.emit(tokenStaking, "OperatorStaked")
+            .withArgs(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              zeroBigNumber
+            )
+        })
+      })
+
+      context("when stake is eligible", () => {
+        const keepAmount = initialStakerBalance
+        const tAmount = convertToT(keepAmount, keepRatio).result
+
+        beforeEach(async () => {
+          const createdAt = 1
+          await keepStakingMock.setOperator(
+            operator.address,
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            createdAt,
+            0,
+            keepAmount
+          )
+          await keepStakingMock.setEligibility(
+            operator.address,
+            tokenStaking.address,
+            true
+          )
+          tx = await tokenStaking.connect(staker).stakeKeep(operator.address)
+        })
+
+        it("should set roles equal to the Keep values", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            zeroBigNumber,
+            tAmount,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should emit KeepStaked and OperatorStaked events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "KeepStaked")
+            .withArgs(staker.address, operator.address)
+
+          await expect(tx)
+            .to.emit(tokenStaking, "OperatorStaked")
+            .withArgs(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              tAmount
+            )
+        })
+      })
+    })
+  })
+
+  describe("stake Nu", () => {
+    context("when caller did not provide operator", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .stakeNu(ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS)
+        ).to.be.revertedWith("Operator must be specified")
+      })
+    })
+
+    context("when operator is in use", () => {
+      context("when other stake delegated to the specified operator", () => {
+        it("should revert", async () => {
+          const amount = initialStakerBalance
+          await tToken
+            .connect(otherStaker)
+            .approve(tokenStaking.address, amount)
+          await tokenStaking
+            .connect(otherStaker)
+            .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+          await expect(
+            tokenStaking
+              .connect(staker)
+              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          ).to.be.revertedWith("Operator is already in use")
+        })
+      })
+
+      context("when operator is in use in Keep staking contract", () => {
+        it("should revert", async () => {
+          const createdAt = 1
+          await keepStakingMock.setOperator(
+            operator.address,
+            otherStaker.address,
+            ZERO_ADDRESS,
+            ZERO_ADDRESS,
+            createdAt,
+            0,
+            0
+          )
+          const amount = 0
+          await expect(
+            tokenStaking
+              .connect(staker)
+              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          ).to.be.revertedWith("Operator is already in use")
+        })
+      })
+    })
+
+    context("when specified operator is free", () => {
+      context("when caller has no stake in NuCypher staking contract", () => {
+        it("should revert", async () => {
+          await expect(
+            tokenStaking
+              .connect(staker)
+              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          ).to.be.revertedWith("Nothing to sync")
+        })
+      })
+
+      context("when caller has stake in NuCypher staking contract", () => {
+        const nuAmount = initialStakerBalance
+        const tAmount = convertToT(nuAmount, nuRatio).result
+        let tx
+
+        beforeEach(async () => {
+          await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        })
+
+        context("when authorizer and beneficiary were not provided", () => {
+          beforeEach(async () => {
+            tx = await tokenStaking
+              .connect(staker)
+              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          })
+
+          it("should set roles equal to the caller address", async () => {
+            expect(
+              await tokenStaking.operators(operator.address)
+            ).to.deep.equal([
+              staker.address,
+              staker.address,
+              staker.address,
+              tAmount,
+              zeroBigNumber,
+              zeroBigNumber,
+              zeroBigNumber,
+            ])
+          })
+
+          it("should emit NuStaked and OperatorStaked events", async () => {
+            await expect(tx)
+              .to.emit(tokenStaking, "NuStaked")
+              .withArgs(staker.address, operator.address)
+
+            await expect(tx)
+              .to.emit(tokenStaking, "OperatorStaked")
+              .withArgs(
+                operator.address,
+                staker.address,
+                staker.address,
+                tAmount
+              )
+          })
+        })
+
+        context("when authorizer and beneficiary were provided", () => {
+          beforeEach(async () => {
+            tx = await tokenStaking
+              .connect(staker)
+              .stakeNu(
+                operator.address,
+                beneficiary.address,
+                authorizer.address
+              )
+          })
+
+          it("should set roles equal to the provided values", async () => {
+            expect(
+              await tokenStaking.operators(operator.address)
+            ).to.deep.equal([
+              staker.address,
+              beneficiary.address,
+              authorizer.address,
+              tAmount,
+              zeroBigNumber,
+              zeroBigNumber,
+              zeroBigNumber,
+            ])
+          })
+
+          it("should emit NuStaked and OperatorStaked events", async () => {
+            await expect(tx)
+              .to.emit(tokenStaking, "NuStaked")
+              .withArgs(staker.address, operator.address)
+
+            await expect(tx)
+              .to.emit(tokenStaking, "OperatorStaked")
+              .withArgs(
+                operator.address,
+                beneficiary.address,
+                authorizer.address,
+                tAmount
+              )
+          })
         })
       })
     })

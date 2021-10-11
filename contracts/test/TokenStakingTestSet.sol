@@ -108,6 +108,23 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
 }
 
 contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
+    struct StakerStruct {
+        uint256 value;
+        bool merged;
+    }
+
+    mapping(address => StakerStruct) stakers;
+
+    function setStaker(
+        address staker,
+        uint256 value,
+        bool merged
+    ) external {
+        StakerStruct storage stakerStruct = stakers[staker];
+        stakerStruct.value = value;
+        stakerStruct.merged = merged;
+    }
+
     function slashStaker(
         address _staker,
         uint256 _penalty,
@@ -115,19 +132,20 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
         uint256 _reward
     ) external override {}
 
-    function requestMerge(address staker)
-        external
-        view
-        override
-        returns (uint256)
-    {}
+    function requestMerge(address staker) external override returns (uint256) {
+        require(!stakers[staker].merged);
+        stakers[staker].merged = true;
+        return stakers[staker].value;
+    }
 
-    function getAllTokens(address _staker)
+    function getAllTokens(address staker)
         external
         view
         override
         returns (uint256)
-    {}
+    {
+        return stakers[staker].value;
+    }
 }
 
 contract VendingMachineMock {
