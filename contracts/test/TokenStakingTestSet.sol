@@ -4,6 +4,7 @@ pragma solidity 0.8.4;
 
 import "../staking/StakingProviders.sol";
 import "../staking/IApplication.sol";
+import "../staking/TokenStaking.sol";
 
 contract KeepTokenStakingMock is IKeepTokenStaking {
     struct OperatorStruct {
@@ -113,7 +114,7 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
         bool merged;
     }
 
-    mapping(address => StakerStruct) stakers;
+    mapping(address => StakerStruct) public stakers;
 
     function setStaker(
         address staker,
@@ -157,5 +158,45 @@ contract VendingMachineMock {
         ratio =
             (FLOATING_POINT_DIVISOR * _tTokenAllocation) /
             _wrappedTokenAllocation;
+    }
+}
+
+contract ApplicationMock is IApplication {
+    struct OperatorStruct {
+        uint96 authorized;
+        uint96 deauthorizing;
+    }
+
+    TokenStaking immutable tokenStaking;
+    mapping(address => OperatorStruct) public operators;
+
+    constructor(TokenStaking _tokenStaking) {
+        tokenStaking = _tokenStaking;
+    }
+
+    function authorizationIncreased(address operator, uint96 amount)
+        external
+        override
+    {
+        operators[operator].authorized += amount;
+    }
+
+    function authorizationDecreaseRequested(address operator, uint96 amount)
+        external
+        override
+    {
+        operators[operator].deauthorizing = amount;
+    }
+
+    function involuntaryAuthorizationDecrease(address operator, uint96 amount)
+        external
+        override
+    {
+        operators[operator].authorized -= amount;
+    }
+
+    function approveAuthorizationDecrease(address operator) external {
+        operators[operator].authorized -= operators[operator].deauthorizing;
+        tokenStaking.approveAuthorizationDecrease(operator);
     }
 }

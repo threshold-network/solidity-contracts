@@ -320,7 +320,12 @@ contract TokenStaking is Ownable, IStaking {
         override
         onlyGovernance
     {
+        require(application != address(0), "Application must be specified");
         ApplicationInfo storage info = applicationInfo[application];
+        require(
+            !info.approved || info.disabled,
+            "Application has already been approved"
+        );
         info.approved = true;
         info.disabled = false;
 
@@ -877,6 +882,11 @@ contract TokenStaking is Ownable, IStaking {
         return operators[operator].authorizedApplications.length > 0;
     }
 
+    /// @notice Returns length of application array
+    function getApplicationsLength() external view returns (uint256) {
+        return applications.length;
+    }
+
     /// @notice Requests decrease of the authorization for the given operator on
     ///         the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When
@@ -945,7 +955,7 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Returns available amount to authorize for the specified application
-    function getAvailableToAuthorize(address _operator, address application)
+    function getAvailableToAuthorize(address _operator, address _application)
         public
         view
         returns (uint96 availableTValue)
@@ -955,7 +965,7 @@ contract TokenStaking is Ownable, IStaking {
             operator.tStake +
             operator.keepStake +
             operator.nuStake;
-        availableTValue -= operator.authorizations[application].authorized;
+        availableTValue -= operator.authorizations[_application].authorized;
     }
 
     /// @notice Adds operators to the slashing queue along with the amount,
