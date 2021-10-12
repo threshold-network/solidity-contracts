@@ -923,7 +923,7 @@ describe("TokenStaking", () => {
             ).to.equal(authorizedAmount)
           })
 
-          it("should deacrease available amount to authorize for one application", async () => {
+          it("should decrease available amount to authorize for one application", async () => {
             expect(
               await tokenStaking.getAvailableToAuthorize(
                 operator.address,
@@ -976,7 +976,7 @@ describe("TokenStaking", () => {
           })
         })
 
-        context("when authorize all staked tokens in several txs", () => {
+        context("when authorize staked tokens in several txs", () => {
           let tx1
           let tx2
           const authorizedAmount1 = amount.sub(1)
@@ -1008,7 +1008,7 @@ describe("TokenStaking", () => {
             ).to.equal(amount)
           })
 
-          it("should deacrease available amount to authorize for one application", async () => {
+          it("should decrease available amount to authorize for one application", async () => {
             expect(
               await tokenStaking.getAvailableToAuthorize(
                 operator.address,
@@ -1044,6 +1044,52 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 authorizedAmount2
               )
+          })
+        })
+
+        context("when authorize after full deauthorization", () => {
+          let tx
+
+          beforeEach(async () => {
+            await tokenStaking.connect(deployer).setAuthorizationCeiling(1)
+            await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                application1Mock.address,
+                amount
+              )
+            await tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address)"](operator.address)
+            await application1Mock.approveAuthorizationDecrease(
+              operator.address
+            )
+            await tokenStaking
+              .connect(deployer)
+              .approveApplication(application2Mock.address)
+            tx = await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                application2Mock.address,
+                amount
+              )
+          })
+
+          it("should increase authorization", async () => {
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application1Mock.address
+              )
+            ).to.equal(0)
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application2Mock.address
+              )
+            ).to.equal(amount)
           })
         })
       })
@@ -1123,7 +1169,7 @@ describe("TokenStaking", () => {
           ).to.equal(authorizedAmount)
         })
 
-        it("should deacrease available amount to authorize for one application", async () => {
+        it("should decrease available amount to authorize for one application", async () => {
           expect(
             await tokenStaking.getAvailableToAuthorize(
               operator.address,
@@ -1175,6 +1221,235 @@ describe("TokenStaking", () => {
           ).to.be.revertedWith("Not enough stake to authorize")
         })
       })
+    })
+  })
+
+  describe("requestAuthorizationDecrease", () => {
+    context("when caller is not authorizer", () => {
+      it("should revert", async () => {
+        const amount = initialStakerBalance
+        await expect(
+          tokenStaking
+            .connect(staker)
+            ["requestAuthorizationDecrease(address,address,uint96)"](
+              operator.address,
+              application1Mock.address,
+              amount
+            )
+        ).to.be.revertedWith("Not operator authorizer")
+      })
+    })
+
+    context("when caller is authorizer of operator with T stake", () => {
+      const amount = initialStakerBalance
+
+      beforeEach(async () => {
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            operator.address,
+            application1Mock.address,
+            amount
+          )
+      })
+
+      context("when application was disabled", () => {
+        it("should revert", async () => {
+          const amount = initialStakerBalance
+          await tokenStaking
+            .connect(deployer)
+            .setPanicButton(application1Mock.address, panicButton.address)
+          await tokenStaking
+            .connect(panicButton)
+            .disableApplication(application1Mock.address)
+          await expect(
+            tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address,address,uint96)"](
+                operator.address,
+                application1Mock.address,
+                amount
+              )
+          ).to.be.revertedWith("Application is disabled")
+        })
+      })
+
+      context("when amount to decrease is zero", () => {
+        it("should revert", async () => {
+          await expect(
+            tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address,address,uint96)"](
+                operator.address,
+                application1Mock.address,
+                0
+              )
+          ).to.be.revertedWith(
+            "Amount to decrease authorization must greater than 0"
+          )
+        })
+      })
+
+      context("when amount to decrease is more than authorized", () => {
+        it("should revert", async () => {
+          await expect(
+            tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address,address,uint96)"](
+                operator.address,
+                application1Mock.address,
+                amount.add(1)
+              )
+          ).to.be.revertedWith(
+            "Amount to decrease authorization must be less than authorized"
+          )
+        })
+      })
+
+      context("when amount to decrease is less than authorized", () => {
+        const amountToDecrease = amount.div(3)
+        let tx
+
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(authorizer)
+            ["requestAuthorizationDecrease(address,address,uint96)"](
+              operator.address,
+              application1Mock.address,
+              amountToDecrease
+            )
+        })
+
+        it("should keep authorized amount unchanged", async () => {
+          expect(
+            await tokenStaking.authorizedStake(
+              operator.address,
+              application1Mock.address
+            )
+          ).to.equal(amount)
+        })
+
+        it("should send request to application", async () => {
+          expect(
+            await application1Mock.operators(operator.address)
+          ).to.deep.equal([amount, amountToDecrease])
+        })
+
+        it("should emit AuthorizationDecreaseRequested", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "AuthorizationDecreaseRequested")
+            .withArgs(
+              operator.address,
+              application1Mock.address,
+              amountToDecrease
+            )
+        })
+      })
+
+      context(
+        "when request to decrease all authorized amount for one application",
+        () => {
+          let tx
+
+          beforeEach(async () => {
+            tx = await tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address,address)"](
+                operator.address,
+                application1Mock.address
+              )
+          })
+
+          it("should keep authorized amount unchanged", async () => {
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application1Mock.address
+              )
+            ).to.equal(amount)
+          })
+
+          it("should send request to application", async () => {
+            expect(
+              await application1Mock.operators(operator.address)
+            ).to.deep.equal([amount, amount])
+          })
+
+          it("should emit AuthorizationDecreaseRequested", async () => {
+            await expect(tx)
+              .to.emit(tokenStaking, "AuthorizationDecreaseRequested")
+              .withArgs(operator.address, application1Mock.address, amount)
+          })
+        }
+      )
+
+      context(
+        "when request to decrease all authorized amount for several applications",
+        () => {
+          let tx
+
+          beforeEach(async () => {
+            await tokenStaking
+              .connect(deployer)
+              .approveApplication(application2Mock.address)
+            await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                application2Mock.address,
+                amount
+              )
+            tx = await tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address)"](operator.address)
+          })
+
+          it("should keep authorized amount unchanged", async () => {
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application1Mock.address
+              )
+            ).to.equal(amount)
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application2Mock.address
+              )
+            ).to.equal(amount)
+          })
+
+          it("should send request to application", async () => {
+            expect(
+              await application1Mock.operators(operator.address)
+            ).to.deep.equal([amount, amount])
+            expect(
+              await application2Mock.operators(operator.address)
+            ).to.deep.equal([amount, amount])
+          })
+
+          it("should emit AuthorizationDecreaseRequested", async () => {
+            await expect(tx)
+              .to.emit(tokenStaking, "AuthorizationDecreaseRequested")
+              .withArgs(operator.address, application1Mock.address, amount)
+            await expect(tx)
+              .to.emit(tokenStaking, "AuthorizationDecreaseRequested")
+              .withArgs(operator.address, application2Mock.address, amount)
+          })
+        }
+      )
     })
   })
 })
