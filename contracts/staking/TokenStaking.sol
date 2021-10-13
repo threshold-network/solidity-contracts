@@ -469,32 +469,35 @@ contract TokenStaking is Ownable, IStaking {
     ///         application. The disabled application can not slash stakes until
     ///         it is approved again by the Governance using `approveApplication`
     ///         function. Should be used only in case of an emergency.
-    function disableApplication(address application)
+    function disableApplication(address _application)
         external
         override
-        onlyPanicButtonOf(application)
+        onlyPanicButtonOf(_application)
     {
-        applicationInfo[application].disabled = true;
-        emit ApplicationDisabled(application);
+        ApplicationInfo storage application = applicationInfo[_application];
+        require(!application.disabled, "Application has already been disabled");
+        application.disabled = true;
+        emit ApplicationDisabled(_application);
     }
 
     /// @notice Sets the Panic Button role for the given application to the
     ///         provided address. Can only be called by the Governance. If the
     ///         Panic Button for the given application should be disabled, the
     ///         role address should can set to 0x0 address.
-    function setPanicButton(address application, address panicButton)
+    function setPanicButton(address _application, address _panicButton)
         external
         override
         onlyGovernance
     {
-        applicationInfo[application].panicButton = panicButton;
-        emit PanicButtonSet(application, panicButton);
+        ApplicationInfo storage application = applicationInfo[_application];
+        require(application.approved, "Application is not approved");
+        application.panicButton = _panicButton;
+        emit PanicButtonSet(_application, _panicButton);
     }
 
     /// @notice Sets the maximum number of applications one operator can
     ///         authorize. Used to protect against DoSing slashing queue.
     ///         Can only be called by the Governance.
-    // TODO update docs
     function setAuthorizationCeiling(uint256 ceiling)
         external
         override
@@ -923,7 +926,7 @@ contract TokenStaking is Ownable, IStaking {
         );
     }
 
-    /// @notice Returns minimum possible stake for T, KEEP or NU
+    /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
     function getMinStaked(address _operator, StakingProvider stakingProviders)
         public
         view
