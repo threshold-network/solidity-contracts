@@ -104,6 +104,7 @@ abstract contract Checkpoints {
     }
 
     /// @notice Change delegation for `delegator` to `delegatee`.
+    // slither-disable-next-line dead-code
     function delegate(address delegator, address delegatee) internal virtual;
 
     /// @notice Moves voting power from one delegate to another
@@ -117,6 +118,8 @@ abstract contract Checkpoints {
     ) internal {
         if (src != dst && amount > 0) {
             if (src != address(0)) {
+                // https://github.com/crytic/slither/issues/960
+                // slither-disable-next-line variable-scope
                 (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
                     _checkpoints[src],
                     subtract,
@@ -126,6 +129,8 @@ abstract contract Checkpoints {
             }
 
             if (dst != address(0)) {
+                // https://github.com/crytic/slither/issues/959
+                // slither-disable-next-line uninitialized-local
                 (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
                     _checkpoints[dst],
                     add,
@@ -155,6 +160,7 @@ abstract contract Checkpoints {
 
         if (pos > 0) {
             uint32 fromBlock = decodeBlockNumber(ckpts[pos - 1]);
+            // slither-disable-next-line incorrect-equality
             if (fromBlock == block.number) {
                 ckpts[pos - 1] = encodeCheckpoint(
                     fromBlock,
@@ -214,6 +220,7 @@ abstract contract Checkpoints {
     }
 
     /// @notice Maximum token supply. Defaults to `type(uint96).max` (2^96 - 1)
+    // slither-disable-next-line dead-code
     function maxSupply() internal view virtual returns (uint96) {
         return type(uint96).max;
     }
