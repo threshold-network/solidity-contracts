@@ -2029,4 +2029,707 @@ describe("TokenStaking", () => {
       })
     })
   })
+
+  describe("topUp", () => {
+    context("when amount is zero", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(staker).topUp(operator.address, 0)
+        ).to.be.revertedWith("Amount to top-up must be greater than 0")
+      })
+    })
+
+    context("when operator has no delegated stake", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .topUp(operator.address, initialStakerBalance)
+        ).to.be.revertedWith("Operator has no stake")
+      })
+    })
+
+    context("when operator has T stake", () => {
+      const amount = initialStakerBalance.div(3)
+      const topUpAmount = initialStakerBalance.mul(2)
+      const expectedAmount = amount.add(topUpAmount)
+      let tx
+      let blockTimestamp
+
+      beforeEach(async () => {
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+        blockTimestamp = await lastBlockTime()
+        await tToken
+          .connect(deployer)
+          .approve(tokenStaking.address, topUpAmount)
+        tx = await tokenStaking
+          .connect(deployer)
+          .topUp(operator.address, topUpAmount)
+      })
+
+      it("should update T staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          zeroBigNumber,
+          zeroBigNumber,
+          expectedAmount,
+          ethers.BigNumber.from(blockTimestamp),
+        ])
+      })
+
+      it("should transfer tokens to the staking contract", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedAmount
+        )
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(expectedAmount)
+      })
+
+      it("should not increase min staked amount", async () => {
+        expect(
+          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getMinStaked(
+            operator.address,
+            StakingProviders.KEEP
+          )
+        ).to.equal(0)
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, topUpAmount)
+      })
+    })
+
+    context("when operator has Keep stake", () => {
+      const keepAmount = initialStakerBalance
+      const keepInTAmount = convertToT(keepAmount, keepRatio).result
+      const topUpAmount = initialStakerBalance.mul(2)
+      const expectedAmount = keepInTAmount.add(topUpAmount)
+      let tx
+
+      beforeEach(async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+        await tToken
+          .connect(deployer)
+          .approve(tokenStaking.address, topUpAmount)
+        tx = await tokenStaking
+          .connect(deployer)
+          .topUp(operator.address, topUpAmount)
+      })
+
+      it("should update only T staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          zeroBigNumber,
+          keepInTAmount,
+          topUpAmount,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(expectedAmount)
+      })
+
+      it("should transfer tokens to the staking contract", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          topUpAmount
+        )
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, topUpAmount)
+      })
+    })
+
+    context("when operator has NuCypher stake", () => {
+      const nuAmount = initialStakerBalance
+      const nuInTAmount = convertToT(nuAmount, nuRatio).result
+      const topUpAmount = initialStakerBalance.mul(2)
+      const expectedAmount = nuInTAmount.add(topUpAmount)
+      let tx
+
+      beforeEach(async () => {
+        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await await tokenStaking
+          .connect(staker)
+          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+        await tToken
+          .connect(deployer)
+          .approve(tokenStaking.address, topUpAmount)
+        tx = await tokenStaking
+          .connect(deployer)
+          .topUp(operator.address, topUpAmount)
+      })
+
+      it("should update only T staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          nuInTAmount,
+          zeroBigNumber,
+          topUpAmount,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(expectedAmount)
+      })
+
+      it("should transfer tokens to the staking contract", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          topUpAmount
+        )
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, topUpAmount)
+      })
+    })
+  })
+
+  describe("topUpKeep", () => {
+    context("when operator has no delegated stake", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.topUpKeep(operator.address)
+        ).to.be.revertedWith("Operator has no stake")
+      })
+    })
+
+    context("when specified address never was an operator in Keep", () => {
+      it("should revert", async () => {
+        const amount = initialStakerBalance
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+        await expect(
+          tokenStaking.topUpKeep(operator.address)
+        ).to.be.revertedWith("Nothing to sync")
+      })
+    })
+
+    context("when eligible stake is zero", () => {
+      it("should revert", async () => {
+        const amount = initialStakerBalance
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await expect(
+          tokenStaking.topUpKeep(operator.address)
+        ).to.be.revertedWith(
+          "Amount in Keep contract is equal to or less than the stored amount"
+        )
+      })
+    })
+
+    context("when eligible stake is less than cached", () => {
+      it("should revert", async () => {
+        const initialAmount = initialStakerBalance
+        const amount = initialAmount.div(2)
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+        await keepStakingMock.setAmount(operator.address, amount)
+        await expect(
+          tokenStaking.topUpKeep(operator.address)
+        ).to.be.revertedWith(
+          "Amount in Keep contract is equal to or less than the stored amount"
+        )
+      })
+    })
+
+    context("when operator has Keep stake", () => {
+      const initialKeepAmount = initialStakerBalance
+      const initialKeepInTAmount = convertToT(
+        initialKeepAmount,
+        keepRatio
+      ).result
+      const newKeepAmount = initialStakerBalance.mul(2)
+      const newKeepInTAmount = convertToT(newKeepAmount, keepRatio).result
+      let tx
+
+      beforeEach(async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialKeepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+        await keepStakingMock.setAmount(operator.address, newKeepAmount)
+        tx = await tokenStaking.topUpKeep(operator.address)
+      })
+
+      it("should update only Keep staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          zeroBigNumber,
+          newKeepInTAmount,
+          zeroBigNumber,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(newKeepInTAmount)
+      })
+
+      it("should not increase min staked amount", async () => {
+        expect(
+          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getMinStaked(
+            operator.address,
+            StakingProviders.KEEP
+          )
+        ).to.equal(0)
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(
+            operator.address,
+            newKeepInTAmount.sub(initialKeepInTAmount)
+          )
+      })
+    })
+
+    context("when operator has T stake", () => {
+      const tAmount = initialStakerBalance.div(3)
+      const keepAmount = initialStakerBalance.mul(2)
+      const keepInTAmount = convertToT(keepAmount, keepRatio).result
+      let tx
+      let blockTimestamp
+
+      beforeEach(async () => {
+        await tToken.connect(staker).approve(tokenStaking.address, tAmount)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, tAmount)
+        blockTimestamp = await lastBlockTime()
+
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        tx = await tokenStaking.topUpKeep(operator.address)
+      })
+
+      it("should update only Keep staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          zeroBigNumber,
+          keepInTAmount,
+          tAmount,
+          ethers.BigNumber.from(blockTimestamp),
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(tAmount.add(keepInTAmount))
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, keepInTAmount)
+      })
+    })
+
+    context("when operator has NuCypher stake", () => {
+      const nuAmount = initialStakerBalance.div(3)
+      const nuInTAmount = convertToT(nuAmount, nuRatio).result
+      const keepAmount = initialStakerBalance.mul(2)
+      const keepInTAmount = convertToT(keepAmount, keepRatio).result
+      let tx
+
+      beforeEach(async () => {
+        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await await tokenStaking
+          .connect(staker)
+          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        tx = await tokenStaking.topUpKeep(operator.address)
+      })
+
+      it("should update only Keep staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          nuInTAmount,
+          keepInTAmount,
+          zeroBigNumber,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(nuInTAmount.add(keepInTAmount))
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, keepInTAmount)
+      })
+    })
+  })
+
+  describe("topUpNu", () => {
+    context("when operator has no delegated stake", () => {
+      it("should revert", async () => {
+        await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
+          "Operator has no stake"
+        )
+      })
+    })
+
+    context("when stake in NuCypher contract is zero", () => {
+      it("should revert", async () => {
+        const amount = initialStakerBalance
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+        await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
+          "Amount in NuCypher contract is equal to or less than the stored amount"
+        )
+      })
+    })
+
+    context("when stake in NuCypher contract is less than cached", () => {
+      it("should revert", async () => {
+        const initialAmount = initialStakerBalance
+        const amount = initialAmount.div(2)
+        await nucypherStakingMock.setStaker(
+          staker.address,
+          initialAmount,
+          false
+        )
+        await await tokenStaking
+          .connect(staker)
+          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+        await nucypherStakingMock.setStaker(staker.address, amount, false)
+        await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
+          "Amount in NuCypher contract is equal to or less than the stored amount"
+        )
+      })
+    })
+
+    context("when operator has NuCypher stake", () => {
+      const initialNuAmount = initialStakerBalance
+      const initialNuInTAmount = convertToT(initialNuAmount, nuRatio).result
+      const newNuAmount = initialStakerBalance.mul(2)
+      const newNuInTAmount = convertToT(newNuAmount, nuRatio).result
+      let tx
+
+      beforeEach(async () => {
+        await nucypherStakingMock.setStaker(
+          staker.address,
+          initialNuAmount,
+          false
+        )
+        await await tokenStaking
+          .connect(staker)
+          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+        await nucypherStakingMock.setStaker(staker.address, newNuAmount, false)
+        tx = await tokenStaking.topUpNu(operator.address)
+      })
+
+      it("should update only Nu staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          newNuInTAmount,
+          zeroBigNumber,
+          zeroBigNumber,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(newNuInTAmount)
+      })
+
+      it("should not increase min staked amount", async () => {
+        expect(
+          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getMinStaked(
+            operator.address,
+            StakingProviders.KEEP
+          )
+        ).to.equal(0)
+      })
+
+      it("should do callback to NuCypher staking contract", async () => {
+        expect(await nucypherStakingMock.stakers(staker.address)).to.deep.equal(
+          [newNuAmount, true]
+        )
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, newNuInTAmount.sub(initialNuInTAmount))
+      })
+    })
+
+    context("when operator has T stake", () => {
+      const tAmount = initialStakerBalance.div(3)
+      const nuAmount = initialStakerBalance.mul(2)
+      const nuInTAmount = convertToT(nuAmount, nuRatio).result
+      let tx
+      let blockTimestamp
+
+      beforeEach(async () => {
+        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await tToken.connect(staker).approve(tokenStaking.address, tAmount)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, tAmount)
+        blockTimestamp = await lastBlockTime()
+
+        tx = await tokenStaking.topUpNu(operator.address)
+      })
+
+      it("should update only Nu staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          nuInTAmount,
+          zeroBigNumber,
+          tAmount,
+          ethers.BigNumber.from(blockTimestamp),
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(tAmount.add(nuInTAmount))
+      })
+
+      it("should do callback to NuCypher staking contract", async () => {
+        expect(await nucypherStakingMock.stakers(staker.address)).to.deep.equal(
+          [nuAmount, true]
+        )
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, nuInTAmount)
+      })
+    })
+
+    context("when operator has Keep stake", () => {
+      const keepAmount = initialStakerBalance.div(2)
+      const keepInTAmount = convertToT(keepAmount, keepRatio).result
+      const nuAmount = initialStakerBalance.mul(3)
+      const nuInTAmount = convertToT(nuAmount, nuRatio).result
+      let tx
+
+      beforeEach(async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+
+        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        tx = await tokenStaking.topUpNu(operator.address)
+      })
+
+      it("should update only Nu staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          nuInTAmount,
+          keepInTAmount,
+          zeroBigNumber,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(nuInTAmount.add(keepInTAmount))
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, nuInTAmount)
+      })
+    })
+  })
 })

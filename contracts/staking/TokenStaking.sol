@@ -530,10 +530,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         staking contract to T staking contract. Can be called by anyone.
     function topUpKeep(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
-        require(
-            operator.owner != address(0),
-            "Operator is not synced with Keep staking contract"
-        );
+        require(operator.owner != address(0), "Operator has no stake");
 
         uint96 tAmount = getKeepAmountInT(_operator);
         require(
@@ -549,10 +546,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         staking contract to T staking contract. Can be called by anyone.
     function topUpNu(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
-        require(
-            operator.owner != address(0),
-            "Operator is not synced with NuCypher staking contract"
-        );
+        require(operator.owner != address(0), "Operator has no stake");
 
         uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
             operator.owner

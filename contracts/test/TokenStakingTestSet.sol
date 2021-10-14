@@ -45,6 +45,10 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
         operators[operator].eligibility[application] = isEligible;
     }
 
+    function setAmount(address operator, uint256 amount) external {
+        operators[operator].amount = amount;
+    }
+
     function seize(
         uint256 amountToSeize,
         uint256 rewardMultiplier,
