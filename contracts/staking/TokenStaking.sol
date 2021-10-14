@@ -271,7 +271,8 @@ contract TokenStaking is Ownable, IStaking {
         );
 
         uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
-            msg.sender
+            msg.sender,
+            _operator
         );
         (uint96 tAmount, ) = nuToT(nuStakeAmount);
         require(tAmount > 0, "Nothing to sync");
@@ -549,7 +550,8 @@ contract TokenStaking is Ownable, IStaking {
         require(operator.owner != address(0), "Operator has no stake");
 
         uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
-            operator.owner
+            operator.owner,
+            _operator
         );
         (uint96 tAmount, ) = nuToT(nuStakeAmount);
         require(

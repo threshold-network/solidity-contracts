@@ -623,7 +623,7 @@ describe("TokenStaking", () => {
         let tx
 
         beforeEach(async () => {
-          await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
         })
 
         context("when authorizer and beneficiary were not provided", () => {
@@ -650,7 +650,7 @@ describe("TokenStaking", () => {
           it("should do callback to NuCypher staking contract", async () => {
             expect(
               await nucypherStakingMock.stakers(staker.address)
-            ).to.deep.equal([nuAmount, true])
+            ).to.deep.equal([nuAmount, operator.address])
           })
 
           it("should increase available amount to authorize", async () => {
@@ -727,7 +727,7 @@ describe("TokenStaking", () => {
           it("should do callback to NuCypher staking contract", async () => {
             expect(
               await nucypherStakingMock.stakers(staker.address)
-            ).to.deep.equal([nuAmount, true])
+            ).to.deep.equal([nuAmount, operator.address])
           })
 
           it("should increase available amount to authorize", async () => {
@@ -1235,7 +1235,7 @@ describe("TokenStaking", () => {
         )
         tx = await tokenStaking.stakeKeep(operator.address)
 
-        await nucypherStakingMock.setStaker(staker.address, nuStake, false)
+        await nucypherStakingMock.setStaker(staker.address, nuStake)
         await tokenStaking.topUpNu(operator.address)
 
         await tToken.connect(staker).approve(tokenStaking.address, tStake)
@@ -2196,8 +2196,8 @@ describe("TokenStaking", () => {
       let tx
 
       beforeEach(async () => {
-        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
-        await await tokenStaking
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
+        await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
         await tToken
@@ -2464,8 +2464,8 @@ describe("TokenStaking", () => {
       let tx
 
       beforeEach(async () => {
-        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
-        await await tokenStaking
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
+        await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
 
@@ -2542,15 +2542,11 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         const initialAmount = initialStakerBalance
         const amount = initialAmount.div(2)
-        await nucypherStakingMock.setStaker(
-          staker.address,
-          initialAmount,
-          false
-        )
-        await await tokenStaking
+        await nucypherStakingMock.setStaker(staker.address, initialAmount)
+        await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
-        await nucypherStakingMock.setStaker(staker.address, amount, false)
+        await nucypherStakingMock.setStaker(staker.address, amount)
         await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
           "Amount in NuCypher contract is equal to or less than the stored amount"
         )
@@ -2565,15 +2561,11 @@ describe("TokenStaking", () => {
       let tx
 
       beforeEach(async () => {
-        await nucypherStakingMock.setStaker(
-          staker.address,
-          initialNuAmount,
-          false
-        )
-        await await tokenStaking
+        await nucypherStakingMock.setStaker(staker.address, initialNuAmount)
+        await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
-        await nucypherStakingMock.setStaker(staker.address, newNuAmount, false)
+        await nucypherStakingMock.setStaker(staker.address, newNuAmount)
         tx = await tokenStaking.topUpNu(operator.address)
       })
 
@@ -2613,16 +2605,45 @@ describe("TokenStaking", () => {
         ).to.equal(0)
       })
 
-      it("should do callback to NuCypher staking contract", async () => {
-        expect(await nucypherStakingMock.stakers(staker.address)).to.deep.equal(
-          [newNuAmount, true]
-        )
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, newNuInTAmount.sub(initialNuInTAmount))
+      })
+    })
+
+    context("when operator unstaked Nu previously", () => {
+      const nuAmount = initialStakerBalance
+      const nuInTAmount = convertToT(nuAmount, nuRatio).result
+      let tx
+
+      beforeEach(async () => {
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
+        await tokenStaking
+          .connect(staker)
+          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+        await tokenStaking
+          .connect(staker)
+          .unstakeNu(operator.address, nuInTAmount)
+        tx = await tokenStaking.topUpNu(operator.address)
+      })
+
+      it("should update only Nu staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          nuInTAmount,
+          zeroBigNumber,
+          zeroBigNumber,
+          zeroBigNumber,
+        ])
       })
 
       it("should emit ToppedUp event", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
-          .withArgs(operator.address, newNuInTAmount.sub(initialNuInTAmount))
+          .withArgs(operator.address, nuInTAmount)
       })
     })
 
@@ -2634,7 +2655,7 @@ describe("TokenStaking", () => {
       let blockTimestamp
 
       beforeEach(async () => {
-        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tToken.connect(staker).approve(tokenStaking.address, tAmount)
         await tokenStaking
           .connect(staker)
@@ -2667,7 +2688,7 @@ describe("TokenStaking", () => {
 
       it("should do callback to NuCypher staking contract", async () => {
         expect(await nucypherStakingMock.stakers(staker.address)).to.deep.equal(
-          [nuAmount, true]
+          [nuAmount, operator.address]
         )
       })
 
@@ -2703,7 +2724,7 @@ describe("TokenStaking", () => {
         )
         await tokenStaking.stakeKeep(operator.address)
 
-        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
         tx = await tokenStaking.topUpNu(operator.address)
       })
 
@@ -2804,8 +2825,7 @@ describe("TokenStaking", () => {
 
         await nucypherStakingMock.setStaker(
           staker.address,
-          initialStakerBalance,
-          false
+          initialStakerBalance
         )
         await tokenStaking.topUpNu(operator.address)
 
@@ -2902,7 +2922,7 @@ describe("TokenStaking", () => {
               amount
             )
           blockTimestamp = await lastBlockTime()
-          await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
           await tokenStaking.topUpNu(operator.address)
           await tokenStaking
             .connect(authorizer)
@@ -3035,7 +3055,7 @@ describe("TokenStaking", () => {
 
       beforeEach(async () => {
         await tokenStaking.connect(deployer).setMinimumStakeAmount(minAmount)
-        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
@@ -3117,8 +3137,7 @@ describe("TokenStaking", () => {
 
         await nucypherStakingMock.setStaker(
           staker.address,
-          initialStakerBalance,
-          false
+          initialStakerBalance
         )
         await tokenStaking.topUpNu(operator.address)
 
@@ -3272,8 +3291,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await nucypherStakingMock.setStaker(
           staker.address,
-          initialStakerBalance,
-          false
+          initialStakerBalance
         )
         await tokenStaking
           .connect(staker)
@@ -3288,8 +3306,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await nucypherStakingMock.setStaker(
           staker.address,
-          initialStakerBalance,
-          false
+          initialStakerBalance
         )
         await tokenStaking
           .connect(staker)
@@ -3342,7 +3359,7 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(deployer)
           .approveApplication(application1Mock.address)
-        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
@@ -3378,7 +3395,7 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(deployer)
           .approveApplication(application1Mock.address)
-        await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
@@ -3611,7 +3628,7 @@ describe("TokenStaking", () => {
           )
           await tokenStaking.stakeKeep(operator.address)
 
-          await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
           await tokenStaking.topUpNu(operator.address)
           return 0
         },
@@ -3657,7 +3674,7 @@ describe("TokenStaking", () => {
           )
           await tokenStaking.topUpKeep(operator.address)
 
-          await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
           await tokenStaking.topUpNu(operator.address)
 
           const authorized = tAmount
@@ -3711,7 +3728,7 @@ describe("TokenStaking", () => {
           await tokenStaking.connect(staker).topUp(operator.address, tAmount)
           blockTimestamp = await lastBlockTime()
 
-          await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
           await tokenStaking.topUpNu(operator.address)
 
           return 0
@@ -3759,7 +3776,7 @@ describe("TokenStaking", () => {
           )
           await tokenStaking.topUpKeep(operator.address)
 
-          await nucypherStakingMock.setStaker(staker.address, nuAmount, false)
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
           await tokenStaking.topUpNu(operator.address)
 
           const oneDay = 86400
