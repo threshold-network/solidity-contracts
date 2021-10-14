@@ -575,6 +575,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         operator.
     function unstakeT(address _operator, uint96 _amount) external override {
         OperatorInfo storage operator = operators[_operator];
+        require(operator.owner != address(0), "Operator has no stake");
         require(
             operator.owner == msg.sender || _operator == msg.sender,
             "Only owner and operator can unstake tokens"
@@ -606,6 +607,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         called only by the delegation owner and operator.
     function unstakeKeep(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
+        require(operator.owner != address(0), "Operator has no stake");
         require(
             operator.owner == msg.sender || _operator == msg.sender,
             "Only owner and operator can unstake tokens"
@@ -631,6 +633,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         delegation owner and operator.
     function unstakeNu(address _operator, uint96 _amount) external override {
         OperatorInfo storage operator = operators[_operator];
+        require(operator.owner != address(0), "Operator has no stake");
         require(
             operator.owner == msg.sender || _operator == msg.sender,
             "Only owner and operator can unstake tokens"
@@ -651,6 +654,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         Can be called only by the delegation owner and operator.
     function unstakeAll(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
+        require(operator.owner != address(0), "Operator has no stake");
         require(
             operator.owner == msg.sender || _operator == msg.sender,
             "Only owner and operator can unstake tokens"
@@ -658,6 +662,14 @@ contract TokenStaking is Ownable, IStaking {
         require(
             operator.authorizedApplications.length == 0,
             "At least one application is still authorized"
+        );
+        require(
+            operator.tStake == 0 ||
+                minTStakeAmount == 0 ||
+                operator.startTStakingTimestamp + MIN_STAKE_TIME <=
+                /* solhint-disable-next-line not-rely-on-time */
+                block.timestamp,
+            "Unstaking is possible only after 24 hours"
         );
 
         emit Unstaked(
