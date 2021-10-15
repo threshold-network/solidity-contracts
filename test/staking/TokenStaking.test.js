@@ -186,8 +186,35 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(staker)
-            .stake(ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+            .stake(
+              ZERO_ADDRESS,
+              beneficiary.address,
+              authorizer.address,
+              amount
+            )
         ).to.be.revertedWith("Operator must be specified")
+      })
+    })
+
+    context("when caller did not provide beneficiary", () => {
+      it("should revert", async () => {
+        amount = 0
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .stake(operator.address, ZERO_ADDRESS, authorizer.address, amount)
+        ).to.be.revertedWith("Beneficiary must be specified")
+      })
+    })
+
+    context("when caller did not provide authorizer", () => {
+      it("should revert", async () => {
+        amount = 0
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .stake(operator.address, beneficiary.address, ZERO_ADDRESS, amount)
+        ).to.be.revertedWith("Authorizer must be specified")
       })
     })
 
@@ -200,12 +227,22 @@ describe("TokenStaking", () => {
             .approve(tokenStaking.address, amount)
           await tokenStaking
             .connect(otherStaker)
-            .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+            .stake(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              amount
+            )
           await tToken.connect(staker).approve(tokenStaking.address, amount)
           await expect(
             tokenStaking
               .connect(staker)
-              .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+              .stake(
+                operator.address,
+                beneficiary.address,
+                authorizer.address,
+                amount
+              )
           ).to.be.revertedWith("Operator is already in use")
         })
       })
@@ -226,7 +263,12 @@ describe("TokenStaking", () => {
           await expect(
             tokenStaking
               .connect(staker)
-              .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+              .stake(
+                operator.address,
+                beneficiary.address,
+                authorizer.address,
+                amount
+              )
           ).to.be.revertedWith("Operator is already in use")
         })
       })
@@ -239,7 +281,12 @@ describe("TokenStaking", () => {
           await expect(
             tokenStaking
               .connect(staker)
-              .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+              .stake(
+                operator.address,
+                beneficiary.address,
+                authorizer.address,
+                amount
+              )
           ).to.be.revertedWith("Amount to stake must be greater than minimum")
         })
       })
@@ -254,7 +301,12 @@ describe("TokenStaking", () => {
           await expect(
             tokenStaking
               .connect(staker)
-              .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+              .stake(
+                operator.address,
+                beneficiary.address,
+                authorizer.address,
+                amount
+              )
           ).to.be.revertedWith("Amount to stake must be greater than minimum")
         })
       })
@@ -265,125 +317,57 @@ describe("TokenStaking", () => {
       let tx
       let blockTimestamp
 
-      context("when authorizer and beneficiary were not provided", () => {
-        beforeEach(async () => {
-          await tToken.connect(staker).approve(tokenStaking.address, amount)
-          tx = await tokenStaking
-            .connect(staker)
-            .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
-          blockTimestamp = await lastBlockTime()
-        })
-
-        it("should set roles equal to the caller address", async () => {
-          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
-            staker.address,
-            staker.address,
-            staker.address,
-            zeroBigNumber,
-            zeroBigNumber,
-            amount,
-            ethers.BigNumber.from(blockTimestamp),
-          ])
-        })
-
-        it("should transfer tokens to the staking contract", async () => {
-          expect(await tToken.balanceOf(tokenStaking.address)).to.equal(amount)
-        })
-
-        it("should increase available amount to authorize", async () => {
-          expect(
-            await tokenStaking.getAvailableToAuthorize(
-              operator.address,
-              application1Mock.address
-            )
-          ).to.equal(amount)
-        })
-
-        it("should not increase min staked amount", async () => {
-          expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.T
-            )
-          ).to.equal(0)
-          expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.NU
-            )
-          ).to.equal(0)
-          expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.KEEP
-            )
-          ).to.equal(0)
-        })
-
-        it("should emit TStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "TStaked")
-            .withArgs(staker.address, operator.address)
-
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(operator.address, staker.address, staker.address, amount)
-        })
-      })
-
-      context("when authorizer and beneficiary were provided", () => {
-        beforeEach(async () => {
-          await tToken.connect(staker).approve(tokenStaking.address, amount)
-          tx = await tokenStaking
-            .connect(staker)
-            .stake(
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              amount
-            )
-          blockTimestamp = await lastBlockTime()
-        })
-
-        it("should set roles equal to the provided values", async () => {
-          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
-            staker.address,
+      beforeEach(async () => {
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        tx = await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
             beneficiary.address,
             authorizer.address,
-            zeroBigNumber,
-            zeroBigNumber,
-            amount,
-            ethers.BigNumber.from(blockTimestamp),
-          ])
-        })
+            amount
+          )
+        blockTimestamp = await lastBlockTime()
+      })
 
-        it("should transfer tokens to the staking contract", async () => {
-          expect(await tToken.balanceOf(tokenStaking.address)).to.equal(amount)
-        })
+      it("should set roles equal to the provided values", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          zeroBigNumber,
+          zeroBigNumber,
+          amount,
+          ethers.BigNumber.from(blockTimestamp),
+        ])
+      })
 
-        it("should increase available amount to authorize", async () => {
-          expect(
-            await tokenStaking.getAvailableToAuthorize(
-              operator.address,
-              application1Mock.address
-            )
-          ).to.equal(amount)
-        })
+      it("should transfer tokens to the staking contract", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(amount)
+      })
 
-        it("should emit TStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "TStaked")
-            .withArgs(staker.address, operator.address)
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(amount)
+      })
 
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              amount
-            )
-        })
+      it("should emit TStaked and OperatorStaked events", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "TStaked")
+          .withArgs(staker.address, operator.address)
+
+        await expect(tx)
+          .to.emit(tokenStaking, "OperatorStaked")
+          .withArgs(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
       })
     })
   })
@@ -403,7 +387,12 @@ describe("TokenStaking", () => {
         await tToken.connect(otherStaker).approve(tokenStaking.address, amount)
         await tokenStaking
           .connect(otherStaker)
-          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
         await expect(
           tokenStaking.stakeKeep(operator.address)
         ).to.be.revertedWith("Can't stake KEEP for this operator")
@@ -562,8 +551,28 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(staker)
-            .stakeNu(ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS)
+            .stakeNu(ZERO_ADDRESS, beneficiary.address, authorizer.address)
         ).to.be.revertedWith("Operator must be specified")
+      })
+    })
+
+    context("when caller did not provide beneficiary", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .stakeNu(operator.address, ZERO_ADDRESS, authorizer.address)
+        ).to.be.revertedWith("Beneficiary must be specified")
+      })
+    })
+
+    context("when caller did not provide authorizer", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .stakeNu(operator.address, beneficiary.address, ZERO_ADDRESS)
+        ).to.be.revertedWith("Authorizer must be specified")
       })
     })
 
@@ -576,11 +585,20 @@ describe("TokenStaking", () => {
             .approve(tokenStaking.address, amount)
           await tokenStaking
             .connect(otherStaker)
-            .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+            .stake(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              amount
+            )
           await expect(
             tokenStaking
               .connect(staker)
-              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+              .stakeNu(
+                operator.address,
+                beneficiary.address,
+                authorizer.address
+              )
           ).to.be.revertedWith("Operator is already in use")
         })
       })
@@ -600,160 +618,79 @@ describe("TokenStaking", () => {
           await expect(
             tokenStaking
               .connect(staker)
-              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
-          ).to.be.revertedWith("Operator is already in use")
-        })
-      })
-    })
-
-    context("when specified operator is free", () => {
-      context("when caller has no stake in NuCypher staking contract", () => {
-        it("should revert", async () => {
-          await expect(
-            tokenStaking
-              .connect(staker)
-              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
-          ).to.be.revertedWith("Nothing to sync")
-        })
-      })
-
-      context("when caller has stake in NuCypher staking contract", () => {
-        const nuAmount = initialStakerBalance
-        const tAmount = convertToT(nuAmount, nuRatio).result
-        let tx
-
-        beforeEach(async () => {
-          await nucypherStakingMock.setStaker(staker.address, nuAmount)
-        })
-
-        context("when authorizer and beneficiary were not provided", () => {
-          beforeEach(async () => {
-            tx = await tokenStaking
-              .connect(staker)
-              .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
-          })
-
-          it("should set roles equal to the caller address", async () => {
-            expect(
-              await tokenStaking.operators(operator.address)
-            ).to.deep.equal([
-              staker.address,
-              staker.address,
-              staker.address,
-              tAmount,
-              zeroBigNumber,
-              zeroBigNumber,
-              zeroBigNumber,
-            ])
-          })
-
-          it("should do callback to NuCypher staking contract", async () => {
-            expect(
-              await nucypherStakingMock.stakers(staker.address)
-            ).to.deep.equal([nuAmount, operator.address])
-          })
-
-          it("should increase available amount to authorize", async () => {
-            expect(
-              await tokenStaking.getAvailableToAuthorize(
-                operator.address,
-                application1Mock.address
-              )
-            ).to.equal(tAmount)
-          })
-
-          it("should not increase min staked amount", async () => {
-            expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.T
-              )
-            ).to.equal(0)
-            expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.NU
-              )
-            ).to.equal(0)
-            expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.KEEP
-              )
-            ).to.equal(0)
-          })
-
-          it("should emit NuStaked and OperatorStaked events", async () => {
-            await expect(tx)
-              .to.emit(tokenStaking, "NuStaked")
-              .withArgs(staker.address, operator.address)
-
-            await expect(tx)
-              .to.emit(tokenStaking, "OperatorStaked")
-              .withArgs(
-                operator.address,
-                staker.address,
-                staker.address,
-                tAmount
-              )
-          })
-        })
-
-        context("when authorizer and beneficiary were provided", () => {
-          beforeEach(async () => {
-            tx = await tokenStaking
-              .connect(staker)
               .stakeNu(
                 operator.address,
                 beneficiary.address,
                 authorizer.address
               )
-          })
-
-          it("should set roles equal to the provided values", async () => {
-            expect(
-              await tokenStaking.operators(operator.address)
-            ).to.deep.equal([
-              staker.address,
-              beneficiary.address,
-              authorizer.address,
-              tAmount,
-              zeroBigNumber,
-              zeroBigNumber,
-              zeroBigNumber,
-            ])
-          })
-
-          it("should do callback to NuCypher staking contract", async () => {
-            expect(
-              await nucypherStakingMock.stakers(staker.address)
-            ).to.deep.equal([nuAmount, operator.address])
-          })
-
-          it("should increase available amount to authorize", async () => {
-            expect(
-              await tokenStaking.getAvailableToAuthorize(
-                operator.address,
-                application1Mock.address
-              )
-            ).to.equal(tAmount)
-          })
-
-          it("should emit NuStaked and OperatorStaked events", async () => {
-            await expect(tx)
-              .to.emit(tokenStaking, "NuStaked")
-              .withArgs(staker.address, operator.address)
-
-            await expect(tx)
-              .to.emit(tokenStaking, "OperatorStaked")
-              .withArgs(
-                operator.address,
-                beneficiary.address,
-                authorizer.address,
-                tAmount
-              )
-          })
+          ).to.be.revertedWith("Operator is already in use")
         })
+      })
+    })
+
+    context("when caller has no stake in NuCypher staking contract", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .stakeNu(operator.address, beneficiary.address, authorizer.address)
+        ).to.be.revertedWith("Nothing to sync")
+      })
+    })
+
+    context("when caller has stake in NuCypher staking contract", () => {
+      const nuAmount = initialStakerBalance
+      const tAmount = convertToT(nuAmount, nuRatio).result
+      let tx
+
+      beforeEach(async () => {
+        await nucypherStakingMock.setStaker(staker.address, nuAmount)
+
+        tx = await tokenStaking
+          .connect(staker)
+          .stakeNu(operator.address, beneficiary.address, authorizer.address)
+      })
+
+      it("should set roles equal to the provided values", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          tAmount,
+          zeroBigNumber,
+          zeroBigNumber,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should do callback to NuCypher staking contract", async () => {
+        expect(await nucypherStakingMock.stakers(staker.address)).to.deep.equal(
+          [nuAmount, operator.address]
+        )
+      })
+
+      it("should increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(tAmount)
+      })
+
+      it("should emit NuStaked and OperatorStaked events", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NuStaked")
+          .withArgs(staker.address, operator.address)
+
+        await expect(tx)
+          .to.emit(tokenStaking, "OperatorStaked")
+          .withArgs(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            tAmount
+          )
       })
     })
   })
@@ -1158,8 +1095,6 @@ describe("TokenStaking", () => {
         })
 
         context("when authorize after full deauthorization", () => {
-          let tx
-
           beforeEach(async () => {
             await tokenStaking.connect(deployer).setAuthorizationCeiling(1)
             await tokenStaking
@@ -1178,7 +1113,7 @@ describe("TokenStaking", () => {
             await tokenStaking
               .connect(deployer)
               .approveApplication(application2Mock.address)
-            tx = await tokenStaking
+            await tokenStaking
               .connect(authorizer)
               .increaseAuthorization(
                 operator.address,
@@ -2060,7 +1995,7 @@ describe("TokenStaking", () => {
         await tToken.connect(staker).approve(tokenStaking.address, amount)
         await tokenStaking
           .connect(staker)
-          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+          .stake(operator.address, staker.address, staker.address, amount)
         blockTimestamp = await lastBlockTime()
         await tToken
           .connect(deployer)
@@ -2199,7 +2134,7 @@ describe("TokenStaking", () => {
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tokenStaking
           .connect(staker)
-          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          .stakeNu(operator.address, staker.address, staker.address)
         await tToken
           .connect(deployer)
           .approve(tokenStaking.address, topUpAmount)
@@ -2258,7 +2193,12 @@ describe("TokenStaking", () => {
         await tToken.connect(staker).approve(tokenStaking.address, amount)
         await tokenStaking
           .connect(staker)
-          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
         await expect(
           tokenStaking.topUpKeep(operator.address)
         ).to.be.revertedWith("Nothing to sync")
@@ -2271,7 +2211,12 @@ describe("TokenStaking", () => {
         await tToken.connect(staker).approve(tokenStaking.address, amount)
         await tokenStaking
           .connect(staker)
-          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
         const createdAt = 1
         await keepStakingMock.setOperator(
           operator.address,
@@ -2407,7 +2352,7 @@ describe("TokenStaking", () => {
         await tToken.connect(staker).approve(tokenStaking.address, tAmount)
         await tokenStaking
           .connect(staker)
-          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, tAmount)
+          .stake(operator.address, staker.address, staker.address, tAmount)
         blockTimestamp = await lastBlockTime()
 
         const createdAt = 1
@@ -2467,7 +2412,7 @@ describe("TokenStaking", () => {
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tokenStaking
           .connect(staker)
-          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          .stakeNu(operator.address, staker.address, staker.address)
 
         const createdAt = 1
         await keepStakingMock.setOperator(
@@ -2531,7 +2476,12 @@ describe("TokenStaking", () => {
         await tToken.connect(staker).approve(tokenStaking.address, amount)
         await tokenStaking
           .connect(staker)
-          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, amount)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
         await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
           "Amount in NuCypher contract is equal to or less than the stored amount"
         )
@@ -2545,7 +2495,7 @@ describe("TokenStaking", () => {
         await nucypherStakingMock.setStaker(staker.address, initialAmount)
         await tokenStaking
           .connect(staker)
-          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          .stakeNu(operator.address, beneficiary.address, authorizer.address)
         await nucypherStakingMock.setStaker(staker.address, amount)
         await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
           "Amount in NuCypher contract is equal to or less than the stored amount"
@@ -2564,7 +2514,7 @@ describe("TokenStaking", () => {
         await nucypherStakingMock.setStaker(staker.address, initialNuAmount)
         await tokenStaking
           .connect(staker)
-          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          .stakeNu(operator.address, staker.address, staker.address)
         await nucypherStakingMock.setStaker(staker.address, newNuAmount)
         tx = await tokenStaking.topUpNu(operator.address)
       })
@@ -2621,7 +2571,7 @@ describe("TokenStaking", () => {
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tokenStaking
           .connect(staker)
-          .stakeNu(operator.address, ZERO_ADDRESS, ZERO_ADDRESS)
+          .stakeNu(operator.address, staker.address, staker.address)
         await tokenStaking
           .connect(staker)
           .unstakeNu(operator.address, nuInTAmount)
@@ -2659,7 +2609,7 @@ describe("TokenStaking", () => {
         await tToken.connect(staker).approve(tokenStaking.address, tAmount)
         await tokenStaking
           .connect(staker)
-          .stake(operator.address, ZERO_ADDRESS, ZERO_ADDRESS, tAmount)
+          .stake(operator.address, staker.address, staker.address, tAmount)
         blockTimestamp = await lastBlockTime()
 
         tx = await tokenStaking.topUpNu(operator.address)
@@ -3655,7 +3605,7 @@ describe("TokenStaking", () => {
               authorizer.address,
               tAmount
             )
-          let blockTimestamp = await lastBlockTime()
+          const blockTimestamp = await lastBlockTime()
 
           const createdAt = 1
           await keepStakingMock.setOperator(
@@ -3757,7 +3707,7 @@ describe("TokenStaking", () => {
               authorizer.address,
               tAmount
             )
-          let blockTimestamp = await lastBlockTime()
+          const blockTimestamp = await lastBlockTime()
 
           const createdAt = 1
           await keepStakingMock.setOperator(
