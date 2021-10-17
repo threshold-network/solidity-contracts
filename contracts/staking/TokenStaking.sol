@@ -731,6 +731,9 @@ contract TokenStaking is Ownable, IStaking {
     ///         authorizations of all affected applications and execute an
     ///         involuntary allocation decrease on all affected applications.
     ///         Can be called by anyone, notifier receives a reward.
+    /// @dev    Real discrepancy between T and Nu is impossible.
+    ///         This method is a safeguard in case of bugs in NuCypher staking
+    ///         contract
     function notifyNuStakeDiscrepancy(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
         require(operator.nuInTStake > 0, "Nothing to slash");
@@ -761,7 +764,7 @@ contract TokenStaking is Ownable, IStaking {
         uint96 penalty,
         uint256 rewardMultiplier
     ) external override onlyGovernance {
-        // TODO optimization: can be saved NU and KEEP equivalents to exclude conversion during slashing
+        // TODO optimization: can save NU and KEEP equivalents to exclude conversion during slashing
         stakeDiscrepancyPenalty = penalty;
         stakeDiscrepancyRewardMultiplier = rewardMultiplier;
         emit StakeDiscrepancyPenaltySet(penalty, rewardMultiplier);
@@ -1061,6 +1064,7 @@ contract TokenStaking is Ownable, IStaking {
 
         // slash NU
         if (tAmountToSlash > 0 && operator.nuInTStake > 0) {
+            // synchronization skipped due to impossibility of real discrepancy
             tAmountToSlash = seizeNu(operator, tAmountToSlash, 100);
         }
 
@@ -1105,18 +1109,19 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmountToSlash,
         uint256 rewardMultiplier
     ) internal returns (uint96) {
-        // TODO if keepInTStake == 0 then no slash
+        if (operator.keepInTStake == 0 || tAmountToSlash == 0) {
+            return tAmountToSlash;
+        }
+
         uint96 tPenalty;
         if (tAmountToSlash <= operator.keepInTStake) {
             tPenalty = tAmountToSlash;
-            operator.keepInTStake -= tAmountToSlash;
         } else {
             tPenalty = operator.keepInTStake;
-            operator.keepInTStake = 0;
         }
 
         (uint256 keepPenalty, uint96 tRemainder) = tToKeep(tPenalty);
-        operator.keepInTStake += tRemainder;
+        operator.keepInTStake -= tPenalty - tRemainder;
         tAmountToSlash -= tPenalty - tRemainder;
 
         address[] memory operatorWrapper = new address[](1);
@@ -1137,17 +1142,19 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmountToSlash,
         uint256 rewardMultiplier
     ) internal returns (uint96) {
+        if (operator.nuInTStake == 0 || tAmountToSlash == 0) {
+            return tAmountToSlash;
+        }
+
         uint96 tPenalty;
         if (tAmountToSlash <= operator.nuInTStake) {
-            operator.nuInTStake -= tAmountToSlash;
             tPenalty = tAmountToSlash;
         } else {
             tPenalty = operator.nuInTStake;
-            operator.nuInTStake = 0;
         }
 
         (uint256 nuPenalty, uint96 tRemainder) = tToNu(tPenalty);
-        operator.nuInTStake += tRemainder;
+        operator.nuInTStake -= tPenalty - tRemainder;
         tAmountToSlash -= tPenalty - tRemainder;
 
         uint256 nuReward = nuPenalty.percent(SLASHING_REWARD_PERCENT).percent(

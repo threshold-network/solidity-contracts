@@ -50,6 +50,10 @@ describe("TokenStaking", () => {
     }
   }
 
+  function rewardFromPenalty(penalty, rewardMultiplier) {
+    return penalty.mul(5).div(100).mul(rewardMultiplier).div(100)
+  }
+
   let tokenStaking
 
   let deployer
@@ -3737,6 +3741,915 @@ describe("TokenStaking", () => {
         tAmount,
         false
       )
+    })
+  })
+
+  describe("notifyKeepStakeDiscrepancy", () => {
+    context("when operator has no cached Keep stake", () => {
+      it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            initialStakerBalance
+          )
+
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+
+        await expect(
+          tokenStaking.notifyKeepStakeDiscrepancy(operator.address)
+        ).to.be.revertedWith("Nothing to slash")
+      })
+    })
+
+    context("when no discrepancy between T and Keep staking contracts", () => {
+      const keepAmount = initialStakerBalance
+
+      beforeEach(async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+      })
+
+      context("when stakes are equal in both contracts", () => {
+        it("should revert", async () => {
+          await expect(
+            tokenStaking.notifyKeepStakeDiscrepancy(operator.address)
+          ).to.be.revertedWith("There is no discrepancy")
+        })
+      })
+
+      context(
+        "when stake in Keep contract is greater than in T contract",
+        () => {
+          it("should revert", async () => {
+            await keepStakingMock.setAmount(operator.address, keepAmount.mul(2))
+            await expect(
+              tokenStaking.notifyKeepStakeDiscrepancy(operator.address)
+            ).to.be.revertedWith("There is no discrepancy")
+          })
+        }
+      )
+    })
+
+    context("when discrepancy between Keep and T stakes", () => {
+      const keepAmount = initialStakerBalance
+      const keepInTAmount = convertToT(keepAmount, keepRatio).result
+      const newKeepAmount = keepAmount.div(3).add(1)
+      const newKeepInTAmount = convertToT(newKeepAmount, keepRatio).result
+      const createdAt = ethers.BigNumber.from(1)
+      const tPenalty = newKeepInTAmount.div(10).add(1)
+      const rewardMultiplier = 50
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application2Mock.address)
+
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+      })
+
+      context("when penalty is not set (no apps)", () => {
+        beforeEach(async () => {
+          await keepStakingMock.setAmount(operator.address, newKeepAmount)
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyKeepStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            zeroBigNumber,
+            newKeepInTAmount,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should decrease available amount to authorize", async () => {
+          expect(
+            await tokenStaking.getAvailableToAuthorize(
+              operator.address,
+              application1Mock.address
+            )
+          ).to.equal(newKeepInTAmount)
+        })
+
+        it("should not call seize in Keep contract", async () => {
+          expect(
+            await keepStakingMock.getDelegationInfo(operator.address)
+          ).to.deep.equal([newKeepAmount, createdAt, zeroBigNumber])
+          expect(
+            await keepStakingMock.tattletales(otherStaker.address)
+          ).to.equal(0)
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, 0)
+        })
+      })
+
+      context("when staker has no Keep stake anymore (1 app)", () => {
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(deployer)
+            .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+          await keepStakingMock.setAmount(operator.address, 0)
+
+          await tokenStaking
+            .connect(authorizer)
+            .increaseAuthorization(
+              operator.address,
+              application1Mock.address,
+              keepInTAmount
+            )
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyKeepStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should decrease available amount to authorize", async () => {
+          expect(
+            await tokenStaking.getAvailableToAuthorize(
+              operator.address,
+              application1Mock.address
+            )
+          ).to.equal(0)
+        })
+
+        it("should update min staked amount", async () => {
+          expect(
+            await tokenStaking.getMinStaked(
+              operator.address,
+              StakingProviders.T
+            )
+          ).to.equal(0)
+          expect(
+            await tokenStaking.getMinStaked(
+              operator.address,
+              StakingProviders.NU
+            )
+          ).to.equal(0)
+          expect(
+            await tokenStaking.getMinStaked(
+              operator.address,
+              StakingProviders.KEEP
+            )
+          ).to.equal(0)
+        })
+
+        it("should not call seize in Keep contract", async () => {
+          expect(
+            await keepStakingMock.getDelegationInfo(operator.address)
+          ).to.deep.equal([zeroBigNumber, createdAt, zeroBigNumber])
+          expect(
+            await keepStakingMock.tattletales(otherStaker.address)
+          ).to.equal(0)
+        })
+
+        it("should inform application", async () => {
+          expect(
+            await application1Mock.operators(operator.address)
+          ).to.deep.equal([zeroBigNumber, zeroBigNumber])
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, 0)
+        })
+      })
+
+      context(
+        "when penalty is less than Keep stake (2 apps, 1 involuntary call)",
+        () => {
+          const authorizedAmount1 = keepInTAmount.sub(1)
+          const keepPenalty = convertFromT(tPenalty, keepRatio).result
+          const expectedKeepAmount = newKeepAmount.sub(keepPenalty)
+          const expectedKeepInTAmount = convertToT(
+            expectedKeepAmount,
+            keepRatio
+          ).result
+          const expectedReward = rewardFromPenalty(
+            keepPenalty,
+            rewardMultiplier
+          )
+          const authorizedAmount2 = expectedKeepInTAmount.sub(1)
+
+          beforeEach(async () => {
+            await tokenStaking
+              .connect(deployer)
+              .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+            await keepStakingMock.setAmount(operator.address, newKeepAmount)
+
+            await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                application1Mock.address,
+                authorizedAmount1
+              )
+            await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                application2Mock.address,
+                authorizedAmount2
+              )
+
+            tx = await tokenStaking
+              .connect(otherStaker)
+              .notifyKeepStakeDiscrepancy(operator.address)
+          })
+
+          it("should update staked amount", async () => {
+            expect(
+              await tokenStaking.operators(operator.address)
+            ).to.deep.equal([
+              staker.address,
+              beneficiary.address,
+              authorizer.address,
+              zeroBigNumber,
+              expectedKeepInTAmount,
+              zeroBigNumber,
+              zeroBigNumber,
+            ])
+          })
+
+          it("should decrease available amount to authorize", async () => {
+            expect(
+              await tokenStaking.getAvailableToAuthorize(
+                operator.address,
+                application1Mock.address
+              )
+            ).to.equal(0)
+            expect(
+              await tokenStaking.getAvailableToAuthorize(
+                operator.address,
+                application2Mock.address
+              )
+            ).to.equal(expectedKeepInTAmount.sub(authorizedAmount2))
+          })
+
+          it("should decrease authorized amount only for one application", async () => {
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application1Mock.address
+              )
+            ).to.equal(expectedKeepInTAmount)
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application2Mock.address
+              )
+            ).to.equal(authorizedAmount2)
+          })
+
+          it("should update min staked amount", async () => {
+            expect(
+              await tokenStaking.getMinStaked(
+                operator.address,
+                StakingProviders.T
+              )
+            ).to.equal(0)
+            expect(
+              await tokenStaking.getMinStaked(
+                operator.address,
+                StakingProviders.NU
+              )
+            ).to.equal(0)
+            expect(
+              await tokenStaking.getMinStaked(
+                operator.address,
+                StakingProviders.KEEP
+              )
+            ).to.equal(expectedKeepInTAmount)
+          })
+
+          it("should call seize in Keep contract", async () => {
+            expect(
+              await keepStakingMock.getDelegationInfo(operator.address)
+            ).to.deep.equal([expectedKeepAmount, createdAt, zeroBigNumber])
+            expect(
+              await keepStakingMock.tattletales(otherStaker.address)
+            ).to.equal(expectedReward)
+          })
+
+          it("should inform only one application", async () => {
+            expect(
+              await application1Mock.operators(operator.address)
+            ).to.deep.equal([expectedKeepInTAmount, zeroBigNumber])
+            expect(
+              await application2Mock.operators(operator.address)
+            ).to.deep.equal([authorizedAmount2, zeroBigNumber])
+          })
+
+          it("should emit TokensSeized", async () => {
+            await expect(tx)
+              .to.emit(tokenStaking, "TokensSeized")
+              .withArgs(
+                operator.address,
+                convertToT(keepPenalty, keepRatio).result
+              )
+          })
+        }
+      )
+
+      context(
+        "when penalty is more than Keep stake (1 app with decreasing authorization)",
+        () => {
+          const keepPenalty = convertFromT(tPenalty, keepRatio)
+          const newKeepAmount = keepPenalty.result.sub(1)
+          const expectedKeepPenalty = convertToT(newKeepAmount, keepRatio)
+          const expectedKeepAmount = expectedKeepPenalty.remainder
+          const expectedReward = rewardFromPenalty(
+            newKeepAmount.sub(expectedKeepAmount),
+            rewardMultiplier
+          )
+          const tStake = initialStakerBalance
+          const authorizedAmount = keepInTAmount.sub(1).add(tStake)
+          const authorizationDeacrease = keepInTAmount.div(2).add(tStake)
+
+          beforeEach(async () => {
+            await tokenStaking
+              .connect(deployer)
+              .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+            await keepStakingMock.setAmount(operator.address, newKeepAmount)
+
+            await tToken.connect(staker).approve(tokenStaking.address, tStake)
+            await tokenStaking.connect(staker).topUp(operator.address, tStake)
+
+            await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                application1Mock.address,
+                authorizedAmount
+              )
+            await tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address,address,uint96)"](
+                operator.address,
+                application1Mock.address,
+                authorizationDeacrease
+              )
+
+            tx = await tokenStaking
+              .connect(otherStaker)
+              .notifyKeepStakeDiscrepancy(operator.address)
+          })
+
+          it("should update staked amount", async () => {
+            expect(
+              await tokenStaking.operators(operator.address)
+            ).to.deep.equal([
+              staker.address,
+              beneficiary.address,
+              authorizer.address,
+              zeroBigNumber,
+              zeroBigNumber,
+              tStake,
+              zeroBigNumber,
+            ])
+          })
+
+          it("should decrease available amount to authorize", async () => {
+            expect(
+              await tokenStaking.getAvailableToAuthorize(
+                operator.address,
+                application1Mock.address
+              )
+            ).to.equal(0)
+          })
+
+          it("should decrease authorized amount", async () => {
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                application1Mock.address
+              )
+            ).to.equal(tStake)
+          })
+
+          it("should call seize in Keep contract", async () => {
+            expect(
+              await keepStakingMock.getDelegationInfo(operator.address)
+            ).to.deep.equal([expectedKeepAmount, createdAt, zeroBigNumber])
+            expect(
+              await keepStakingMock.tattletales(otherStaker.address)
+            ).to.equal(expectedReward)
+          })
+
+          it("should inform application", async () => {
+            expect(
+              await application1Mock.operators(operator.address)
+            ).to.deep.equal([tStake, tStake])
+            await application1Mock.approveAuthorizationDecrease(
+              operator.address
+            )
+            expect(
+              await application1Mock.operators(operator.address)
+            ).to.deep.equal([zeroBigNumber, zeroBigNumber])
+          })
+
+          it("should emit TokensSeized", async () => {
+            await expect(tx)
+              .to.emit(tokenStaking, "TokensSeized")
+              .withArgs(operator.address, expectedKeepPenalty.result)
+          })
+        }
+      )
+
+      context(
+        "when started undelegating before unstake (2 broken apps)",
+        () => {
+          const authorizedAmount = keepInTAmount.sub(1)
+          const keepPenalty = convertFromT(tPenalty, keepRatio).result
+          const expectedKeepAmount = keepAmount.sub(keepPenalty)
+          const expectedReward = rewardFromPenalty(
+            keepPenalty,
+            rewardMultiplier
+          )
+          const undelegatedAt = ethers.BigNumber.from(2)
+          let brokenApplicationMock
+          let expensiveApplicationMock
+
+          beforeEach(async () => {
+            const BrokenApplicationMock = await ethers.getContractFactory(
+              "BrokenApplicationMock"
+            )
+            brokenApplicationMock = await BrokenApplicationMock.deploy(
+              tokenStaking.address
+            )
+            await brokenApplicationMock.deployed()
+            const ExpensiveApplicationMock = await ethers.getContractFactory(
+              "ExpensiveApplicationMock"
+            )
+            expensiveApplicationMock = await ExpensiveApplicationMock.deploy(
+              tokenStaking.address
+            )
+            await expensiveApplicationMock.deployed()
+
+            await tokenStaking
+              .connect(deployer)
+              .approveApplication(brokenApplicationMock.address)
+            await tokenStaking
+              .connect(deployer)
+              .approveApplication(expensiveApplicationMock.address)
+
+            await tokenStaking
+              .connect(deployer)
+              .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+            await keepStakingMock.setUndelegatedAt(
+              operator.address,
+              undelegatedAt
+            )
+
+            await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                brokenApplicationMock.address,
+                authorizedAmount
+              )
+            await tokenStaking
+              .connect(authorizer)
+              .increaseAuthorization(
+                operator.address,
+                expensiveApplicationMock.address,
+                authorizedAmount
+              )
+            await tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address,address,uint96)"](
+                operator.address,
+                brokenApplicationMock.address,
+                authorizedAmount
+              )
+
+            tx = await tokenStaking
+              .connect(otherStaker)
+              .notifyKeepStakeDiscrepancy(operator.address)
+          })
+
+          it("should update staked amount", async () => {
+            expect(
+              await tokenStaking.operators(operator.address)
+            ).to.deep.equal([
+              staker.address,
+              beneficiary.address,
+              authorizer.address,
+              zeroBigNumber,
+              zeroBigNumber,
+              zeroBigNumber,
+              zeroBigNumber,
+            ])
+          })
+
+          it("should decrease authorized amount for both applications", async () => {
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                brokenApplicationMock.address
+              )
+            ).to.equal(0)
+            expect(
+              await tokenStaking.authorizedStake(
+                operator.address,
+                expensiveApplicationMock.address
+              )
+            ).to.equal(0)
+          })
+
+          it("should call seize in Keep contract", async () => {
+            expect(
+              await keepStakingMock.getDelegationInfo(operator.address)
+            ).to.deep.equal([expectedKeepAmount, createdAt, undelegatedAt])
+            expect(
+              await keepStakingMock.tattletales(otherStaker.address)
+            ).to.equal(expectedReward)
+          })
+
+          it("should catch exceptions during application calls", async () => {
+            expect(
+              await brokenApplicationMock.operators(operator.address)
+            ).to.deep.equal([authorizedAmount, authorizedAmount])
+            expect(
+              await expensiveApplicationMock.operators(operator.address)
+            ).to.deep.equal([authorizedAmount, zeroBigNumber])
+            await expect(
+              brokenApplicationMock.approveAuthorizationDecrease(
+                operator.address
+              )
+            ).to.be.revertedWith("There is no deauthorizing in process")
+          })
+
+          it("should emit TokensSeized", async () => {
+            await expect(tx)
+              .to.emit(tokenStaking, "TokensSeized")
+              .withArgs(
+                operator.address,
+                convertToT(keepPenalty, keepRatio).result
+              )
+          })
+        }
+      )
+    })
+  })
+
+  describe("notifyNuStakeDiscrepancy", () => {
+    const nuAmount = initialStakerBalance
+
+    beforeEach(async () => {
+      await nucypherStakingMock.setStaker(staker.address, nuAmount)
+    })
+
+    context("when operator has no cached Nu stake", () => {
+      it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            initialStakerBalance
+          )
+
+        await expect(
+          tokenStaking.notifyNuStakeDiscrepancy(operator.address)
+        ).to.be.revertedWith("Nothing to slash")
+      })
+    })
+
+    context(
+      "when no discrepancy between T and NuCypher staking contracts",
+      () => {
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(staker)
+            .stakeNu(operator.address, beneficiary.address, authorizer.address)
+        })
+
+        context("when stakes are equal in both contracts", () => {
+          it("should revert", async () => {
+            await expect(
+              tokenStaking.notifyNuStakeDiscrepancy(operator.address)
+            ).to.be.revertedWith("There is no discrepancy")
+          })
+        })
+
+        context(
+          "when stake in NuCypher contract is greater than in T contract",
+          () => {
+            it("should revert", async () => {
+              await nucypherStakingMock.setStaker(
+                staker.address,
+                nuAmount.mul(2)
+              )
+              await expect(
+                tokenStaking.notifyNuStakeDiscrepancy(operator.address)
+              ).to.be.revertedWith("There is no discrepancy")
+            })
+          }
+        )
+      }
+    )
+
+    context("when discrepancy between Nu and T stakes (no apps)", () => {
+      const newNuAmount = nuAmount.div(3).add(1)
+      const newNuInTAmount = convertToT(newNuAmount, nuRatio).result
+      const tPenalty = newNuInTAmount.div(10).add(1)
+      const rewardMultiplier = 70
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(staker)
+          .stakeNu(operator.address, beneficiary.address, authorizer.address)
+      })
+
+      context("when penalty is not set", () => {
+        beforeEach(async () => {
+          await nucypherStakingMock.setStaker(staker.address, newNuAmount)
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyNuStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            newNuInTAmount,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should decrease available amount to authorize", async () => {
+          expect(
+            await tokenStaking.getAvailableToAuthorize(
+              operator.address,
+              application1Mock.address
+            )
+          ).to.equal(newNuInTAmount)
+        })
+
+        it("should not call seize in NuCypher contract", async () => {
+          expect(
+            await nucypherStakingMock.stakers(staker.address)
+          ).to.deep.equal([newNuAmount, operator.address])
+          expect(
+            await nucypherStakingMock.investigators(otherStaker.address)
+          ).to.equal(0)
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, 0)
+        })
+      })
+
+      context("when staker has no Nu stake anymore", () => {
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(deployer)
+            .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+          await nucypherStakingMock.setStaker(staker.address, 0)
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyNuStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should decrease available amount to authorize", async () => {
+          expect(
+            await tokenStaking.getAvailableToAuthorize(
+              operator.address,
+              application1Mock.address
+            )
+          ).to.equal(0)
+        })
+
+        it("should update min staked amount", async () => {
+          expect(
+            await tokenStaking.getMinStaked(
+              operator.address,
+              StakingProviders.T
+            )
+          ).to.equal(0)
+          expect(
+            await tokenStaking.getMinStaked(
+              operator.address,
+              StakingProviders.NU
+            )
+          ).to.equal(0)
+          expect(
+            await tokenStaking.getMinStaked(
+              operator.address,
+              StakingProviders.KEEP
+            )
+          ).to.equal(0)
+        })
+
+        it("should not call seize in NuCypher contract", async () => {
+          expect(
+            await nucypherStakingMock.stakers(staker.address)
+          ).to.deep.equal([zeroBigNumber, operator.address])
+          expect(
+            await nucypherStakingMock.investigators(otherStaker.address)
+          ).to.equal(0)
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, 0)
+        })
+      })
+
+      context("when penalty is less than Nu stake", () => {
+        const nuPenalty = convertFromT(tPenalty, nuRatio).result
+        const expectedNuAmount = newNuAmount.sub(nuPenalty)
+        const expectedNuInTAmount = convertToT(expectedNuAmount, nuRatio).result
+        const expectedReward = rewardFromPenalty(nuPenalty, rewardMultiplier)
+
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(deployer)
+            .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+          await nucypherStakingMock.setStaker(staker.address, newNuAmount)
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyNuStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            expectedNuInTAmount,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should call seize in NuCypher contract", async () => {
+          expect(
+            await nucypherStakingMock.stakers(staker.address)
+          ).to.deep.equal([expectedNuAmount, operator.address])
+          expect(
+            await nucypherStakingMock.investigators(otherStaker.address)
+          ).to.equal(expectedReward)
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, convertToT(nuPenalty, nuRatio).result)
+        })
+      })
+
+      context("when penalty is more than Nu stake", () => {
+        const nuPenalty = convertFromT(tPenalty, nuRatio)
+        const newNuAmount = nuPenalty.result.sub(1)
+        const expectedNuPenalty = convertToT(newNuAmount, nuRatio)
+        const expectedNuAmount = expectedNuPenalty.remainder
+        const expectedReward = rewardFromPenalty(
+          newNuAmount.sub(expectedNuAmount),
+          rewardMultiplier
+        )
+
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(deployer)
+            .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+          await nucypherStakingMock.setStaker(staker.address, newNuAmount)
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyNuStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should call seize in NuCypher contract", async () => {
+          expect(
+            await nucypherStakingMock.stakers(staker.address)
+          ).to.deep.equal([expectedNuAmount, operator.address])
+          expect(
+            await nucypherStakingMock.investigators(otherStaker.address)
+          ).to.equal(expectedReward)
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, expectedNuPenalty.result)
+        })
+      })
     })
   })
 })

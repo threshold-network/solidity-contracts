@@ -7,6 +7,8 @@ import "../staking/IApplication.sol";
 import "../staking/TokenStaking.sol";
 
 contract KeepTokenStakingMock is IKeepTokenStaking {
+    using PercentUtils for uint256;
+
     struct OperatorStruct {
         address owner;
         address payable beneficiary;
@@ -18,6 +20,7 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
     }
 
     mapping(address => OperatorStruct) operators;
+    mapping(address => uint256) public tattletales;
 
     function setOperator(
         address operator,
@@ -49,12 +52,27 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
         operators[operator].amount = amount;
     }
 
+    function setUndelegatedAt(address operator, uint256 undelegatedAt)
+        external
+    {
+        operators[operator].undelegatedAt = undelegatedAt;
+    }
+
     function seize(
         uint256 amountToSeize,
         uint256 rewardMultiplier,
         address tattletale,
         address[] memory misbehavedOperators
-    ) external override {}
+    ) external override {
+        require(amountToSeize > 0);
+        // assumed only one will be slashed (per call)
+        require(misbehavedOperators.length == 1);
+        address operator = misbehavedOperators[0];
+        operators[operator].amount -= amountToSeize;
+        tattletales[tattletale] += amountToSeize.percent(5).percent(
+            rewardMultiplier
+        );
+    }
 
     function getDelegationInfo(address _operator)
         external
@@ -119,6 +137,7 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
     }
 
     mapping(address => StakerStruct) public stakers;
+    mapping(address => uint256) public investigators;
 
     function setStaker(address staker, uint256 value) external {
         stakers[staker].value = value;
@@ -129,7 +148,11 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
         uint256 _penalty,
         address _investigator,
         uint256 _reward
-    ) external override {}
+    ) external override {
+        require(_penalty > 0);
+        stakers[_staker].value -= _penalty;
+        investigators[_investigator] += _reward;
+    }
 
     function requestMerge(address staker, address operator)
         external
@@ -197,14 +220,50 @@ contract ApplicationMock is IApplication {
     }
 
     function involuntaryAuthorizationDecrease(address operator, uint96 amount)
-        external
+        public
+        virtual
         override
     {
-        operators[operator].authorized -= amount;
+        require(amount != 0);
+        OperatorStruct storage operatorStruct = operators[operator];
+        operatorStruct.authorized -= amount;
+        if (operatorStruct.deauthorizing > operatorStruct.authorized) {
+            operatorStruct.deauthorizing = operatorStruct.authorized;
+        }
     }
 
     function approveAuthorizationDecrease(address operator) external {
-        operators[operator].authorized -= operators[operator].deauthorizing;
+        OperatorStruct storage operatorStruct = operators[operator];
+        operatorStruct.authorized -= operatorStruct.deauthorizing;
+        operatorStruct.deauthorizing = 0;
         tokenStaking.approveAuthorizationDecrease(operator);
+    }
+}
+
+contract BrokenApplicationMock is ApplicationMock {
+    constructor(TokenStaking _tokenStaking) ApplicationMock(_tokenStaking) {}
+
+    function involuntaryAuthorizationDecrease(address, uint96)
+        public
+        pure
+        override
+    {
+        revert();
+    }
+}
+
+contract ExpensiveApplicationMock is ApplicationMock {
+    uint256[] dummy;
+
+    constructor(TokenStaking _tokenStaking) ApplicationMock(_tokenStaking) {}
+
+    function involuntaryAuthorizationDecrease(address operator, uint96 amount)
+        public
+        override
+    {
+        super.involuntaryAuthorizationDecrease(operator, amount);
+        for (uint256 i = 0; i < 12; i++) {
+            dummy.push(i);
+        }
     }
 }
