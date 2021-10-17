@@ -19,7 +19,7 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
         mapping(address => bool) eligibility;
     }
 
-    mapping(address => OperatorStruct) operators;
+    mapping(address => OperatorStruct) internal operators;
     mapping(address => uint256) public tattletales;
 
     function setOperator(
@@ -64,9 +64,12 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
         address tattletale,
         address[] memory misbehavedOperators
     ) external override {
-        require(amountToSeize > 0);
+        require(amountToSeize > 0, "Amount to slash must be greater than zero");
         // assumed only one will be slashed (per call)
-        require(misbehavedOperators.length == 1);
+        require(
+            misbehavedOperators.length == 1,
+            "Only one operator per call in tests"
+        );
         address operator = misbehavedOperators[0];
         operators[operator].amount -= amountToSeize;
         tattletales[tattletale] += amountToSeize.percent(5).percent(
@@ -149,7 +152,7 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
         address _investigator,
         uint256 _reward
     ) external override {
-        require(_penalty > 0);
+        require(_penalty > 0, "Amount to slash must be greater than zero");
         stakers[_staker].value -= _penalty;
         investigators[_investigator] += _reward;
     }
@@ -162,7 +165,8 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
         StakerStruct storage stakerStruct = stakers[staker];
         require(
             stakerStruct.operator == address(0) ||
-                stakerStruct.operator == operator
+                stakerStruct.operator == operator,
+            "Another operator was already set for this staker"
         );
         if (stakerStruct.operator == address(0)) {
             stakerStruct.operator = operator;
@@ -198,7 +202,7 @@ contract ApplicationMock is IApplication {
         uint96 deauthorizing;
     }
 
-    TokenStaking immutable tokenStaking;
+    TokenStaking internal immutable tokenStaking;
     mapping(address => OperatorStruct) public operators;
 
     constructor(TokenStaking _tokenStaking) {
@@ -219,24 +223,24 @@ contract ApplicationMock is IApplication {
         operators[operator].deauthorizing = amount;
     }
 
-    function involuntaryAuthorizationDecrease(address operator, uint96 amount)
-        public
-        virtual
-        override
-    {
-        require(amount != 0);
-        OperatorStruct storage operatorStruct = operators[operator];
-        operatorStruct.authorized -= amount;
-        if (operatorStruct.deauthorizing > operatorStruct.authorized) {
-            operatorStruct.deauthorizing = operatorStruct.authorized;
-        }
-    }
-
     function approveAuthorizationDecrease(address operator) external {
         OperatorStruct storage operatorStruct = operators[operator];
         operatorStruct.authorized -= operatorStruct.deauthorizing;
         operatorStruct.deauthorizing = 0;
         tokenStaking.approveAuthorizationDecrease(operator);
+    }
+
+    function involuntaryAuthorizationDecrease(address operator, uint96 amount)
+        public
+        virtual
+        override
+    {
+        require(amount != 0, "Amount to decrease must be greater than zero");
+        OperatorStruct storage operatorStruct = operators[operator];
+        operatorStruct.authorized -= amount;
+        if (operatorStruct.deauthorizing > operatorStruct.authorized) {
+            operatorStruct.deauthorizing = operatorStruct.authorized;
+        }
     }
 }
 
@@ -248,12 +252,12 @@ contract BrokenApplicationMock is ApplicationMock {
         pure
         override
     {
-        revert();
+        revert("Broken application");
     }
 }
 
 contract ExpensiveApplicationMock is ApplicationMock {
-    uint256[] dummy;
+    uint256[] private dummy;
 
     constructor(TokenStaking _tokenStaking) ApplicationMock(_tokenStaking) {}
 
