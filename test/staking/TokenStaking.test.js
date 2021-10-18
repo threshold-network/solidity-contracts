@@ -830,7 +830,6 @@ describe("TokenStaking", () => {
 
       context("when application was not approved", () => {
         it("should revert", async () => {
-          const amount = initialStakerBalance
           await expect(
             tokenStaking
               .connect(authorizer)
@@ -4751,6 +4750,174 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "NotificationRewardPushed")
           .withArgs(reward)
+      })
+    })
+  })
+
+  describe("slash", () => {
+    context("when amount is zero", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.slash(0, [operator.address])
+        ).to.be.revertedWith("Specify amount and operators to slash")
+      })
+    })
+
+    context("when operators were not provided", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.slash(initialStakerBalance, [])
+        ).to.be.revertedWith("Specify amount and operators to slash")
+      })
+    })
+
+    context("when application was not approved", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.slash(initialStakerBalance, [operator.address])
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
+    context("when application was disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .setPanicButton(application1Mock.address, panicButton.address)
+        await tokenStaking
+          .connect(panicButton)
+          .disableApplication(application1Mock.address)
+        await expect(
+          application1Mock.slash(initialStakerBalance, [operator.address])
+        ).to.be.revertedWith("Application is disabled")
+      })
+    })
+
+    context("when application was not authorized by one operator", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await expect(
+          application1Mock.slash(initialStakerBalance, [operator.address])
+        ).to.be.revertedWith(
+          "Operator didn't authorize sufficient amount to application"
+        )
+      })
+    })
+
+    context("when authorized amount is less than amount to slash", () => {
+      it("should revert", async () => {
+        const amount = initialStakerBalance
+        const amountToSlash = convertToT(initialStakerBalance, nuRatio).result // amountToSlash > amount
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, staker.address, staker.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            operator.address,
+            application1Mock.address,
+            amount
+          )
+
+        await nucypherStakingMock.setStaker(
+          otherStaker.address,
+          initialStakerBalance
+        )
+        await tokenStaking
+          .connect(otherStaker)
+          .stakeNu(
+            otherStaker.address,
+            otherStaker.address,
+            otherStaker.address
+          )
+        await tokenStaking
+          .connect(otherStaker)
+          .increaseAuthorization(
+            otherStaker.address,
+            application1Mock.address,
+            amountToSlash
+          )
+
+        await expect(
+          application1Mock.slash(amountToSlash, [
+            operator.address,
+            otherStaker.address,
+          ])
+        ).to.be.revertedWith(
+          "Operator didn't authorize sufficient amount to application"
+        )
+      })
+    })
+
+    context("when authorized amount is more than amount to slash", () => {
+      const amount = initialStakerBalance.div(2)
+      const authorized = amount.div(2)
+      const amountToSlash = authorized.div(2)
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, staker.address, staker.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            operator.address,
+            application1Mock.address,
+            authorized
+          )
+
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            otherStaker.address,
+            otherStaker.address,
+            otherStaker.address,
+            amount
+          )
+        await tokenStaking
+          .connect(otherStaker)
+          .increaseAuthorization(
+            otherStaker.address,
+            application1Mock.address,
+            amount
+          )
+
+        await application1Mock.slash(amountToSlash, [
+          operator.address,
+          otherStaker.address,
+        ])
+      })
+
+      it("should add two slashing events", async () => {
+        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
+          operator.address,
+          amountToSlash,
+        ])
+        expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
+          otherStaker.address,
+          amountToSlash,
+        ])
+      })
+
+      it("should keep index of queue unchanged", async () => {
+        expect(await tokenStaking.slashingQueueIndex()).to.equal(0)
       })
     })
   })

@@ -230,6 +230,19 @@ contract ApplicationMock is IApplication {
         tokenStaking.approveAuthorizationDecrease(operator);
     }
 
+    function slash(uint96 _amount, address[] memory _operators) external {
+        tokenStaking.slash(_amount, _operators);
+    }
+
+    function seize(
+        uint96 _amount,
+        uint256 _rewardMultiplier,
+        address _notifier,
+        address[] memory _operators
+    ) external {
+        tokenStaking.seize(_amount, _rewardMultiplier, _notifier, _operators);
+    }
+
     function involuntaryAuthorizationDecrease(address operator, uint96 amount)
         public
         virtual

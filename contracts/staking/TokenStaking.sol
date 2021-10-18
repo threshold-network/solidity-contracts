@@ -770,13 +770,15 @@ contract TokenStaking is Ownable, IStaking {
         emit StakeDiscrepancyPenaltySet(penalty, rewardMultiplier);
     }
 
-    /// @notice Sets reward in T tokens for notification of misbehaviour of one operator
+    /// @notice Sets reward in T tokens for notification of misbehaviour
+    ///         of one operator
     function setNotificationReward(uint96 reward) external onlyGovernance {
         notificationReward = reward;
         emit NotificationRewardSet(reward);
     }
 
-    /// @notice Transfer some amount of T tokens as reward for notifications of misbehaviour
+    /// @notice Transfer some amount of T tokens as reward for notifications
+    ///         of misbehaviour
     function pushNotificationReward(uint96 reward) external {
         require(reward > 0, "Reward must be specified");
         notifiersTreasury += reward;
@@ -787,26 +789,24 @@ contract TokenStaking is Ownable, IStaking {
     /// @notice Adds operators to the slashing queue along with the amount that
     ///         should be slashed from each one of them. Can only be called by
     ///         application authorized for all operators in the array.
-    function slash(uint96 amount, address[] memory _operators)
+    function slash(uint96 _amount, address[] memory _operators)
         external
         override
     {
-        notify(amount, 0, address(0), _operators);
+        notify(_amount, 0, address(0), _operators);
     }
 
-    /// @notice Adds operators to the slashing queue along with the amount,
-    ///         reward multiplier and notifier address. The notifier will
-    ///         receive 1% of the slashed amount scaled by the reward adjustment
-    ///         parameter once the seize order will be processed. Can only be
-    ///         called by application authorized for all operators in the array.
-    // TODO update docs
+    /// @notice Adds operators to the slashing queue along with the amount.
+    ///         The notifier will receive reward per each operator from
+    ///         notifiers treasury. Can only be called by application
+    ///         authorized for all operators in the array.
     function seize(
-        uint96 amount,
-        uint256 rewardMultiplier,
-        address notifier,
+        uint96 _amount,
+        uint256 _rewardMultiplier,
+        address _notifier,
         address[] memory _operators
     ) external override {
-        notify(amount, rewardMultiplier, notifier, _operators);
+        notify(_amount, _rewardMultiplier, _notifier, _operators);
     }
 
     /// @notice Takes the given number of queued slashing operations and
@@ -816,6 +816,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         created by the application with seize call.
     ///         Executes `involuntaryAllocationDecrease` function on each
     ///         affected application.
+    // TODO update docs
     function processSlashing(uint256 count) external override {
         require(
             slashingQueueIndex < slashingQueue.length,
@@ -981,20 +982,18 @@ contract TokenStaking is Ownable, IStaking {
         availableTValue -= operator.authorizations[_application].authorized;
     }
 
-    /// @notice Adds operators to the slashing queue along with the amount,
-    ///         reward multiplier and notifier address. The notifier will
-    ///         receive 1% of the slashed amount scaled by the reward adjustment
-    ///         parameter once the seize order will be processed. Can only be
-    ///         called by application authorized for all operators in the array.
-    // TODO update docs
+    /// @notice Adds operators to the slashing queue along with the amount.
+    ///         The notifier will receive reward per each operator from
+    ///         notifiers treasury. Can only be called by application
+    ///         authorized for all operators in the array.
     function notify(
-        uint96 amount,
-        uint256 rewardMultiplier,
-        address notifier,
+        uint96 _amount,
+        uint256 _rewardMultiplier,
+        address _notifier,
         address[] memory _operators
     ) internal {
         require(
-            amount > 0 && _operators.length > 0,
+            _amount > 0 && _operators.length > 0,
             "Specify amount and operators to slash"
         );
 
@@ -1002,25 +1001,25 @@ contract TokenStaking is Ownable, IStaking {
         require(application.approved, "Application is not approved");
         require(!application.disabled, "Application is disabled");
 
-        for (uint256 i = 0; i < _operators.length; ) {
+        for (uint256 i = 0; i < _operators.length; i++) {
             address operator = _operators[i];
             require(
                 operators[operator].authorizations[msg.sender].authorized >=
-                    amount,
-                "Operator didn't authorize sufficient amount for application"
+                    _amount,
+                "Operator didn't authorize sufficient amount to application"
             );
-            slashingQueue.push(SlashingEvent(operator, amount));
+            slashingQueue.push(SlashingEvent(operator, _amount));
         }
 
-        if (notifier != address(0)) {
+        if (_notifier != address(0)) {
             uint256 reward = (_operators.length * notificationReward).percent(
-                rewardMultiplier
+                _rewardMultiplier
             );
             reward = Math.min(reward, notifiersTreasury);
-            emit NotifierRewarded(notifier, reward);
+            emit NotifierRewarded(_notifier, reward);
             if (reward != 0) {
                 notifiersTreasury -= reward;
-                token.safeTransfer(notifier, reward);
+                token.safeTransfer(_notifier, reward);
             }
         }
     }

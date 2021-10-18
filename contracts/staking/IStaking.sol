@@ -210,11 +210,10 @@ interface IStaking {
     ///         application authorized for all operators in the array.
     function slash(uint96 amount, address[] memory operators) external;
 
-    /// @notice Adds operators to the slashing queue along with the amount,
-    ///         reward multiplier and notifier address. The notifier will
-    ///         receive 1% of the slashed amount scaled by the reward adjustment
-    ///         parameter once the seize order will be processed. Can only be
-    ///         called by application authorized for all operators in the array.
+    /// @notice Adds operators to the slashing queue along with the amount.
+    ///         The notifier will receive reward per each operator from
+    ///         notifiers treasury. Can only be called by application
+    ///         authorized for all operators in the array.
     function seize(
         uint96 amount,
         uint256 rewardMultipier,
@@ -229,6 +228,7 @@ interface IStaking {
     ///         created by the application with seize call.
     ///         Executes `involuntaryAllocationDecrease` function on each
     ///         affected application.
+    // TODO update docs
     function processSlashing(uint256 count) external;
 
     //
