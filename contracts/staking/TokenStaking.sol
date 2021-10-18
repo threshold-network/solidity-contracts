@@ -778,6 +778,7 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Transfer some amount of T tokens as reward for notifications of misbehaviour
     function pushNotificationReward(uint96 reward) external {
+        require(reward > 0, "Reward must be specified");
         notifiersTreasury += reward;
         emit NotificationRewardPushed(reward);
         token.safeTransferFrom(msg.sender, address(this), reward);

@@ -4652,4 +4652,106 @@ describe("TokenStaking", () => {
       })
     })
   })
+
+  describe("setStakeDiscrepancyPenalty", () => {
+    const tPenalty = initialStakerBalance
+    const rewardMultiplier = 100
+
+    context("when caller is not the governance", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+        ).to.be.revertedWith("Caller is not the governance")
+      })
+    })
+
+    context("when caller is the governance", () => {
+      let tx
+
+      beforeEach(async () => {
+        tx = await tokenStaking
+          .connect(deployer)
+          .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+      })
+
+      it("should set values", async () => {
+        expect(await tokenStaking.stakeDiscrepancyPenalty()).to.equal(tPenalty)
+        expect(await tokenStaking.stakeDiscrepancyRewardMultiplier()).to.equal(
+          rewardMultiplier
+        )
+      })
+
+      it("should emit StakeDiscrepancyPenaltySet event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "StakeDiscrepancyPenaltySet")
+          .withArgs(tPenalty, rewardMultiplier)
+      })
+    })
+  })
+
+  describe("setNotificationReward", () => {
+    const amount = initialStakerBalance
+
+    context("when caller is not the governance", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(staker).setNotificationReward(amount)
+        ).to.be.revertedWith("Caller is not the governance")
+      })
+    })
+
+    context("when caller is the governance", () => {
+      let tx
+
+      beforeEach(async () => {
+        tx = await tokenStaking.connect(deployer).setNotificationReward(amount)
+      })
+
+      it("should set values", async () => {
+        expect(await tokenStaking.notificationReward()).to.equal(amount)
+      })
+
+      it("should emit NotificationRewardSet event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotificationRewardSet")
+          .withArgs(amount)
+      })
+    })
+  })
+
+  describe("pushNotificationReward", () => {
+    context("when reward is zero", () => {
+      it("should revert", async () => {
+        await expect(tokenStaking.pushNotificationReward(0)).to.be.revertedWith(
+          "Reward must be specified"
+        )
+      })
+    })
+
+    context("when reward is not zero", () => {
+      const reward = initialStakerBalance
+      let tx
+
+      beforeEach(async () => {
+        await tToken.connect(staker).approve(tokenStaking.address, reward)
+        tx = await tokenStaking.connect(staker).pushNotificationReward(reward)
+      })
+
+      it("should increase treasury amount", async () => {
+        expect(await tokenStaking.notifiersTreasury()).to.equal(reward)
+      })
+
+      it("should transfer tokens to the staking contract", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(reward)
+      })
+
+      it("should emit NotificationRewardPushed event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotificationRewardPushed")
+          .withArgs(reward)
+      })
+    })
+  })
 })
