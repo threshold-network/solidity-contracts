@@ -4921,4 +4921,278 @@ describe("TokenStaking", () => {
       })
     })
   })
+
+  describe("seize", () => {
+    const amount = initialStakerBalance.div(2)
+    const authorized = amount.div(2)
+    const amountToSlash = authorized.div(2)
+    const rewardMultiplier = 75
+    const rewardPerOperator = amount.div(10)
+    const reward = rewardPerOperator.mul(10)
+    let tx
+    let notifier
+
+    beforeEach(async () => {
+      notifier = await ethers.Wallet.createRandom()
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+
+      await tToken
+        .connect(staker)
+        .approve(tokenStaking.address, initialStakerBalance)
+      await tokenStaking
+        .connect(staker)
+        .stake(operator.address, staker.address, staker.address, amount)
+      await tokenStaking
+        .connect(staker)
+        .increaseAuthorization(
+          operator.address,
+          application1Mock.address,
+          authorized
+        )
+
+      await tokenStaking
+        .connect(staker)
+        .stake(
+          otherStaker.address,
+          otherStaker.address,
+          otherStaker.address,
+          amount
+        )
+      await tokenStaking
+        .connect(otherStaker)
+        .increaseAuthorization(
+          otherStaker.address,
+          application1Mock.address,
+          amount
+        )
+    })
+
+    context("when notifier was not specified", () => {
+      beforeEach(async () => {
+        await tToken.connect(deployer).approve(tokenStaking.address, reward)
+        await tokenStaking.connect(deployer).pushNotificationReward(reward)
+        await tokenStaking
+          .connect(deployer)
+          .setNotificationReward(rewardPerOperator)
+
+        tx = await application1Mock.seize(
+          amountToSlash,
+          rewardMultiplier,
+          ZERO_ADDRESS,
+          [otherStaker.address, operator.address]
+        )
+      })
+
+      it("should add two slashing events", async () => {
+        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
+          otherStaker.address,
+          amountToSlash,
+        ])
+        expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
+          operator.address,
+          amountToSlash,
+        ])
+      })
+
+      it("should keep index of queue unchanged", async () => {
+        expect(await tokenStaking.slashingQueueIndex()).to.equal(0)
+      })
+
+      it("should not transfer any tokens", async () => {
+        expect(await tokenStaking.notifiersTreasury()).to.equal(reward)
+        const expectedBalance = reward.add(amount.mul(2))
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedBalance
+        )
+        expect(await tToken.balanceOf(notifier.address)).to.equal(0)
+      })
+    })
+
+    context("when reward per operator was not set", () => {
+      beforeEach(async () => {
+        await tToken.connect(deployer).approve(tokenStaking.address, reward)
+        await tokenStaking.connect(deployer).pushNotificationReward(reward)
+
+        tx = await application1Mock.seize(
+          amountToSlash,
+          rewardMultiplier,
+          notifier.address,
+          [operator.address]
+        )
+      })
+
+      it("should add one slashing event", async () => {
+        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
+          operator.address,
+          amountToSlash,
+        ])
+      })
+
+      it("should keep index of queue unchanged", async () => {
+        expect(await tokenStaking.slashingQueueIndex()).to.equal(0)
+      })
+
+      it("should not transfer any tokens", async () => {
+        expect(await tokenStaking.notifiersTreasury()).to.equal(reward)
+        const expectedBalance = reward.add(amount.mul(2))
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedBalance
+        )
+        expect(await tToken.balanceOf(notifier.address)).to.equal(0)
+      })
+
+      it("should emit NotifierRewarded event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotifierRewarded")
+          .withArgs(notifier.address, 0)
+      })
+    })
+
+    context("when no more reward for notifier", () => {
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(deployer)
+          .setNotificationReward(rewardPerOperator)
+
+        tx = await application1Mock.seize(
+          amountToSlash,
+          rewardMultiplier,
+          notifier.address,
+          [otherStaker.address]
+        )
+      })
+
+      it("should add one slashing event", async () => {
+        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
+          otherStaker.address,
+          amountToSlash,
+        ])
+      })
+
+      it("should keep index of queue unchanged", async () => {
+        expect(await tokenStaking.slashingQueueIndex()).to.equal(0)
+      })
+
+      it("should not transfer any tokens", async () => {
+        expect(await tokenStaking.notifiersTreasury()).to.equal(0)
+        const expectedBalance = amount.mul(2)
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedBalance
+        )
+        expect(await tToken.balanceOf(notifier.address)).to.equal(0)
+      })
+
+      it("should emit NotifierRewarded event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotifierRewarded")
+          .withArgs(notifier.address, 0)
+      })
+    })
+
+    context("when reward multiplier is zero", () => {
+      beforeEach(async () => {
+        await tToken.connect(deployer).approve(tokenStaking.address, reward)
+        await tokenStaking.connect(deployer).pushNotificationReward(reward)
+        await tokenStaking
+          .connect(deployer)
+          .setNotificationReward(rewardPerOperator)
+
+        tx = await application1Mock.seize(amountToSlash, 0, notifier.address, [
+          operator.address,
+        ])
+      })
+
+      it("should not transfer any tokens", async () => {
+        expect(await tokenStaking.notifiersTreasury()).to.equal(reward)
+        const expectedBalance = reward.add(amount.mul(2))
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedBalance
+        )
+        expect(await tToken.balanceOf(notifier.address)).to.equal(0)
+      })
+
+      it("should emit NotifierRewarded event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotifierRewarded")
+          .withArgs(notifier.address, 0)
+      })
+    })
+
+    context("when reward is less than amount of tokens in treasury", () => {
+      beforeEach(async () => {
+        await tToken.connect(deployer).approve(tokenStaking.address, reward)
+        await tokenStaking.connect(deployer).pushNotificationReward(reward)
+        await tokenStaking
+          .connect(deployer)
+          .setNotificationReward(reward.sub(1))
+
+        tx = await application1Mock.seize(
+          amountToSlash,
+          rewardMultiplier,
+          notifier.address,
+          [operator.address, otherStaker.address]
+        )
+      })
+
+      it("should transfer all tokens", async () => {
+        expect(await tokenStaking.notifiersTreasury()).to.equal(0)
+        const expectedBalance = amount.mul(2)
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedBalance
+        )
+        expect(await tToken.balanceOf(notifier.address)).to.equal(reward)
+      })
+
+      it("should emit NotifierRewarded event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotifierRewarded")
+          .withArgs(notifier.address, reward)
+      })
+    })
+
+    context("when reward is greater than amount of tokens in treasury", () => {
+      // 2 operators
+      const expectedReward = rewardPerOperator
+        .mul(2)
+        .mul(rewardMultiplier)
+        .div(100)
+
+      beforeEach(async () => {
+        await tToken.connect(deployer).approve(tokenStaking.address, reward)
+        await tokenStaking.connect(deployer).pushNotificationReward(reward)
+        await tokenStaking
+          .connect(deployer)
+          .setNotificationReward(rewardPerOperator)
+
+        tx = await application1Mock.seize(
+          amountToSlash,
+          rewardMultiplier,
+          notifier.address,
+          [operator.address, otherStaker.address]
+        )
+      })
+
+      it("should transfer all tokens", async () => {
+        const expectedTreasuryBalance = reward.sub(expectedReward)
+        expect(await tokenStaking.notifiersTreasury()).to.equal(
+          expectedTreasuryBalance
+        )
+        const expectedBalance = expectedTreasuryBalance.add(amount.mul(2))
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedBalance
+        )
+        expect(await tToken.balanceOf(notifier.address)).to.equal(
+          expectedReward
+        )
+      })
+
+      it("should emit NotifierRewarded event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotifierRewarded")
+          .withArgs(notifier.address, expectedReward)
+      })
+    })
+  })
 })
