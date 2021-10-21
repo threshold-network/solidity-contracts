@@ -2,19 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "./IVotingHistory.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
-
-interface IVotesHistory {
-    function getPastVotes(address account, uint256 blockNumber)
-        external
-        view
-        returns (uint256);
-
-    function getPastTotalSupply(uint256 blockNumber)
-        external
-        view
-        returns (uint256);
-}
 
 /**
  * @dev Extension of {GovernorVotesQuorumFraction} for voting weight extraction from both liquid and staked T token positions.
