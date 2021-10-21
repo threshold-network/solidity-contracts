@@ -120,6 +120,11 @@ contract TokenStaking is Ownable, IStaking {
     event NotificationRewardSet(uint96 reward);
     event NotificationRewardPushed(uint96 reward);
     event NotifierRewarded(address indexed notifier, uint256 amount);
+    event SlashingProcessed(
+        address indexed caller,
+        uint256 count,
+        uint256 tAmount
+    );
 
     modifier onlyGovernance() {
         require(owner() == msg.sender, "Caller is not the governance");
@@ -810,16 +815,12 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Takes the given number of queued slashing operations and
-    ///         processes them. Receives 5% of the slashed amount if the
-    ///         slashing request was created by the application with a slash
-    ///         call and 4% of the slashed amount if the slashing request was
-    ///         created by the application with seize call.
+    ///         processes them. Receives 5% of the slashed amount.
     ///         Executes `involuntaryAllocationDecrease` function on each
     ///         affected application.
-    // TODO update docs
     function processSlashing(uint256 count) external override {
         require(
-            slashingQueueIndex < slashingQueue.length,
+            slashingQueueIndex < slashingQueue.length && count > 0,
             "Nothing to process"
         );
 
@@ -828,18 +829,23 @@ contract TokenStaking is Ownable, IStaking {
         for (
             ;
             slashingQueueIndex < slashingQueue.length &&
-                slashingQueueIndex <= maxIndex;
+                slashingQueueIndex < maxIndex;
             slashingQueueIndex++
         ) {
             SlashingEvent storage slashing = slashingQueue[slashingQueueIndex];
             tAmountToBurn += processSlashing(slashing);
         }
 
-        if (tAmountToBurn > 0) {
-            uint256 tProcessorReward = uint256(tAmountToBurn).percent(
-                SLASHING_REWARD_PERCENT
-            );
-            notifiersTreasury += tAmountToBurn - tProcessorReward.toUint96();
+        uint256 tProcessorReward = uint256(tAmountToBurn).percent(
+            SLASHING_REWARD_PERCENT
+        );
+        notifiersTreasury += tAmountToBurn - tProcessorReward.toUint96();
+        emit SlashingProcessed(
+            msg.sender,
+            count - (maxIndex - slashingQueueIndex),
+            tProcessorReward
+        );
+        if (tProcessorReward > 0) {
             token.safeTransfer(msg.sender, tProcessorReward);
         }
     }
@@ -1038,13 +1044,11 @@ contract TokenStaking is Ownable, IStaking {
         if (operator.tStake > 0) {
             if (tAmountToSlash <= operator.tStake) {
                 tAmountToBurn = tAmountToSlash;
-                operator.tStake -= tAmountToSlash;
-                tAmountToSlash = 0;
             } else {
                 tAmountToBurn = operator.tStake;
-                tAmountToSlash -= operator.tStake;
-                operator.tStake = 0;
             }
+            operator.tStake -= tAmountToBurn;
+            tAmountToSlash -= tAmountToBurn;
         }
 
         // slash KEEP
@@ -1121,6 +1125,9 @@ contract TokenStaking is Ownable, IStaking {
         }
 
         (uint256 keepPenalty, uint96 tRemainder) = tToKeep(tPenalty);
+        if (keepPenalty == 0) {
+            return tAmountToSlash;
+        }
         operator.keepInTStake -= tPenalty - tRemainder;
         tAmountToSlash -= tPenalty - tRemainder;
 
@@ -1154,6 +1161,9 @@ contract TokenStaking is Ownable, IStaking {
         }
 
         (uint256 nuPenalty, uint96 tRemainder) = tToNu(tPenalty);
+        if (nuPenalty == 0) {
+            return tAmountToSlash;
+        }
         operator.nuInTStake -= tPenalty - tRemainder;
         tAmountToSlash -= tPenalty - tRemainder;
 

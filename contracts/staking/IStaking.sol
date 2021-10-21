@@ -222,13 +222,9 @@ interface IStaking {
     ) external;
 
     /// @notice Takes the given number of queued slashing operations and
-    ///         processes them. Receives 5% of the slashed amount if the
-    ///         slashing request was created by the application with a slash
-    ///         call and 4% of the slashed amount if the slashing request was
-    ///         created by the application with seize call.
+    ///         processes them. Receives 5% of the slashed amount.
     ///         Executes `involuntaryAllocationDecrease` function on each
     ///         affected application.
-    // TODO update docs
     function processSlashing(uint256 count) external;
 
     //

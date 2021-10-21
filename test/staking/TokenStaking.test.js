@@ -66,6 +66,7 @@ describe("TokenStaking", () => {
   let beneficiary
 
   let otherStaker
+  let auxiliaryAccount
 
   beforeEach(async () => {
     ;[
@@ -75,9 +76,8 @@ describe("TokenStaking", () => {
       operator,
       authorizer,
       beneficiary,
-      keepTokenStaker,
-      nuTokenStaker,
       otherStaker,
+      auxiliaryAccount,
     ] = await ethers.getSigners()
 
     const T = await ethers.getContractFactory("T")
@@ -5192,6 +5192,332 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "NotifierRewarded")
           .withArgs(notifier.address, expectedReward)
+      })
+    })
+  })
+
+  describe("processSlashing", () => {
+    context("when queue is empty", () => {
+      it("should revert", async () => {
+        await expect(tokenStaking.processSlashing(1)).to.be.revertedWith(
+          "Nothing to process"
+        )
+      })
+    })
+
+    context("when queue is not empty", () => {
+      const keepAmount = initialStakerBalance
+      const keepInTAmount = convertToT(keepAmount, keepRatio).result
+      const nuAmount = initialStakerBalance
+      const nuInTAmount = convertToT(nuAmount, nuRatio).result
+      const tAmount = initialStakerBalance.div(2)
+      const tStake2 = keepInTAmount.add(nuInTAmount).add(tAmount)
+
+      const authorized1 = tAmount.div(2)
+      const amountToSlash = authorized1.div(2)
+      const authorized2 = tStake2
+
+      const expectedTReward1 = rewardFromPenalty(amountToSlash, 100)
+      const expectedTReward2 = rewardFromPenalty(tAmount, 100)
+
+      const createdAt = ethers.BigNumber.from(1)
+      let blockTimestamp
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, staker.address, staker.address, tAmount)
+        blockTimestamp = await lastBlockTime()
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            operator.address,
+            application1Mock.address,
+            authorized1
+          )
+
+        await keepStakingMock.setOperator(
+          otherStaker.address,
+          otherStaker.address,
+          otherStaker.address,
+          otherStaker.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          otherStaker.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(otherStaker.address)
+        await nucypherStakingMock.setStaker(otherStaker.address, nuAmount)
+        await tokenStaking.topUpNu(otherStaker.address)
+        await tokenStaking.connect(staker).topUp(otherStaker.address, tAmount)
+
+        await tokenStaking
+          .connect(otherStaker)
+          .increaseAuthorization(
+            otherStaker.address,
+            application1Mock.address,
+            authorized2
+          )
+
+        await application1Mock.slash(amountToSlash, [
+          operator.address,
+          otherStaker.address,
+        ])
+        await application1Mock.slash(tStake2, [otherStaker.address])
+      })
+
+      context("when provided number is zero", () => {
+        it("should revert", async () => {
+          await expect(tokenStaking.processSlashing(0)).to.be.revertedWith(
+            "Nothing to process"
+          )
+        })
+      })
+
+      context("when slash only one operator with T stake", () => {
+        const expectedAmount = tAmount.sub(amountToSlash)
+
+        beforeEach(async () => {
+          tx = await tokenStaking.connect(auxiliaryAccount).processSlashing(1)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            staker.address,
+            staker.address,
+            zeroBigNumber,
+            zeroBigNumber,
+            expectedAmount,
+            ethers.BigNumber.from(blockTimestamp),
+          ])
+        })
+
+        it("should update index of queue", async () => {
+          expect(await tokenStaking.slashingQueueIndex()).to.equal(1)
+        })
+
+        it("should transfer reward to processor", async () => {
+          const expectedBalance = tAmount.mul(2).sub(expectedTReward1)
+          expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+            expectedBalance
+          )
+          expect(await tToken.balanceOf(auxiliaryAccount.address)).to.equal(
+            expectedTReward1
+          )
+        })
+
+        it("should increase amount in notifiers treasury ", async () => {
+          const expectedTreasuryBalance = amountToSlash.sub(expectedTReward1)
+          expect(await tokenStaking.notifiersTreasury()).to.equal(
+            expectedTreasuryBalance
+          )
+        })
+
+        it("should not call seize in Keep contract", async () => {
+          expect(
+            await keepStakingMock.getDelegationInfo(operator.address)
+          ).to.deep.equal([zeroBigNumber, zeroBigNumber, zeroBigNumber])
+          expect(
+            await keepStakingMock.getDelegationInfo(otherStaker.address)
+          ).to.deep.equal([keepAmount, createdAt, zeroBigNumber])
+          expect(
+            await keepStakingMock.tattletales(auxiliaryAccount.address)
+          ).to.equal(0)
+        })
+
+        it("should not call seize in NuCypher contract", async () => {
+          expect(
+            await nucypherStakingMock.stakers(staker.address)
+          ).to.deep.equal([zeroBigNumber, ZERO_ADDRESS])
+          expect(
+            await nucypherStakingMock.stakers(otherStaker.address)
+          ).to.deep.equal([nuAmount, otherStaker.address])
+          expect(
+            await nucypherStakingMock.investigators(auxiliaryAccount.address)
+          ).to.equal(0)
+        })
+
+        it("should not decrease authorized amount", async () => {
+          expect(
+            await tokenStaking.authorizedStake(
+              operator.address,
+              application1Mock.address
+            )
+          ).to.equal(authorized1)
+          expect(
+            await tokenStaking.authorizedStake(
+              otherStaker.address,
+              application1Mock.address
+            )
+          ).to.equal(authorized2)
+        })
+
+        it("should emit TokensSeized and SlashingProcessed events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, amountToSlash)
+          await expect(tx)
+            .to.emit(tokenStaking, "SlashingProcessed")
+            .withArgs(auxiliaryAccount.address, 1, expectedTReward1)
+        })
+      })
+
+      context("when process everything in the queue", () => {
+        const expectedReward = expectedTReward1.add(expectedTReward2)
+
+        beforeEach(async () => {
+          await tokenStaking.connect(auxiliaryAccount).processSlashing(1)
+          await keepStakingMock.setAmount(
+            otherStaker.address,
+            keepAmount.div(2)
+          )
+          tx = await tokenStaking.connect(auxiliaryAccount).processSlashing(10)
+        })
+
+        it("should update staked amount", async () => {
+          expect(
+            await tokenStaking.operators(otherStaker.address)
+          ).to.deep.equal([
+            otherStaker.address,
+            otherStaker.address,
+            otherStaker.address,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should update index of queue", async () => {
+          expect(await tokenStaking.slashingQueueIndex()).to.equal(3)
+        })
+
+        it("should transfer reward to processor", async () => {
+          const expectedBalance = tAmount.mul(2).sub(expectedReward)
+          expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+            expectedBalance
+          )
+          expect(await tToken.balanceOf(auxiliaryAccount.address)).to.equal(
+            expectedReward
+          )
+        })
+
+        it("should increase amount in notifiers treasury ", async () => {
+          const expectedTreasuryBalance = amountToSlash
+            .add(tAmount)
+            .sub(expectedReward)
+          expect(await tokenStaking.notifiersTreasury()).to.equal(
+            expectedTreasuryBalance
+          )
+        })
+
+        it("should call seize in Keep contract", async () => {
+          const expectedKeepReward = rewardFromPenalty(keepAmount.div(2), 100)
+          expect(
+            await keepStakingMock.getDelegationInfo(otherStaker.address)
+          ).to.deep.equal([zeroBigNumber, createdAt, zeroBigNumber])
+          expect(
+            await keepStakingMock.tattletales(auxiliaryAccount.address)
+          ).to.equal(expectedKeepReward)
+        })
+
+        it("should call seize in NuCypher contract", async () => {
+          const expectedNuReward = rewardFromPenalty(nuAmount, 100)
+          expect(
+            await nucypherStakingMock.stakers(otherStaker.address)
+          ).to.deep.equal([zeroBigNumber, otherStaker.address])
+          expect(
+            await nucypherStakingMock.investigators(auxiliaryAccount.address)
+          ).to.equal(expectedNuReward)
+        })
+
+        it("should decrease authorized amount and inform application", async () => {
+          expect(
+            await tokenStaking.authorizedStake(
+              otherStaker.address,
+              application1Mock.address
+            )
+          ).to.equal(0)
+          expect(
+            await application1Mock.operators(otherStaker.address)
+          ).to.deep.equal([zeroBigNumber, zeroBigNumber])
+        })
+
+        it("should emit TokensSeized and SlashingProcessed events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(otherStaker.address, amountToSlash)
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(
+              otherStaker.address,
+              tStake2.sub(amountToSlash).sub(keepInTAmount.div(2))
+            )
+          await expect(tx)
+            .to.emit(tokenStaking, "SlashingProcessed")
+            .withArgs(auxiliaryAccount.address, 2, expectedTReward2)
+        })
+      })
+
+      context("when operator has no stake anymore", () => {
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(staker)
+            ["requestAuthorizationDecrease(address)"](operator.address)
+          await application1Mock.approveAuthorizationDecrease(operator.address)
+          await tokenStaking.connect(operator).unstakeAll(operator.address)
+          tx = await tokenStaking.connect(auxiliaryAccount).processSlashing(1)
+        })
+
+        it("should not update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            staker.address,
+            staker.address,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+            ethers.BigNumber.from(blockTimestamp),
+          ])
+        })
+
+        it("should update index of queue", async () => {
+          expect(await tokenStaking.slashingQueueIndex()).to.equal(1)
+        })
+
+        it("should not transfer reward to processor", async () => {
+          const expectedBalance = tAmount
+          expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+            expectedBalance
+          )
+          expect(await tToken.balanceOf(auxiliaryAccount.address)).to.equal(0)
+        })
+
+        it("should not increase amount in notifiers treasury ", async () => {
+          expect(await tokenStaking.notifiersTreasury()).to.equal(0)
+        })
+
+        it("should emit TokensSeized and SlashingProcessed events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, 0)
+          await expect(tx)
+            .to.emit(tokenStaking, "SlashingProcessed")
+            .withArgs(auxiliaryAccount.address, 1, 0)
+        })
       })
     })
   })
