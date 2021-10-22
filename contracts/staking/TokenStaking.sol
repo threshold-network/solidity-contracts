@@ -700,7 +700,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         in case the amount cached is higher than the actual active stake
     ///         amount in KEEP staking contract. Needs to update authorizations
     ///         of all affected applications and execute an involuntary
-    ///         allocation decrease on all affected applications. Can be called
+    ///         authorization decrease on all affected applications. Can be called
     ///         by anyone, notifier receives a reward.
     function notifyKeepStakeDiscrepancy(address _operator) external override {
         OperatorInfo storage operator = operators[_operator];
@@ -735,7 +735,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         operator in case the amount cached is higher than the actual
     ///         active stake amount in NU staking contract. Needs to update
     ///         authorizations of all affected applications and execute an
-    ///         involuntary allocation decrease on all affected applications.
+    ///         involuntary authorization decrease on all affected applications.
     ///         Can be called by anyone, notifier receives a reward.
     /// @dev    Real discrepancy between T and Nu is impossible.
     ///         This method is a safeguard in case of bugs in NuCypher staking
@@ -817,7 +817,7 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Takes the given number of queued slashing operations and
     ///         processes them. Receives 5% of the slashed amount.
-    ///         Executes `involuntaryAllocationDecrease` function on each
+    ///         Executes `involuntaryAuthorizationDecrease` function on each
     ///         affected application.
     function processSlashing(uint256 count) external override {
         require(
@@ -1033,7 +1033,7 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Processes one specified slashing event.
-    ///         Executes `involuntaryAllocationDecrease` function on each
+    ///         Executes `involuntaryAuthorizationDecrease` function on each
     ///         affected application.
     function processSlashing(SlashingEvent storage slashing)
         internal
