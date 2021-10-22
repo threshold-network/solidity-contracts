@@ -2187,6 +2187,42 @@ describe("TokenStaking", () => {
       })
     })
 
+    context("when operator unstaked T previously", () => {
+      const amount = initialStakerBalance
+      let tx
+
+      beforeEach(async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, amount.mul(2))
+        await tokenStaking
+          .connect(staker)
+          .stake(operator.address, staker.address, staker.address, amount)
+        blockTimestamp = await lastBlockTime()
+
+        await tokenStaking.connect(staker).unstakeAll(operator.address)
+        tx = await tokenStaking.connect(staker).topUp(operator.address, amount)
+      })
+
+      it("should update only T staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+          zeroBigNumber,
+          zeroBigNumber,
+          amount,
+          ethers.BigNumber.from(blockTimestamp),
+        ])
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, amount)
+      })
+    })
+
     context("when operator has Keep stake", () => {
       const keepAmount = initialStakerBalance
       const keepInTAmount = convertToT(keepAmount, keepRatio).result
@@ -2471,6 +2507,52 @@ describe("TokenStaking", () => {
             operator.address,
             newKeepInTAmount.sub(initialKeepInTAmount)
           )
+      })
+    })
+
+    context("when operator unstaked Keep previously", () => {
+      const keepAmount = initialStakerBalance
+      const keepInTAmount = convertToT(keepAmount, keepRatio).result
+      let tx
+
+      beforeEach(async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          keepAmount
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+
+        await tokenStaking.connect(staker).unstakeKeep(operator.address)
+        tx = await tokenStaking.topUpKeep(operator.address)
+      })
+
+      it("should update only Keep staked amount", async () => {
+        expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          zeroBigNumber,
+          keepInTAmount,
+          zeroBigNumber,
+          zeroBigNumber,
+        ])
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(operator.address, keepInTAmount)
       })
     })
 
