@@ -904,6 +904,11 @@ contract TokenStaking is Ownable, IStaking {
         return applications.length;
     }
 
+    /// @notice Returns length of slashing queue
+    function getSlashingQueueLength() external view returns (uint256) {
+        return slashingQueue.length;
+    }
+
     /// @notice Requests decrease of the authorization for the given operator on
     ///         the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When

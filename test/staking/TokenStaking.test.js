@@ -5157,6 +5157,7 @@ describe("TokenStaking", () => {
           otherStaker.address,
           amountToSlash,
         ])
+        expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
 
       it("should keep index of queue unchanged", async () => {
@@ -5237,6 +5238,7 @@ describe("TokenStaking", () => {
           operator.address,
           amountToSlash,
         ])
+        expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
 
       it("should keep index of queue unchanged", async () => {
@@ -5271,6 +5273,7 @@ describe("TokenStaking", () => {
           operator.address,
           amountToSlash,
         ])
+        expect(await tokenStaking.getSlashingQueueLength()).to.equal(1)
       })
 
       it("should keep index of queue unchanged", async () => {
@@ -5550,6 +5553,7 @@ describe("TokenStaking", () => {
 
         it("should update index of queue", async () => {
           expect(await tokenStaking.slashingQueueIndex()).to.equal(1)
+          expect(await tokenStaking.getSlashingQueueLength()).to.equal(3)
         })
 
         it("should transfer reward to processor", async () => {
@@ -5646,6 +5650,7 @@ describe("TokenStaking", () => {
 
         it("should update index of queue", async () => {
           expect(await tokenStaking.slashingQueueIndex()).to.equal(3)
+          expect(await tokenStaking.getSlashingQueueLength()).to.equal(3)
         })
 
         it("should transfer reward to processor", async () => {
@@ -5739,6 +5744,7 @@ describe("TokenStaking", () => {
 
         it("should update index of queue", async () => {
           expect(await tokenStaking.slashingQueueIndex()).to.equal(1)
+          expect(await tokenStaking.getSlashingQueueLength()).to.equal(3)
         })
 
         it("should not transfer reward to processor", async () => {
