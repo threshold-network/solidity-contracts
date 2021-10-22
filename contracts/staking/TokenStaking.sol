@@ -140,6 +140,7 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     modifier onlyAuthorizerOf(address operator) {
+        //slither-disable-next-line incorrect-equality
         require(
             operators[operator].authorizer == msg.sender,
             "Not operator authorizer"
@@ -825,26 +826,22 @@ contract TokenStaking is Ownable, IStaking {
         );
 
         uint256 maxIndex = slashingQueueIndex + count;
+        maxIndex = Math.min(maxIndex, slashingQueue.length);
+        count = maxIndex - slashingQueueIndex;
         uint96 tAmountToBurn = 0;
-        for (
-            ;
-            slashingQueueIndex < slashingQueue.length &&
-                slashingQueueIndex < maxIndex;
-            slashingQueueIndex++
-        ) {
-            SlashingEvent storage slashing = slashingQueue[slashingQueueIndex];
+
+        uint256 index = slashingQueueIndex;
+        for (; index < maxIndex; index++) {
+            SlashingEvent storage slashing = slashingQueue[index];
             tAmountToBurn += processSlashing(slashing);
         }
+        slashingQueueIndex = index;
 
         uint256 tProcessorReward = uint256(tAmountToBurn).percent(
             SLASHING_REWARD_PERCENT
         );
         notifiersTreasury += tAmountToBurn - tProcessorReward.toUint96();
-        emit SlashingProcessed(
-            msg.sender,
-            count - (maxIndex - slashingQueueIndex),
-            tProcessorReward
-        );
+        emit SlashingProcessed(msg.sender, count, tProcessorReward);
         if (tProcessorReward > 0) {
             token.safeTransfer(msg.sender, tProcessorReward);
         }
@@ -1098,6 +1095,7 @@ contract TokenStaking is Ownable, IStaking {
                 continue;
             }
 
+            //slither-disable-next-line calls-loop
             try
                 IApplication(application).involuntaryAuthorizationDecrease{
                     gas: GAS_LIMIT_AUTHORIZATION_DECREASE
@@ -1248,6 +1246,7 @@ contract TokenStaking is Ownable, IStaking {
         view
         returns (uint256 nuAmount, uint96 tRemainder)
     {
+        //slither-disable-next-line weak-prng
         tRemainder = (tAmount % nucypherRatio).toUint96();
         uint256 convertibleAmount = tAmount - tRemainder;
         nuAmount =
