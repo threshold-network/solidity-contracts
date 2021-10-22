@@ -3904,6 +3904,47 @@ describe("TokenStaking", () => {
         })
       })
 
+      context("when penalty in Keep is zero (no apps)", () => {
+        beforeEach(async () => {
+          const tPenalty = 1
+          await keepStakingMock.setAmount(operator.address, newKeepAmount)
+          await tokenStaking
+            .connect(deployer)
+            .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyKeepStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            zeroBigNumber,
+            newKeepInTAmount,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should not call seize in Keep contract", async () => {
+          expect(
+            await keepStakingMock.getDelegationInfo(operator.address)
+          ).to.deep.equal([newKeepAmount, createdAt, zeroBigNumber])
+          expect(
+            await keepStakingMock.tattletales(otherStaker.address)
+          ).to.equal(0)
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, 0)
+        })
+      })
+
       context("when staker has no Keep stake anymore (1 app)", () => {
         beforeEach(async () => {
           await tokenStaking
@@ -4427,7 +4468,7 @@ describe("TokenStaking", () => {
       }
     )
 
-    context("when discrepancy between Nu and T stakes (no apps)", () => {
+    context("when discrepancy between Nu and T stakes", () => {
       const newNuAmount = nuAmount.div(3).add(1)
       const newNuInTAmount = convertToT(newNuAmount, nuRatio).result
       const tPenalty = newNuInTAmount.div(10).add(1)
@@ -4438,9 +4479,13 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
+
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
       })
 
-      context("when penalty is not set", () => {
+      context("when penalty is not set (no apps)", () => {
         beforeEach(async () => {
           await nucypherStakingMock.setStaker(staker.address, newNuAmount)
 
@@ -4486,12 +4531,62 @@ describe("TokenStaking", () => {
         })
       })
 
-      context("when staker has no Nu stake anymore", () => {
+      context("when penalty in Nu is zero (no apps)", () => {
+        beforeEach(async () => {
+          const tPenalty = 1
+          await tokenStaking
+            .connect(deployer)
+            .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
+
+          await nucypherStakingMock.setStaker(staker.address, newNuAmount)
+
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .notifyNuStakeDiscrepancy(operator.address)
+        })
+
+        it("should update staked amount", async () => {
+          expect(await tokenStaking.operators(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            newNuInTAmount,
+            zeroBigNumber,
+            zeroBigNumber,
+            zeroBigNumber,
+          ])
+        })
+
+        it("should not call seize in NuCypher contract", async () => {
+          expect(
+            await nucypherStakingMock.stakers(staker.address)
+          ).to.deep.equal([newNuAmount, operator.address])
+          expect(
+            await nucypherStakingMock.investigators(otherStaker.address)
+          ).to.equal(0)
+        })
+
+        it("should emit TokensSeized", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "TokensSeized")
+            .withArgs(operator.address, 0)
+        })
+      })
+
+      context("when staker has no Nu stake anymore (1 app)", () => {
         beforeEach(async () => {
           await tokenStaking
             .connect(deployer)
             .setStakeDiscrepancyPenalty(tPenalty, rewardMultiplier)
           await nucypherStakingMock.setStaker(staker.address, 0)
+
+          await tokenStaking
+            .connect(authorizer)
+            .increaseAuthorization(
+              operator.address,
+              application1Mock.address,
+              newNuInTAmount
+            )
 
           tx = await tokenStaking
             .connect(otherStaker)
@@ -4549,6 +4644,12 @@ describe("TokenStaking", () => {
           ).to.equal(0)
         })
 
+        it("should inform application", async () => {
+          expect(
+            await application1Mock.operators(operator.address)
+          ).to.deep.equal([zeroBigNumber, zeroBigNumber])
+        })
+
         it("should emit TokensSeized", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
@@ -4556,7 +4657,7 @@ describe("TokenStaking", () => {
         })
       })
 
-      context("when penalty is less than Nu stake", () => {
+      context("when penalty is less than Nu stake (no apps)", () => {
         const nuPenalty = convertFromT(tPenalty, nuRatio).result
         const expectedNuAmount = newNuAmount.sub(nuPenalty)
         const expectedNuInTAmount = convertToT(expectedNuAmount, nuRatio).result
@@ -4601,7 +4702,7 @@ describe("TokenStaking", () => {
         })
       })
 
-      context("when penalty is more than Nu stake", () => {
+      context("when penalty is more than Nu stake (no apps)", () => {
         const nuPenalty = convertFromT(tPenalty, nuRatio)
         const newNuAmount = nuPenalty.result.sub(1)
         const expectedNuPenalty = convertToT(newNuAmount, nuRatio)

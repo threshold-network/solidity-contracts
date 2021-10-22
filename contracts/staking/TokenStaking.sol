@@ -1113,7 +1113,7 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmountToSlash,
         uint256 rewardMultiplier
     ) internal returns (uint96) {
-        if (operator.keepInTStake == 0 || tAmountToSlash == 0) {
+        if (operator.keepInTStake == 0) {
             return tAmountToSlash;
         }
 
@@ -1149,7 +1149,7 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmountToSlash,
         uint256 rewardMultiplier
     ) internal returns (uint96) {
-        if (operator.nuInTStake == 0 || tAmountToSlash == 0) {
+        if (operator.nuInTStake == 0) {
             return tAmountToSlash;
         }
 
