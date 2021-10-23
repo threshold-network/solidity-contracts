@@ -864,6 +864,35 @@ contract TokenStaking is Ownable, IStaking {
         return operators[operator].authorizations[application].authorized;
     }
 
+    /// @notice Returns staked amount of T, Keep and Nu for the specified
+    ///         operator.
+    /// @dev    All values are in T denomination
+    function stakes(address _operator)
+        external
+        view
+        returns (
+            uint96 tStake,
+            uint96 keepInTStake,
+            uint96 nuInTStake
+        )
+    {
+        OperatorInfo storage operator = operators[_operator];
+        tStake = operator.tStake;
+        keepInTStake = operator.keepInTStake;
+        nuInTStake = operator.nuInTStake;
+    }
+
+    /// @notice Returns start staking timestamp for T stake.
+    /// @dev    If operator has no T stake or T was topped-up then result will
+    ///         be zero
+    function getStartTStakingTimestamp(address operator)
+        external
+        view
+        returns (uint256)
+    {
+        return operators[operator].startTStakingTimestamp;
+    }
+
     /// @notice Returns staked amount of NU for the specified operator
     function stakedNu(address operator)
         external
@@ -871,6 +900,12 @@ contract TokenStaking is Ownable, IStaking {
         returns (uint256 nuAmount)
     {
         (nuAmount, ) = tToNu(operators[operator].nuInTStake);
+    }
+
+    /// @notice Gets the stake owner for the specified operator address.
+    /// @return Stake owner address.
+    function ownerOf(address operator) external view returns (address) {
+        return operators[operator].owner;
     }
 
     /// @notice Gets the beneficiary for the specified operator address.
@@ -881,6 +916,12 @@ contract TokenStaking is Ownable, IStaking {
         returns (address payable)
     {
         return operators[operator].beneficiary;
+    }
+
+    /// @notice Gets the authorizer for the specified operator address.
+    /// @return Authorizer address.
+    function authorizerOf(address operator) external view returns (address) {
+        return operators[operator].authorizer;
     }
 
     /// @notice Checks if the specified operator has a stake delegated and if it
