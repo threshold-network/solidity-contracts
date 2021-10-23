@@ -26,14 +26,14 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     struct OperatorInfo {
+        uint96 nuInTStake;
         address owner;
+        uint96 keepInTStake;
         address payable beneficiary;
+        uint96 tStake;
         address authorizer;
         mapping(address => AppAuthorization) authorizations;
         address[] authorizedApplications;
-        uint96 nuInTStake;
-        uint96 keepInTStake;
-        uint96 tStake;
         uint256 startTStakingTimestamp;
     }
 
