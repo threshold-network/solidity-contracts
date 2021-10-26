@@ -648,8 +648,10 @@ contract TokenStaking is Ownable, IStaking {
                 operator.nuInTStake,
             "Can't unstake specified amount of tokens"
         );
-        operator.nuInTStake -= _amount;
-        emit Unstaked(_operator, _amount);
+        (, uint96 tRemainder) = tToNu(_amount);
+        operator.nuInTStake -= _amount - tRemainder;
+
+        emit Unstaked(_operator, _amount - tRemainder);
     }
 
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake

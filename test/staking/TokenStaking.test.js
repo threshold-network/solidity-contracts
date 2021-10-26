@@ -3679,8 +3679,12 @@ describe("TokenStaking", () => {
       const nuAmount = initialStakerBalance
       const nuInTAmount = convertToT(nuAmount, nuRatio).result
       const authorized = nuInTAmount.div(3).add(tAmount)
-      const amountToUnstake = nuInTAmount.div(4)
-      const expectedNuInTAmount = nuInTAmount.sub(amountToUnstake)
+      const amountToUnstake = nuInTAmount.div(4).add(1)
+      const expectedNuAmount = nuAmount.sub(
+        convertFromT(amountToUnstake, nuRatio).result
+      )
+      const expectedNuInTAmount = convertToT(expectedNuAmount, nuRatio).result
+      const expectedUnstaked = nuInTAmount.sub(expectedNuInTAmount)
       let tx
 
       beforeEach(async () => {
@@ -3723,6 +3727,9 @@ describe("TokenStaking", () => {
           zeroBigNumber,
           expectedNuInTAmount,
         ])
+        expect(await tokenStaking.stakedNu(operator.address)).to.equal(
+          expectedNuAmount
+        )
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(0)
@@ -3755,7 +3762,7 @@ describe("TokenStaking", () => {
       it("should emit Unstaked", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
-          .withArgs(operator.address, amountToUnstake)
+          .withArgs(operator.address, expectedUnstaked)
       })
     })
   })
