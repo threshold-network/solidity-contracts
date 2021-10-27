@@ -2,12 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "./TokenholderGovernorVotes.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
 import "@openzeppelin/contracts/governance/compatibility/GovernorCompatibilityBravo.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 
 contract TokenholderGovernor is
+    AccessControl,
     Governor,
     GovernorCompatibilityBravo,
     TokenholderGovernorVotes,
@@ -16,6 +18,9 @@ contract TokenholderGovernor is
     uint256 private constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
     uint256 private constant INITIAL_QUORUM_NUMERATOR = 150; // Defined in basis points, i.e., 1.5%
     uint256 private constant INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25; // Defined in basis points, i.e., 0.25%
+
+    bytes32 public constant VETO_POWER =
+        keccak256("Power to veto proposals in Threshold's Tokenholder DAO");
 
     constructor(
         ERC20Votes _token,
@@ -118,10 +123,19 @@ contract TokenholderGovernor is
         return super._executor();
     }
 
+    function cancel(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    ) public onlyRole(VETO_POWER) returns (uint256) {
+        return _cancel(targets, values, calldatas, descriptionHash);
+    }
+
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(Governor, IERC165, GovernorTimelockControl)
+        override(Governor, IERC165, GovernorTimelockControl, AccessControl)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
