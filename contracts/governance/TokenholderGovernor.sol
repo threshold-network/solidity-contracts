@@ -4,14 +4,14 @@ pragma solidity ^0.8.0;
 import "./TokenholderGovernorVotes.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
-import "@openzeppelin/contracts/governance/compatibility/GovernorCompatibilityBravo.sol";
+import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 
 contract TokenholderGovernor is
     AccessControl,
     Governor,
-    GovernorCompatibilityBravo,
+    GovernorCountingSimple,
     TokenholderGovernorVotes,
     GovernorTimelockControl
 {
@@ -43,7 +43,7 @@ contract TokenholderGovernor is
     }
 
     //TODO: functions to update threshold, events, common logic with quorum
-    function proposalThreshold() public view override returns (uint256) {
+    function proposalThreshold() public view returns (uint256) {
         return
             (_getPastTotalSupply(block.number - 1) *
                 INITIAL_PROPOSAL_THRESHOLD_NUMERATOR) / quorumDenominator();
@@ -72,7 +72,7 @@ contract TokenholderGovernor is
     function state(uint256 proposalId)
         public
         view
-        override(Governor, IGovernor, GovernorTimelockControl)
+        override(Governor, GovernorTimelockControl)
         returns (ProposalState)
     {
         return super.state(proposalId);
@@ -83,11 +83,7 @@ contract TokenholderGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         string memory description
-    )
-        public
-        override(Governor, GovernorCompatibilityBravo, IGovernor)
-        returns (uint256)
-    {
+    ) public override(Governor, IGovernor) returns (uint256) {
         require(
             getVotes(msg.sender, block.number - 1) >= proposalThreshold(),
             "Proposal below threshold"
@@ -135,7 +131,7 @@ contract TokenholderGovernor is
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(Governor, IERC165, GovernorTimelockControl, AccessControl)
+        override(Governor, GovernorTimelockControl, AccessControl)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
