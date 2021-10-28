@@ -58,7 +58,7 @@ contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
                     abi.encode(
                         DELEGATION_TYPEHASH,
                         delegatee,
-                        nonce[signatory]++,
+                        nonces[signatory]++,
                         deadline
                     )
                 )
