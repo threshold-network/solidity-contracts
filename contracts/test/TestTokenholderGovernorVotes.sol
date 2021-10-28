@@ -21,6 +21,19 @@ contract TestTokenholderGovernorVotes is TokenholderGovernorVotes {
         return _getPastTotalSupply(blockNumber);
     }
 
+    function hasVoted(uint256 proposalId, address account)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {}
+
+    function votingDelay() public view virtual override returns (uint256) {}
+
+    function votingPeriod() public view virtual override returns (uint256) {}
+
+    // solhint-disable-next-line func-name-mixedcase
     function COUNTING_MODE()
         public
         pure
@@ -51,16 +64,4 @@ contract TestTokenholderGovernorVotes is TokenholderGovernorVotes {
         override
         returns (bool)
     {}
-
-    function hasVoted(uint256 proposalId, address account)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {}
-
-    function votingDelay() public view virtual override returns (uint256) {}
-
-    function votingPeriod() public view virtual override returns (uint256) {}
 }

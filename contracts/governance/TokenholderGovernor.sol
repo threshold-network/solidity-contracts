@@ -34,12 +34,26 @@ contract TokenholderGovernor is
         GovernorTimelockControl(_timelock)
     {}
 
-    function votingDelay() public pure override returns (uint256) {
-        return (2 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        string memory description
+    ) public override(Governor, IGovernor) returns (uint256) {
+        require(
+            getVotes(msg.sender, block.number - 1) >= proposalThreshold(),
+            "Proposal below threshold"
+        );
+        return super.propose(targets, values, calldatas, description);
     }
 
-    function votingPeriod() public pure override returns (uint256) {
-        return (10 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    function cancel(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    ) public onlyRole(VETO_POWER) returns (uint256) {
+        return _cancel(targets, values, calldatas, descriptionHash);
     }
 
     //TODO: functions to update threshold, events, common logic with quorum
@@ -48,8 +62,6 @@ contract TokenholderGovernor is
             (_getPastTotalSupply(block.number - 1) *
                 INITIAL_PROPOSAL_THRESHOLD_NUMERATOR) / quorumDenominator();
     }
-
-    // The functions below are overrides required by Solidity.
 
     function quorum(uint256 blockNumber)
         public
@@ -78,17 +90,21 @@ contract TokenholderGovernor is
         return super.state(proposalId);
     }
 
-    function propose(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        string memory description
-    ) public override(Governor, IGovernor) returns (uint256) {
-        require(
-            getVotes(msg.sender, block.number - 1) >= proposalThreshold(),
-            "Proposal below threshold"
-        );
-        return super.propose(targets, values, calldatas, description);
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(Governor, GovernorTimelockControl, AccessControl)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function votingDelay() public pure override returns (uint256) {
+        return (2 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    }
+
+    function votingPeriod() public pure override returns (uint256) {
+        return (10 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
     }
 
     function _execute(
@@ -117,23 +133,5 @@ contract TokenholderGovernor is
         returns (address)
     {
         return super._executor();
-    }
-
-    function cancel(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        bytes32 descriptionHash
-    ) public onlyRole(VETO_POWER) returns (uint256) {
-        return _cancel(targets, values, calldatas, descriptionHash);
-    }
-
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(Governor, GovernorTimelockControl, AccessControl)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
     }
 }

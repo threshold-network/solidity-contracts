@@ -41,22 +41,6 @@ abstract contract TokenholderGovernorVotes is GovernorVotesQuorumFraction {
         return liquidVotes + stakedVotes;
     }
 
-    /// @notice Compute the total voting power for Tokenholder DAO. Note how it
-    ///         only uses the token total supply as source, as native T tokens
-    ///         that are staked continue existing, but as deposits in the
-    ///         staking contract. However, legacy stakes can't contribute to the
-    ///         total voting power as they're already implicitly counted as part
-    ///         of Vending Machines' liquid balance; hence, we only need to read
-    ///         total voting power from the token.
-    /// @param blockNumber The block number to get the vote power at
-    function _getPastTotalSupply(uint256 blockNumber)
-        internal
-        view
-        returns (uint256)
-    {
-        return token.getPastTotalSupply(blockNumber);
-    }
-
     /// @notice Compute the required amount of voting power to reach quorum
     /// @param blockNumber The block number to get the quorum at
     function quorum(uint256 blockNumber)
@@ -83,5 +67,21 @@ abstract contract TokenholderGovernorVotes is GovernorVotesQuorumFraction {
         returns (uint256)
     {
         return fractionDenominator();
+    }
+
+    /// @notice Compute the total voting power for Tokenholder DAO. Note how it
+    ///         only uses the token total supply as source, as native T tokens
+    ///         that are staked continue existing, but as deposits in the
+    ///         staking contract. However, legacy stakes can't contribute to the
+    ///         total voting power as they're already implicitly counted as part
+    ///         of Vending Machines' liquid balance; hence, we only need to read
+    ///         total voting power from the token.
+    /// @param blockNumber The block number to get the vote power at
+    function _getPastTotalSupply(uint256 blockNumber)
+        internal
+        view
+        returns (uint256)
+    {
+        return token.getPastTotalSupply(blockNumber);
     }
 }
