@@ -532,7 +532,7 @@ contract TokenStaking is Ownable, IStaking {
     //
 
     /// @notice Increases the amount of the stake for the given operator.
-    ///         Can be called by anyone.
+    ///         Can be called only by the owner or operator.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
     function topUp(address _operator, uint96 _amount)
@@ -549,7 +549,8 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Propagates information about stake top-up from the legacy KEEP
-    ///         staking contract to T staking contract. Can be called by anyone.
+    ///         staking contract to T staking contract. Can be called only by
+    ///         the owner or operator.
     function topUpKeep(address _operator)
         external
         override
@@ -569,7 +570,8 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Propagates information about stake top-up from the legacy NU
-    ///         staking contract to T staking contract. Can be called by anyone.
+    ///         staking contract to T staking contract. Can be called only by
+    ///         the owner or operator.
     function topUpNu(address _operator)
         external
         override

@@ -355,17 +355,17 @@ protect against DoSing slashing queue. Can only be called by the governance.
 
 Increases the amount of the stake for the given operator. The sender of this
 transaction needs to have the amount approved to transfer to the staking
-contract. Can be called by anyone.
+contract. Can be called only by the owner or operator.
 
 ==== `topUpKeep(address operator) external`
 
 Propagates information about stake top-up from the legacy KEEP staking contract
-to T staking contract. Can be called by anyone.
+to T staking contract. Can be called only by the owner or operator.
 
 ==== `topUpNu(address operator) external`
 
 Propagates information about stake top-up from the legacy NU staking contract
-to T staking contract. Can be called by anyone.
+to T staking contract. Can be called only by the owner or operator.
 
 === Undelegating a stake (unstaking)
 
