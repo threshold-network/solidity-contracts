@@ -6,7 +6,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments, helpers } = hre
   const { log } = deployments
   const { deployer } = await getNamedAccounts()
-  const { execute } = deployments
+  const { execute, read } = deployments
 
   const KeepToken = await deployments.getOrNull("KeepToken")
 
@@ -18,6 +18,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   ) {
     throw new Error("deployed KeepToken contract not found")
   } else {
+    // For deployments on hardhat network we don't have the KeepToken deployed,
+    // so wee're deloying a stub contact and minting the KEEP in the amount
+    // close to the KEEP supply on the production environment (~1B KEEP).
     log(`deploying KeepToken stub`)
 
     await deployments.deploy("KeepToken", {
@@ -33,6 +36,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       deployer,
       BigNumber.from(10).pow(27)
     )
+
+    const keepTotalSupply = await read("KeepToken", "totalSupply")
+
+    log("minted", keepTotalSupply.toString(), "KEEP")
   }
 }
 
