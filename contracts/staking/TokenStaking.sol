@@ -107,6 +107,12 @@ contract TokenStaking is Ownable, IStaking {
         address indexed application,
         uint96 amount
     );
+    event AuthorizationInvoluntaryDecreased(
+        address indexed operator,
+        address indexed application,
+        uint96 amount,
+        bool indexed successfulCall
+    );
     event ApplicationDisabled(address indexed application);
     event PanicButtonSet(
         address indexed application,
@@ -1138,16 +1144,27 @@ contract TokenStaking is Ownable, IStaking {
                 continue;
             }
 
+            bool successful = true;
+            uint96 amount = authorization.authorized - totalStake;
+
             //slither-disable-next-line calls-loop
             try
                 IApplication(application).involuntaryAuthorizationDecrease{
                     gas: GAS_LIMIT_AUTHORIZATION_DECREASE
-                }(operatorAddress, authorization.authorized - totalStake)
-            {} catch {}
+                }(operatorAddress, amount)
+            {} catch {
+                successful = false;
+            }
             authorization.authorized = totalStake;
             if (authorization.deauthorizing > totalStake) {
                 authorization.deauthorizing = totalStake;
             }
+            emit AuthorizationInvoluntaryDecreased(
+                operatorAddress,
+                application,
+                amount,
+                successful
+            );
         }
     }
 

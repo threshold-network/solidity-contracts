@@ -4371,10 +4371,18 @@ describe("TokenStaking", () => {
           ).to.deep.equal([zeroBigNumber, zeroBigNumber])
         })
 
-        it("should emit TokensSeized", async () => {
+        it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
             .withArgs(operator.address, 0)
+          await expect(tx)
+            .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+            .withArgs(
+              operator.address,
+              application1Mock.address,
+              keepInTAmount,
+              true
+            )
         })
       })
 
@@ -4497,12 +4505,20 @@ describe("TokenStaking", () => {
             ).to.deep.equal([authorizedAmount2, zeroBigNumber])
           })
 
-          it("should emit TokensSeized", async () => {
+          it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
             await expect(tx)
               .to.emit(tokenStaking, "TokensSeized")
               .withArgs(
                 operator.address,
                 convertToT(keepPenalty, keepRatio).result
+              )
+            await expect(tx)
+              .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+              .withArgs(
+                operator.address,
+                application1Mock.address,
+                authorizedAmount1.sub(expectedKeepInTAmount),
+                true
               )
           })
         }
@@ -4599,10 +4615,18 @@ describe("TokenStaking", () => {
             ).to.deep.equal([zeroBigNumber, zeroBigNumber])
           })
 
-          it("should emit TokensSeized", async () => {
+          it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
             await expect(tx)
               .to.emit(tokenStaking, "TokensSeized")
               .withArgs(operator.address, expectedKeepPenalty.result)
+            await expect(tx)
+              .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+              .withArgs(
+                operator.address,
+                application1Mock.address,
+                authorizedAmount.sub(tStake),
+                true
+              )
           })
         }
       )
@@ -4725,12 +4749,28 @@ describe("TokenStaking", () => {
             ).to.be.revertedWith("There is no deauthorizing in process")
           })
 
-          it("should emit TokensSeized", async () => {
+          it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
             await expect(tx)
               .to.emit(tokenStaking, "TokensSeized")
               .withArgs(
                 operator.address,
                 convertToT(keepPenalty, keepRatio).result
+              )
+            await expect(tx)
+              .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+              .withArgs(
+                operator.address,
+                brokenApplicationMock.address,
+                authorizedAmount,
+                false
+              )
+            await expect(tx)
+              .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+              .withArgs(
+                operator.address,
+                expensiveApplicationMock.address,
+                authorizedAmount,
+                false
               )
           })
         }
@@ -4969,10 +5009,18 @@ describe("TokenStaking", () => {
           ).to.deep.equal([zeroBigNumber, zeroBigNumber])
         })
 
-        it("should emit TokensSeized", async () => {
+        it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
             .withArgs(operator.address, 0)
+          await expect(tx)
+            .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+            .withArgs(
+              operator.address,
+              application1Mock.address,
+              newNuInTAmount,
+              true
+            )
         })
       })
 
@@ -5861,7 +5909,7 @@ describe("TokenStaking", () => {
           ).to.deep.equal([zeroBigNumber, zeroBigNumber])
         })
 
-        it("should emit TokensSeized and SlashingProcessed events", async () => {
+        it("should emit TokensSeized, SlashingProcessed and AuthorizationInvoluntaryDecreased", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
             .withArgs(otherStaker.address, amountToSlash)
@@ -5874,6 +5922,22 @@ describe("TokenStaking", () => {
           await expect(tx)
             .to.emit(tokenStaking, "SlashingProcessed")
             .withArgs(auxiliaryAccount.address, 2, expectedTReward2)
+          await expect(tx)
+            .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+            .withArgs(
+              otherStaker.address,
+              application1Mock.address,
+              amountToSlash,
+              true
+            )
+          await expect(tx)
+            .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+            .withArgs(
+              otherStaker.address,
+              application1Mock.address,
+              authorized2.sub(amountToSlash),
+              true
+            )
         })
       })
 
