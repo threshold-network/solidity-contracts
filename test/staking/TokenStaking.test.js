@@ -1227,7 +1227,7 @@ describe("TokenStaking", () => {
         tx = await tokenStaking.stakeKeep(operator.address)
 
         await nucypherStakingMock.setStaker(staker.address, nuStake)
-        await tokenStaking.topUpNu(operator.address)
+        await tokenStaking.connect(operator).topUpNu(operator.address)
 
         await tToken.connect(staker).approve(tokenStaking.address, tStake)
         await tokenStaking.connect(staker).topUp(operator.address, tStake)
@@ -2122,7 +2122,7 @@ describe("TokenStaking", () => {
     context("when amount is zero", () => {
       it("should revert", async () => {
         await expect(
-          tokenStaking.connect(staker).topUp(operator.address, 0)
+          tokenStaking.connect(operator).topUp(operator.address, 0)
         ).to.be.revertedWith("Amount to top-up must be greater than 0")
       })
     })
@@ -2131,9 +2131,19 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking
-            .connect(staker)
+            .connect(operator)
             .topUp(operator.address, initialStakerBalance)
         ).to.be.revertedWith("Operator has no stake")
+      })
+    })
+
+    context("when caller is not owner or operator", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(authorizer)
+            .topUp(operator.address, initialStakerBalance)
+        ).to.be.revertedWith("Only owner and operator can execute this method")
       })
     })
 
@@ -2150,11 +2160,12 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stake(operator.address, staker.address, staker.address, amount)
         blockTimestamp = await lastBlockTime()
+        await tToken.connect(deployer).transfer(operator.address, topUpAmount)
         await tToken
-          .connect(deployer)
+          .connect(operator)
           .approve(tokenStaking.address, topUpAmount)
         tx = await tokenStaking
-          .connect(deployer)
+          .connect(operator)
           .topUp(operator.address, topUpAmount)
       })
 
@@ -2277,11 +2288,10 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(operator.address)
-        await tToken
-          .connect(deployer)
-          .approve(tokenStaking.address, topUpAmount)
+        await tToken.connect(deployer).transfer(staker.address, topUpAmount)
+        await tToken.connect(staker).approve(tokenStaking.address, topUpAmount)
         tx = await tokenStaking
-          .connect(deployer)
+          .connect(staker)
           .topUp(operator.address, topUpAmount)
       })
 
@@ -2339,11 +2349,12 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, staker.address, staker.address)
+        await tToken.connect(deployer).transfer(operator.address, topUpAmount)
         await tToken
-          .connect(deployer)
+          .connect(operator)
           .approve(tokenStaking.address, topUpAmount)
         tx = await tokenStaking
-          .connect(deployer)
+          .connect(operator)
           .topUp(operator.address, topUpAmount)
       })
 
@@ -2394,8 +2405,16 @@ describe("TokenStaking", () => {
     context("when operator has no delegated stake", () => {
       it("should revert", async () => {
         await expect(
-          tokenStaking.topUpKeep(operator.address)
+          tokenStaking.connect(operator).topUpKeep(operator.address)
         ).to.be.revertedWith("Operator has no stake")
+      })
+    })
+
+    context("when caller is not owner or operator", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(authorizer).topUpKeep(operator.address)
+        ).to.be.revertedWith("Only owner and operator can execute this method")
       })
     })
 
@@ -2412,7 +2431,7 @@ describe("TokenStaking", () => {
             amount
           )
         await expect(
-          tokenStaking.topUpKeep(operator.address)
+          tokenStaking.connect(operator).topUpKeep(operator.address)
         ).to.be.revertedWith("Nothing to sync")
       })
     })
@@ -2440,7 +2459,7 @@ describe("TokenStaking", () => {
           initialStakerBalance
         )
         await expect(
-          tokenStaking.topUpKeep(operator.address)
+          tokenStaking.connect(staker).topUpKeep(operator.address)
         ).to.be.revertedWith(
           "Amount in Keep contract is equal to or less than the stored amount"
         )
@@ -2469,7 +2488,7 @@ describe("TokenStaking", () => {
         await tokenStaking.stakeKeep(operator.address)
         await keepStakingMock.setAmount(operator.address, amount)
         await expect(
-          tokenStaking.topUpKeep(operator.address)
+          tokenStaking.connect(operator).topUpKeep(operator.address)
         ).to.be.revertedWith(
           "Amount in Keep contract is equal to or less than the stored amount"
         )
@@ -2504,7 +2523,7 @@ describe("TokenStaking", () => {
         )
         await tokenStaking.stakeKeep(operator.address)
         await keepStakingMock.setAmount(operator.address, newKeepAmount)
-        tx = await tokenStaking.topUpKeep(operator.address)
+        tx = await tokenStaking.connect(operator).topUpKeep(operator.address)
       })
 
       it("should update only Keep staked amount", async () => {
@@ -2585,7 +2604,7 @@ describe("TokenStaking", () => {
         await tokenStaking.stakeKeep(operator.address)
 
         await tokenStaking.connect(staker).unstakeKeep(operator.address)
-        tx = await tokenStaking.topUpKeep(operator.address)
+        tx = await tokenStaking.connect(staker).topUpKeep(operator.address)
       })
 
       it("should update only Keep staked amount", async () => {
@@ -2632,7 +2651,7 @@ describe("TokenStaking", () => {
           tokenStaking.address,
           true
         )
-        tx = await tokenStaking.topUpKeep(operator.address)
+        tx = await tokenStaking.connect(staker).topUpKeep(operator.address)
       })
 
       it("should update only Keep staked amount", async () => {
@@ -2699,7 +2718,7 @@ describe("TokenStaking", () => {
           tokenStaking.address,
           true
         )
-        tx = await tokenStaking.topUpKeep(operator.address)
+        tx = await tokenStaking.connect(operator).topUpKeep(operator.address)
       })
 
       it("should update only Keep staked amount", async () => {
@@ -2742,9 +2761,17 @@ describe("TokenStaking", () => {
   describe("topUpNu", () => {
     context("when operator has no delegated stake", () => {
       it("should revert", async () => {
-        await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
-          "Operator has no stake"
-        )
+        await expect(
+          tokenStaking.connect(operator).topUpNu(operator.address)
+        ).to.be.revertedWith("Operator has no stake")
+      })
+    })
+
+    context("when caller is not owner or operator", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(authorizer).topUpNu(operator.address)
+        ).to.be.revertedWith("Only owner and operator can execute this method")
       })
     })
 
@@ -2760,7 +2787,9 @@ describe("TokenStaking", () => {
             authorizer.address,
             amount
           )
-        await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
+        await expect(
+          tokenStaking.connect(operator).topUpNu(operator.address)
+        ).to.be.revertedWith(
           "Amount in NuCypher contract is equal to or less than the stored amount"
         )
       })
@@ -2775,7 +2804,9 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
         await nucypherStakingMock.setStaker(staker.address, amount)
-        await expect(tokenStaking.topUpNu(operator.address)).to.be.revertedWith(
+        await expect(
+          tokenStaking.connect(staker).topUpNu(operator.address)
+        ).to.be.revertedWith(
           "Amount in NuCypher contract is equal to or less than the stored amount"
         )
       })
@@ -2794,7 +2825,7 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stakeNu(operator.address, staker.address, staker.address)
         await nucypherStakingMock.setStaker(staker.address, newNuAmount)
-        tx = await tokenStaking.topUpNu(operator.address)
+        tx = await tokenStaking.connect(staker).topUpNu(operator.address)
       })
 
       it("should update only Nu staked amount", async () => {
@@ -2864,7 +2895,7 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .unstakeNu(operator.address, nuInTAmount)
-        tx = await tokenStaking.topUpNu(operator.address)
+        tx = await tokenStaking.connect(operator).topUpNu(operator.address)
       })
 
       it("should update only Nu staked amount", async () => {
@@ -2899,7 +2930,7 @@ describe("TokenStaking", () => {
           .stake(operator.address, staker.address, staker.address, tAmount)
         blockTimestamp = await lastBlockTime()
 
-        tx = await tokenStaking.topUpNu(operator.address)
+        tx = await tokenStaking.connect(staker).topUpNu(operator.address)
       })
 
       it("should update only Nu staked amount", async () => {
@@ -2974,7 +3005,7 @@ describe("TokenStaking", () => {
         await tokenStaking.stakeKeep(operator.address)
 
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
-        tx = await tokenStaking.topUpNu(operator.address)
+        tx = await tokenStaking.connect(operator).topUpNu(operator.address)
       })
 
       it("should update only Nu staked amount", async () => {
@@ -3041,7 +3072,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).unstakeT(operator.address, 0)
-        ).to.be.revertedWith("Only owner and operator can unstake tokens")
+        ).to.be.revertedWith("Only owner and operator can execute this method")
       })
     })
 
@@ -3087,7 +3118,7 @@ describe("TokenStaking", () => {
           staker.address,
           initialStakerBalance
         )
-        await tokenStaking.topUpNu(operator.address)
+        await tokenStaking.connect(staker).topUpNu(operator.address)
 
         const amountToUnstake = 1
         await expect(
@@ -3183,7 +3214,7 @@ describe("TokenStaking", () => {
             )
           blockTimestamp = await lastBlockTime()
           await nucypherStakingMock.setStaker(staker.address, nuAmount)
-          await tokenStaking.topUpNu(operator.address)
+          await tokenStaking.connect(staker).topUpNu(operator.address)
           await tokenStaking
             .connect(authorizer)
             .increaseAuthorization(
@@ -3401,7 +3432,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).unstakeKeep(operator.address)
-        ).to.be.revertedWith("Only owner and operator can unstake tokens")
+        ).to.be.revertedWith("Only owner and operator can execute this method")
       })
     })
 
@@ -3423,7 +3454,7 @@ describe("TokenStaking", () => {
           staker.address,
           initialStakerBalance
         )
-        await tokenStaking.topUpNu(operator.address)
+        await tokenStaking.connect(staker).topUpNu(operator.address)
 
         await expect(
           tokenStaking.connect(operator).unstakeKeep(operator.address)
@@ -3590,7 +3621,7 @@ describe("TokenStaking", () => {
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
         await expect(
           tokenStaking.connect(authorizer).unstakeNu(operator.address, 0)
-        ).to.be.revertedWith("Only owner and operator can unstake tokens")
+        ).to.be.revertedWith("Only owner and operator can execute this method")
       })
     })
 
@@ -3791,7 +3822,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).unstakeAll(operator.address)
-        ).to.be.revertedWith("Only owner and operator can unstake tokens")
+        ).to.be.revertedWith("Only owner and operator can execute this method")
       })
     })
 
@@ -3944,7 +3975,7 @@ describe("TokenStaking", () => {
           await tokenStaking.stakeKeep(operator.address)
 
           await nucypherStakingMock.setStaker(staker.address, nuAmount)
-          await tokenStaking.topUpNu(operator.address)
+          await tokenStaking.connect(staker).topUpNu(operator.address)
           return 0
         },
         0,
@@ -3987,10 +4018,10 @@ describe("TokenStaking", () => {
             tokenStaking.address,
             true
           )
-          await tokenStaking.topUpKeep(operator.address)
+          await tokenStaking.connect(staker).topUpKeep(operator.address)
 
           await nucypherStakingMock.setStaker(staker.address, nuAmount)
-          await tokenStaking.topUpNu(operator.address)
+          await tokenStaking.connect(staker).topUpNu(operator.address)
 
           const authorized = tAmount
           await tokenStaking
@@ -4043,7 +4074,7 @@ describe("TokenStaking", () => {
           await tokenStaking.connect(staker).topUp(operator.address, tAmount)
 
           await nucypherStakingMock.setStaker(staker.address, nuAmount)
-          await tokenStaking.topUpNu(operator.address)
+          await tokenStaking.connect(staker).topUpNu(operator.address)
 
           return 0
         },
@@ -4088,10 +4119,10 @@ describe("TokenStaking", () => {
             tokenStaking.address,
             true
           )
-          await tokenStaking.topUpKeep(operator.address)
+          await tokenStaking.connect(staker).topUpKeep(operator.address)
 
           await nucypherStakingMock.setStaker(staker.address, nuAmount)
-          await tokenStaking.topUpNu(operator.address)
+          await tokenStaking.connect(staker).topUpNu(operator.address)
 
           const oneDay = 86400
           await ethers.provider.send("evm_increaseTime", [oneDay])
@@ -5721,8 +5752,13 @@ describe("TokenStaking", () => {
         )
         await tokenStaking.stakeKeep(otherStaker.address)
         await nucypherStakingMock.setStaker(otherStaker.address, nuAmount)
-        await tokenStaking.topUpNu(otherStaker.address)
-        await tokenStaking.connect(staker).topUp(otherStaker.address, tAmount)
+        await tokenStaking.connect(otherStaker).topUpNu(otherStaker.address)
+
+        await tToken.connect(deployer).transfer(otherStaker.address, tAmount)
+        await tToken.connect(otherStaker).approve(tokenStaking.address, tAmount)
+        await tokenStaking
+          .connect(otherStaker)
+          .topUp(otherStaker.address, tAmount)
 
         await tokenStaking
           .connect(otherStaker)

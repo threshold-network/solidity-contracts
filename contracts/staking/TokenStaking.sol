@@ -154,6 +154,15 @@ contract TokenStaking is Ownable, IStaking {
         _;
     }
 
+    modifier onlyOwnerOrOperator(address operator) {
+        //slither-disable-next-line incorrect-equality
+        require(
+            operator == msg.sender || operators[operator].owner == msg.sender,
+            "Only owner and operator can execute this method"
+        );
+        _;
+    }
+
     /// @param _token Address of T token contract
     /// @param _keepStakingContract Address of Keep staking contract
     /// @param _nucypherStakingContract Address of NuCypher staking contract
@@ -526,7 +535,11 @@ contract TokenStaking is Ownable, IStaking {
     ///         Can be called by anyone.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
-    function topUp(address _operator, uint96 _amount) external override {
+    function topUp(address _operator, uint96 _amount)
+        external
+        override
+        onlyOwnerOrOperator(_operator)
+    {
         require(_amount > 0, "Amount to top-up must be greater than 0");
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
@@ -537,7 +550,11 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Propagates information about stake top-up from the legacy KEEP
     ///         staking contract to T staking contract. Can be called by anyone.
-    function topUpKeep(address _operator) external override {
+    function topUpKeep(address _operator)
+        external
+        override
+        onlyOwnerOrOperator(_operator)
+    {
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
 
@@ -553,7 +570,11 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Propagates information about stake top-up from the legacy NU
     ///         staking contract to T staking contract. Can be called by anyone.
-    function topUpNu(address _operator) external override {
+    function topUpNu(address _operator)
+        external
+        override
+        onlyOwnerOrOperator(_operator)
+    {
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
 
@@ -583,13 +604,13 @@ contract TokenStaking is Ownable, IStaking {
     ///         remaining liquid T stake or if the unstake amount is higher than
     ///         the liquid T stake amount. Can be called only by the owner or
     ///         operator.
-    function unstakeT(address _operator, uint96 _amount) external override {
+    function unstakeT(address _operator, uint96 _amount)
+        external
+        override
+        onlyOwnerOrOperator(_operator)
+    {
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
-        require(
-            operator.owner == msg.sender || _operator == msg.sender,
-            "Only owner and operator can unstake tokens"
-        );
         require(
             _amount > 0 &&
                 _amount + getMinStaked(_operator, StakingProvider.T) <=
@@ -615,13 +636,13 @@ contract TokenStaking is Ownable, IStaking {
     ///         KEEP staking contract and sill being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
     ///         called only by the delegation owner and operator.
-    function unstakeKeep(address _operator) external override {
+    function unstakeKeep(address _operator)
+        external
+        override
+        onlyOwnerOrOperator(_operator)
+    {
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
-        require(
-            operator.owner == msg.sender || _operator == msg.sender,
-            "Only owner and operator can unstake tokens"
-        );
         require(operator.keepInTStake != 0, "Nothing to unstake");
         require(
             getMinStaked(_operator, StakingProvider.KEEP) == 0,
@@ -641,13 +662,13 @@ contract TokenStaking is Ownable, IStaking {
     ///         still being able to operate in T network and earning rewards
     ///         based on the liquid T staked. Can be called only by the
     ///         delegation owner and operator.
-    function unstakeNu(address _operator, uint96 _amount) external override {
+    function unstakeNu(address _operator, uint96 _amount)
+        external
+        override
+        onlyOwnerOrOperator(_operator)
+    {
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
-        require(
-            operator.owner == msg.sender || _operator == msg.sender,
-            "Only owner and operator can unstake tokens"
-        );
         require(
             _amount > 0 &&
                 _amount + getMinStaked(_operator, StakingProvider.NU) <=
@@ -664,13 +685,13 @@ contract TokenStaking is Ownable, IStaking {
     ///         amount to 0 and withdraws all liquid T from the stake to the
     ///         owner. Reverts if there is at least one non-zero authorization.
     ///         Can be called only by the delegation owner and operator.
-    function unstakeAll(address _operator) external override {
+    function unstakeAll(address _operator)
+        external
+        override
+        onlyOwnerOrOperator(_operator)
+    {
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
-        require(
-            operator.owner == msg.sender || _operator == msg.sender,
-            "Only owner and operator can unstake tokens"
-        );
         require(
             operator.authorizedApplications.length == 0,
             "At least one application is still authorized"
