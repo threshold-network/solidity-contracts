@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./IStaking.sol";
-import "./StakingProviders.sol";
+import "./IStakingProviders.sol";
 import "./IApplication.sol";
 import "../token/T.sol";
 import "../vending/VendingMachine.sol";

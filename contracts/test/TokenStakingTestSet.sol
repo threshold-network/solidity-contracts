@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "../staking/StakingProviders.sol";
+import "../staking/IStakingProviders.sol";
 import "../staking/IApplication.sol";
 import "../staking/TokenStaking.sol";
 
