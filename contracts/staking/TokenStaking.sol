@@ -2,13 +2,15 @@
 
 pragma solidity 0.8.9;
 
+import "./IApplication.sol";
 import "./IStaking.sol";
 import "./ILegacyTokenStaking.sol";
 import "./IApplication.sol";
 import "./KeepStake.sol";
+import "../governance/Checkpoints.sol";
 import "../token/T.sol";
-import "../vending/VendingMachine.sol";
 import "../utils/PercentUtils.sol";
+import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -22,7 +24,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 ///         that run on the Threshold Network. Note that legacy NU/KEEP staking
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
-contract TokenStaking is Ownable, IStaking {
+contract TokenStaking is Ownable, IStaking, Checkpoints {
     using SafeERC20 for T;
     using PercentUtils for uint256;
     using SafeCast for uint256;
