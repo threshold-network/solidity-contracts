@@ -22,6 +22,13 @@ contract TokenholderGovernor is
     bytes32 public constant VETO_POWER =
         keccak256("Power to veto proposals in Threshold's Tokenholder DAO");
 
+    uint256 public proposalThresholdNumerator;
+
+    event ProposalThresholdNumeratorUpdated(
+        uint256 oldThresholdNumerator,
+        uint256 newThresholdNumerator
+    );
+
     constructor(
         ERC20Votes _token,
         IVotesHistory _staking,
@@ -32,7 +39,17 @@ contract TokenholderGovernor is
         GovernorVotesQuorumFraction(INITIAL_QUORUM_NUMERATOR)
         TokenholderGovernorVotes(_staking)
         GovernorTimelockControl(_timelock)
-    {}
+    {
+        _updateProposalThresholdNumerator(INITIAL_PROPOSAL_THRESHOLD_NUMERATOR);
+    }
+
+    function updateProposalThresholdNumerator(uint256 newNumerator)
+        external
+        virtual
+        onlyGovernance
+    {
+        _updateProposalThresholdNumerator(newNumerator);
+    }
 
     function propose(
         address[] memory targets,
@@ -56,11 +73,10 @@ contract TokenholderGovernor is
         return _cancel(targets, values, calldatas, descriptionHash);
     }
 
-    //TODO: functions to update threshold, events, common logic with quorum
     function proposalThreshold() public view returns (uint256) {
         return
             (_getPastTotalSupply(block.number - 1) *
-                INITIAL_PROPOSAL_THRESHOLD_NUMERATOR) / quorumDenominator();
+                proposalThresholdNumerator) / fractionDenominator();
     }
 
     function quorum(uint256 blockNumber)
@@ -105,6 +121,21 @@ contract TokenholderGovernor is
 
     function votingPeriod() public pure override returns (uint256) {
         return (10 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    }
+
+    function _updateProposalThresholdNumerator(uint256 newNumerator)
+        internal
+        virtual
+    {
+        require(
+            newNumerator <= fractionDenominator(),
+            "Numerator over Denominator"
+        );
+
+        uint256 oldNumerator = proposalThresholdNumerator;
+        proposalThresholdNumerator = newNumerator;
+
+        emit ProposalThresholdNumeratorUpdated(oldNumerator, newNumerator);
     }
 
     function _execute(
