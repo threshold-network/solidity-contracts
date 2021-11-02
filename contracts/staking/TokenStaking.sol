@@ -1403,6 +1403,48 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         }
     }
 
+    /// @notice Creates new checkpoints due to an increment of a stakers' stake
+    /// @param _delegator Address of the stake owner acting as delegator
+    /// @param _amount Amount of T to increment
+    function increaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
+        if (_amount == 0) {
+            return;
+        }
+        writeCheckpoint(_totalSupplyCheckpoints, add, _amount);
+        address delegatee = delegates(_delegator);
+        if (delegatee != address(0)) {
+            (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
+                _checkpoints[delegatee],
+                add,
+                _amount
+            );
+            emit DelegateVotesChanged(delegatee, oldWeight, newWeight);
+        }
+    }
+
+    /// @notice Creates new checkpoints due to a decrease of a stakers' stake
+    /// @param _delegator Address of the stake owner acting as delegator
+    /// @param _amount Amount of T to decrease
+    function decreaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
+        if (_amount == 0) {
+            return;
+        }
+        writeCheckpoint(_totalSupplyCheckpoints, subtract, _amount);
+        address delegatee = delegates(_delegator);
+        if (delegatee != address(0)) {
+            (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
+                _checkpoints[delegatee],
+                subtract,
+                _amount
+            );
+            emit DelegateVotesChanged(delegatee, oldWeight, newWeight);
+        }
+    }
+
     /// @notice Returns amount of Nu stake in the NuCypher staking contract for the specified operator.
     ///         Resulting value in T denomination
     function getNuAmountInT(address owner, address operator)
