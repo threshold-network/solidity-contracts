@@ -150,7 +150,7 @@ interface IStaking {
     ///         in T staking contract to 0. Reverts if the amount of liquid T
     ///         staked in T staking contract is lower than the highest
     ///         application authorization. This function allows to unstake from
-    ///         KEEP staking contract and sill being able to operate in T
+    ///         KEEP staking contract and still being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
     ///         called only by the delegation owner and operator.
     function unstakeKeep(address operator) external;

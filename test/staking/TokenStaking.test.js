@@ -3696,7 +3696,12 @@ describe("TokenStaking", () => {
             authorized
           )
 
-        const amountToUnstake = nuInTAmount.sub(authorized).add(1)
+        const notAuthorizedInT = nuInTAmount.sub(authorized)
+        const notAuthorizedInNu = convertFromT(notAuthorizedInT, nuRatio).result
+        const amountToUnstake = convertToT(
+          notAuthorizedInNu.add(floatingPointDivisor),
+          nuRatio
+        ).result
         await expect(
           tokenStaking
             .connect(operator)
@@ -3796,6 +3801,61 @@ describe("TokenStaking", () => {
           .withArgs(operator.address, expectedUnstaked)
       })
     })
+
+    context(
+      "when amount to unstake is less than not authorized only after rounding",
+      () => {
+        const nuAmount = initialStakerBalance
+        const nuInTAmount = convertToT(nuAmount, nuRatio).result
+        const authorized = nuInTAmount.div(3)
+        const amountToUnstake = nuInTAmount.sub(authorized).add(1)
+        const expectedNuAmount = nuAmount.sub(
+          convertFromT(amountToUnstake, nuRatio).result
+        )
+        const expectedNuInTAmount = convertToT(expectedNuAmount, nuRatio).result
+        const expectedUnstaked = nuInTAmount.sub(expectedNuInTAmount)
+        let tx
+
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(deployer)
+            .approveApplication(application1Mock.address)
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
+          await tokenStaking
+            .connect(staker)
+            .stakeNu(operator.address, beneficiary.address, authorizer.address)
+
+          await tokenStaking
+            .connect(authorizer)
+            .increaseAuthorization(
+              operator.address,
+              application1Mock.address,
+              authorized
+            )
+
+          tx = await tokenStaking
+            .connect(operator)
+            .unstakeNu(operator.address, amountToUnstake)
+        })
+
+        it("should ypdate Nu staked amount", async () => {
+          expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
+            zeroBigNumber,
+            zeroBigNumber,
+            expectedNuInTAmount,
+          ])
+          expect(await tokenStaking.stakedNu(operator.address)).to.equal(
+            expectedNuAmount
+          )
+        })
+
+        it("should emit Unstaked", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "Unstaked")
+            .withArgs(operator.address, expectedUnstaked)
+        })
+      }
+    )
   })
 
   describe("unstakeAll", () => {

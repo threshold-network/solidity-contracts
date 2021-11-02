@@ -13,7 +13,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-/// @notice Meta staking contract. 3 roles: app, meta staking, app manager
+/// @notice TokenStaking is the main staking contract of the Threshold Network.
+///         Apart from the basic usage of enabling T stakes, it also acts as a
+///         sort of "meta-staking" contract, accepting existing legacy NU/KEEP
+///         stakes. Additionally, it serves as application manager for the apps
+///         that run on the Threshold Network. Note that legacy NU/KEEP staking
+///         contracts see TokenStaking as an application (e.g., slashing is
+///         requested by TokenStaking and performed by the legacy contracts).
 contract TokenStaking is Ownable, IStaking {
     using SafeERC20 for T;
     using PercentUtils for uint256;
@@ -635,7 +641,7 @@ contract TokenStaking is Ownable, IStaking {
     ///         in T staking contract to 0. Reverts if the amount of liquid T
     ///         staked in T staking contract is lower than the highest
     ///         application authorization. This function allows to unstake from
-    ///         KEEP staking contract and sill being able to operate in T
+    ///         KEEP staking contract and still being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
     ///         called only by the delegation owner and operator.
     function unstakeKeep(address _operator)
@@ -671,16 +677,17 @@ contract TokenStaking is Ownable, IStaking {
     {
         OperatorInfo storage operator = operators[_operator];
         require(operator.owner != address(0), "Operator has no stake");
+        (, uint96 tRemainder) = tToNu(_amount);
+        _amount -= tRemainder;
         require(
             _amount > 0 &&
                 _amount + getMinStaked(_operator, StakingProvider.NU) <=
                 operator.nuInTStake,
             "Can't unstake specified amount of tokens"
         );
-        (, uint96 tRemainder) = tToNu(_amount);
-        operator.nuInTStake -= _amount - tRemainder;
+        operator.nuInTStake -= _amount;
 
-        emit Unstaked(_operator, _amount - tRemainder);
+        emit Unstaked(_operator, _amount);
     }
 
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
@@ -1215,8 +1222,9 @@ contract TokenStaking is Ownable, IStaking {
         if (keepPenalty == 0) {
             return tAmountToSlash;
         }
-        operator.keepInTStake -= tPenalty - tRemainder;
-        tAmountToSlash -= tPenalty - tRemainder;
+        tPenalty -= tRemainder;
+        operator.keepInTStake -= tPenalty;
+        tAmountToSlash -= tPenalty;
 
         address[] memory operatorWrapper = new address[](1);
         operatorWrapper[0] = operatorAddress;
@@ -1251,8 +1259,9 @@ contract TokenStaking is Ownable, IStaking {
         if (nuPenalty == 0) {
             return tAmountToSlash;
         }
-        operator.nuInTStake -= tPenalty - tRemainder;
-        tAmountToSlash -= tPenalty - tRemainder;
+        tPenalty -= tRemainder;
+        operator.nuInTStake -= tPenalty;
+        tAmountToSlash -= tPenalty;
 
         uint256 nuReward = nuPenalty.percent(SLASHING_REWARD_PERCENT).percent(
             rewardMultiplier
