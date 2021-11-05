@@ -3,10 +3,8 @@ import { HardhatUserConfig } from "hardhat/config"
 import "@keep-network/hardhat-helpers"
 import "@keep-network/hardhat-local-networks-config"
 import "@nomiclabs/hardhat-waffle"
-// import "@nomiclabs/hardhat-ethers"
 import "hardhat-gas-reporter"
 import "hardhat-deploy"
-// import "solidity-coverage"
 import "@tenderly/hardhat-tenderly"
 
 const config: HardhatUserConfig = {
@@ -64,9 +62,6 @@ const config: HardhatUserConfig = {
         // Example if we want to use deployment scripts from external package:
         // deploy: "node_modules/@keep-network/keep-core/deploy",
       },
-      {
-        artifacts: "node_modules/@keep-network/tbtc/artifacts",
-      },
     ],
     deployments: {
       // For hardhat environment we can fork the mainnet, so we need to point it
@@ -74,15 +69,8 @@ const config: HardhatUserConfig = {
       // hardhat: ["./external/mainnet"],
       // For development environment we expect the local dependencies to be linked
       // with `yarn link` command.
-      development: [
-        "node_modules/@keep-network/keep-core/artifacts",
-        "node_modules/@keep-network/tbtc/artifacts",
-      ],
-      ropsten: [
-        "node_modules/@keep-network/keep-core/artifacts",
-        "node_modules/@keep-network/tbtc/artifacts",
-        "./external/ropsten",
-      ],
+      development: ["node_modules/@keep-network/keep-core/artifacts"],
+      ropsten: ["node_modules/@keep-network/keep-core/artifacts"],
       mainnet: ["./external/mainnet"],
     },
   },
@@ -90,18 +78,7 @@ const config: HardhatUserConfig = {
     deployer: {
       default: 0, // take the first account as deployer
     },
-    // rewardManager: {
-    //   default: 1,
-    //   ropsten: 0, // use deployer account
-    //   mainnet: 0, // use deployer account
-    // },
-    // keepCommunityMultiSig: {
-    //   mainnet: "0x19FcB32347ff4656E4E6746b4584192D185d640d",
-    // },
   },
-  // mocha: {
-  //   timeout: 30000,
-  // },
 }
 
 export default config
