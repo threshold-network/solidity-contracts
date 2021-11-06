@@ -139,6 +139,11 @@ contract TokenStaking is Ownable, IStaking {
         uint256 count,
         uint256 tAmount
     );
+    event GrantOwnerRefreshed(
+        address indexed operator,
+        address indexed oldGrantee,
+        address indexed newGrantee
+    );
 
     modifier onlyGovernance() {
         require(owner() == msg.sender, "Caller is not the governance");
@@ -163,6 +168,10 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     modifier onlyOwnerOrOperator(address operator) {
+        require(
+            operators[operator].owner != address(0),
+            "Operator has no stake"
+        );
         //slither-disable-next-line incorrect-equality
         require(
             operator == msg.sender || operators[operator].owner == msg.sender,
@@ -324,6 +333,35 @@ contract TokenStaking is Ownable, IStaking {
             operator.authorizer,
             tAmount
         );
+    }
+
+    /// @notice Extract owner of Keep stake from grantee in ManagedGrant
+    function refreshKeepManagedGrantOwner(address _operator)
+        external
+        onlyOwnerOrOperator(_operator)
+    {
+        (uint256 grantId, , address grantStakingContract) = keepTokenGrant
+            .getGrantStakeDetails(_operator);
+        require(
+            address(keepStakingContract) == grantStakingContract,
+            "Delegation in TokenGrant must be defined for Keep staking contract"
+        );
+
+        (, , , , , address grantee) = keepTokenGrant.getGrant(grantId);
+
+        address managedGrantee = IKeepManagedGrant(grantee).grantee();
+        require(
+            managedGrantee != address(0),
+            "Grantee in ManagedGrant is not set"
+        );
+
+        OperatorInfo storage operator = operators[_operator];
+        require(
+            managedGrantee != operator.owner,
+            "Grantee has not been changed"
+        );
+        emit GrantOwnerRefreshed(_operator, operator.owner, managedGrantee);
+        operator.owner = managedGrantee;
     }
 
     /// @notice Allows the Governance to set the minimum required stake amount.
@@ -556,7 +594,6 @@ contract TokenStaking is Ownable, IStaking {
     {
         require(_amount > 0, "Amount to top-up must be greater than 0");
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner != address(0), "Operator has no stake");
         operator.tStake += _amount;
         emit ToppedUp(_operator, _amount);
         token.safeTransferFrom(msg.sender, address(this), _amount);
@@ -571,8 +608,6 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(_operator)
     {
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner != address(0), "Operator has no stake");
-
         uint96 tAmount = getKeepAmountInT(_operator);
         require(
             tAmount > operator.keepInTStake,
@@ -592,8 +627,6 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(_operator)
     {
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner != address(0), "Operator has no stake");
-
         uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
             operator.owner,
             _operator
@@ -626,7 +659,6 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(_operator)
     {
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner != address(0), "Operator has no stake");
         require(
             _amount > 0 &&
                 _amount + getMinStaked(_operator, StakingProvider.T) <=
@@ -658,7 +690,6 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(_operator)
     {
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner != address(0), "Operator has no stake");
         require(operator.keepInTStake != 0, "Nothing to unstake");
         require(
             getMinStaked(_operator, StakingProvider.KEEP) == 0,
@@ -684,7 +715,6 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(_operator)
     {
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner != address(0), "Operator has no stake");
         (, uint96 tRemainder) = tToNu(_amount);
         _amount -= tRemainder;
         require(
@@ -708,7 +738,6 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(_operator)
     {
         OperatorInfo storage operator = operators[_operator];
-        require(operator.owner != address(0), "Operator has no stake");
         require(
             operator.authorizedApplications.length == 0,
             "At least one application is still authorized"
@@ -1355,7 +1384,7 @@ contract TokenStaking is Ownable, IStaking {
             nucypherRatio;
     }
 
-    /// @notice Extract owner of Keep stake. Possible ways: owner of ManagedGrant,
+    /// @notice Extract owner of Keep stake. Possible ways: grantee in ManagedGrant,
     ///         grantee in TokenGrant or owner in Keep staking contract
     function getKeepOwner(address operator) internal view returns (address) {
         //slither-disable-next-line uninitialized-local

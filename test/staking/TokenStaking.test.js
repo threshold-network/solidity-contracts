@@ -779,7 +779,7 @@ describe("TokenStaking", () => {
           )
           keepManagerGrantMock = await KeepManagerGrantMock.deploy()
           await keepManagerGrantMock.deployed()
-          keepManagerGrantMock.setGrantee(otherStaker.address)
+          await keepManagerGrantMock.setGrantee(otherStaker.address)
 
           await keepTokenGrantMock.setGrantStake(
             operator.address,
@@ -981,6 +981,302 @@ describe("TokenStaking", () => {
             authorizer.address,
             tAmount
           )
+      })
+    })
+  })
+
+  describe("refreshKeepManagedGrantOwner", () => {
+    context("when operator has no delegated stake", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(operator)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith("Operator has no stake")
+      })
+    })
+
+    context("when caller is not owner or operator", () => {
+      it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            initialStakerBalance
+          )
+        await expect(
+          tokenStaking
+            .connect(authorizer)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith("Only owner and operator can execute this method")
+      })
+    })
+
+    context("when there is no grant", () => {
+      it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            initialStakerBalance
+          )
+
+        await expect(
+          tokenStaking
+            .connect(operator)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith("No stake for the operator")
+      })
+    })
+
+    context("when staking data is incorrect", () => {
+      it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            initialStakerBalance
+          )
+
+        const grantId = 1
+        await keepTokenGrantMock.setGrantStake(
+          operator.address,
+          grantId,
+          otherStaker.address,
+          otherStaker.address
+        )
+        await expect(
+          tokenStaking
+            .connect(operator)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith(
+          "Delegation in TokenGrant must be defined for Keep staking contract"
+        )
+      })
+    })
+
+    context("when grantee is not a contract", () => {
+      it("should revert", async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+
+        const grantId = 1
+        await keepTokenGrantMock.setGrantStake(
+          operator.address,
+          grantId,
+          keepStakingMock.address,
+          otherStaker.address
+        )
+        await expect(
+          tokenStaking
+            .connect(operator)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith(
+          "Transaction reverted: function call to a non-contract account"
+        )
+      })
+    })
+
+    context("when grantee is some contract", () => {
+      it("should revert", async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+        await tokenStaking.stakeKeep(operator.address)
+
+        const grantId = 1
+        await keepTokenGrantMock.setGrantStake(
+          operator.address,
+          grantId,
+          keepStakingMock.address,
+          tToken.address
+        )
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith(
+          "Transaction reverted: function selector was not recognized and there's no fallback function"
+        )
+      })
+    })
+
+    context("when grantee is uninitialized ManagedGrant contract", () => {
+      it("should revert", async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+
+        const KeepManagerGrantMock = await ethers.getContractFactory(
+          "KeepManagedGrantMock"
+        )
+        keepManagerGrantMock = await KeepManagerGrantMock.deploy()
+        await keepManagerGrantMock.deployed()
+        const grantId = 1
+        await keepTokenGrantMock.setGrantStake(
+          operator.address,
+          grantId,
+          keepStakingMock.address,
+          keepManagerGrantMock.address
+        )
+
+        await tokenStaking.stakeKeep(operator.address)
+
+        await expect(
+          tokenStaking
+            .connect(operator)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith("Grantee in ManagedGrant is not set")
+      })
+    })
+
+    context("when grantee was not changed", () => {
+      it("should revert", async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+
+        const KeepManagerGrantMock = await ethers.getContractFactory(
+          "KeepManagedGrantMock"
+        )
+        keepManagerGrantMock = await KeepManagerGrantMock.deploy()
+        await keepManagerGrantMock.deployed()
+        const grantId = 1
+        await keepTokenGrantMock.setGrantStake(
+          operator.address,
+          grantId,
+          keepStakingMock.address,
+          keepManagerGrantMock.address
+        )
+
+        await keepManagerGrantMock.setGrantee(otherStaker.address)
+        await tokenStaking.stakeKeep(operator.address)
+
+        await expect(
+          tokenStaking
+            .connect(otherStaker)
+            .refreshKeepManagedGrantOwner(operator.address)
+        ).to.be.revertedWith("Grantee has not been changed")
+      })
+    })
+
+    context("when grantee was changed", () => {
+      let tx
+
+      beforeEach(async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+
+        const KeepManagerGrantMock = await ethers.getContractFactory(
+          "KeepManagedGrantMock"
+        )
+        keepManagerGrantMock = await KeepManagerGrantMock.deploy()
+        await keepManagerGrantMock.deployed()
+        const grantId = 1
+        await keepTokenGrantMock.setGrantStake(
+          operator.address,
+          grantId,
+          keepStakingMock.address,
+          keepManagerGrantMock.address
+        )
+
+        await keepManagerGrantMock.setGrantee(otherStaker.address)
+        await tokenStaking.stakeKeep(operator.address)
+
+        await keepManagerGrantMock.setGrantee(staker.address)
+        tx = await tokenStaking
+          .connect(otherStaker)
+          .refreshKeepManagedGrantOwner(operator.address)
+      })
+
+      it("should update owner", async () => {
+        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
+          staker.address
+        )
+      })
+
+      it("should emit GrantOwnerRefreshed", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "GrantOwnerRefreshed")
+          .withArgs(operator.address, otherStaker.address, staker.address)
       })
     })
   })
@@ -2360,6 +2656,17 @@ describe("TokenStaking", () => {
   describe("topUp", () => {
     context("when amount is zero", () => {
       it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            staker.address,
+            staker.address,
+            initialStakerBalance
+          )
         await expect(
           tokenStaking.connect(operator).topUp(operator.address, 0)
         ).to.be.revertedWith("Amount to top-up must be greater than 0")
@@ -2378,6 +2685,17 @@ describe("TokenStaking", () => {
 
     context("when caller is not owner or operator", () => {
       it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            staker.address,
+            staker.address,
+            initialStakerBalance
+          )
         await expect(
           tokenStaking
             .connect(authorizer)
@@ -2651,6 +2969,17 @@ describe("TokenStaking", () => {
 
     context("when caller is not owner or operator", () => {
       it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            initialStakerBalance
+          )
         await expect(
           tokenStaking.connect(authorizer).topUpKeep(operator.address)
         ).to.be.revertedWith("Only owner and operator can execute this method")
@@ -3008,6 +3337,17 @@ describe("TokenStaking", () => {
 
     context("when caller is not owner or operator", () => {
       it("should revert", async () => {
+        await tToken
+          .connect(staker)
+          .approve(tokenStaking.address, initialStakerBalance)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            initialStakerBalance
+          )
         await expect(
           tokenStaking.connect(authorizer).topUpNu(operator.address)
         ).to.be.revertedWith("Only owner and operator can execute this method")
