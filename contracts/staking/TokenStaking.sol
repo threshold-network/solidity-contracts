@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
 ///         Apart from the basic usage of enabling T stakes, it also acts as a
@@ -65,6 +66,7 @@ contract TokenStaking is Ownable, IStaking {
 
     T public immutable token;
     IKeepTokenStaking public immutable keepStakingContract;
+    IKeepTokenGrant public immutable keepTokenGrant;
     INuCypherStakingEscrow public immutable nucypherStakingContract;
 
     uint256 public immutable keepFloatingPointDivisor;
@@ -174,13 +176,18 @@ contract TokenStaking is Ownable, IStaking {
     /// @param _nucypherStakingContract Address of NuCypher staking contract
     /// @param _keepVendingMachine Address of Keep vending machine
     /// @param _nucypherVendingMachine Address of NuCypher vending machine
+    /// @param _keepTokenGrant Address of Keep TokenGrant contract
     constructor(
         T _token,
         IKeepTokenStaking _keepStakingContract,
         INuCypherStakingEscrow _nucypherStakingContract,
         VendingMachine _keepVendingMachine,
-        VendingMachine _nucypherVendingMachine
+        VendingMachine _nucypherVendingMachine,
+        IKeepTokenGrant _keepTokenGrant
     ) {
+        // calls to check contracts are working
+        //slither-disable-next-line unused-return
+        _keepTokenGrant.getGrant(0);
         require(
             _token.totalSupply() > 0 &&
                 _keepStakingContract.ownerOf(address(0)) == address(0) &&
@@ -189,6 +196,7 @@ contract TokenStaking is Ownable, IStaking {
         );
         token = _token;
         keepStakingContract = _keepStakingContract;
+        keepTokenGrant = _keepTokenGrant;
         nucypherStakingContract = _nucypherStakingContract;
 
         keepFloatingPointDivisor = _keepVendingMachine.FLOATING_POINT_DIVISOR();
@@ -264,7 +272,7 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmount = getKeepAmountInT(_operator);
 
         operator.keepInTStake = tAmount;
-        operator.owner = keepStakingContract.ownerOf(_operator);
+        operator.owner = getKeepOwner(_operator);
         operator.authorizer = keepStakingContract.authorizerOf(_operator);
         operator.beneficiary = keepStakingContract.beneficiaryOf(_operator);
         emit KeepStaked(operator.owner, _operator);
@@ -1345,5 +1353,49 @@ contract TokenStaking is Ownable, IStaking {
         nuAmount =
             (convertibleAmount * nucypherFloatingPointDivisor) /
             nucypherRatio;
+    }
+
+    /// @notice Extract owner of Keep stake. Possible ways: owner of ManagedGrant,
+    ///         grantee in TokenGrant or owner in Keep staking contract
+    function getKeepOwner(address operator) internal view returns (address) {
+        //slither-disable-next-line uninitialized-local
+        address grantee;
+        //slither-disable-next-line unused-return
+        try keepTokenGrant.getGrantStakeDetails(operator) returns (
+            //slither-disable-next-line uninitialized-local
+            uint256 grantId,
+            uint256,
+            //slither-disable-next-line uninitialized-local
+            address grantStakingContract
+        ) {
+            // Double-check if the delegation in TokenGrant has been defined
+            // for Keep staking contract
+            //slither-disable-next-line variable-scope
+            if (address(keepStakingContract) != grantStakingContract) {
+                return keepStakingContract.ownerOf(operator);
+            }
+
+            //slither-disable-next-line variable-scope
+            (, , , , , grantee) = keepTokenGrant.getGrant(grantId);
+        } catch {
+            return keepStakingContract.ownerOf(operator);
+        }
+
+        if (!Address.isContract(grantee)) {
+            return grantee;
+        }
+
+        //slither-disable-next-line unused-return
+        try IKeepManagedGrant(grantee).grantee() returns (
+            //slither-disable-next-line uninitialized-local
+            address managedGrantee
+        ) {
+            //slither-disable-next-line variable-scope
+            if (managedGrantee != address(0)) {
+                //slither-disable-next-line variable-scope
+                return managedGrantee;
+            }
+        } catch {}
+        return grantee;
     }
 }

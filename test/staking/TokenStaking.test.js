@@ -17,6 +17,7 @@ describe("TokenStaking", () => {
   let keepVendingMachine
   let nucypherVendingMachine
   let keepStakingMock
+  let keepTokenGrantMock
   let nucypherStakingMock
   let application1Mock
   let application2Mock
@@ -109,6 +110,11 @@ describe("TokenStaking", () => {
     )
     keepStakingMock = await KeepTokenStakingMock.deploy()
     await keepStakingMock.deployed()
+    const KeepTokenGrantMock = await ethers.getContractFactory(
+      "KeepTokenGrantMock"
+    )
+    keepTokenGrantMock = await KeepTokenGrantMock.deploy()
+    await keepTokenGrantMock.deployed()
     const NuCypherTokenStakingMock = await ethers.getContractFactory(
       "NuCypherTokenStakingMock"
     )
@@ -121,7 +127,8 @@ describe("TokenStaking", () => {
       keepStakingMock.address,
       nucypherStakingMock.address,
       keepVendingMachine.address,
-      nucypherVendingMachine.address
+      nucypherVendingMachine.address,
+      keepTokenGrantMock.address
     )
     await tokenStaking.deployed()
 
@@ -567,6 +574,238 @@ describe("TokenStaking", () => {
           await expect(tx)
             .to.emit(tokenStaking, "KeepStaked")
             .withArgs(staker.address, operator.address)
+
+          await expect(tx)
+            .to.emit(tokenStaking, "OperatorStaked")
+            .withArgs(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              tAmount
+            )
+        })
+      })
+    })
+
+    context("when owner is grantee in TokenGrant", () => {
+      const keepAmount = initialStakerBalance
+      const tAmount = convertToT(keepAmount, keepRatio).result
+      const grantId = 1
+
+      beforeEach(async () => {
+        const createdAt = 1
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
+        await keepStakingMock.setEligibility(
+          operator.address,
+          tokenStaking.address,
+          true
+        )
+      })
+
+      context("when staking data is incorrect", () => {
+        beforeEach(async () => {
+          await keepTokenGrantMock.setGrantStake(
+            operator.address,
+            grantId,
+            otherStaker.address,
+            otherStaker.address
+          )
+          tx = await tokenStaking.stakeKeep(operator.address)
+        })
+
+        it("should set roles equal to the Keep values", async () => {
+          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
+            staker.address
+          )
+          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
+            beneficiary.address
+          )
+          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
+            authorizer.address
+          )
+        })
+
+        it("should emit KeepStaked and OperatorStaked events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "KeepStaked")
+            .withArgs(staker.address, operator.address)
+
+          await expect(tx)
+            .to.emit(tokenStaking, "OperatorStaked")
+            .withArgs(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              tAmount
+            )
+        })
+      })
+
+      context("when grantee is not a contract", () => {
+        beforeEach(async () => {
+          await keepTokenGrantMock.setGrantStake(
+            operator.address,
+            grantId,
+            keepStakingMock.address,
+            otherStaker.address
+          )
+          tx = await tokenStaking.stakeKeep(operator.address)
+        })
+
+        it("should set roles equal to the Keep values", async () => {
+          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
+            otherStaker.address
+          )
+          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
+            beneficiary.address
+          )
+          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
+            authorizer.address
+          )
+        })
+
+        it("should emit KeepStaked and OperatorStaked events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "KeepStaked")
+            .withArgs(otherStaker.address, operator.address)
+
+          await expect(tx)
+            .to.emit(tokenStaking, "OperatorStaked")
+            .withArgs(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              tAmount
+            )
+        })
+      })
+
+      context("when grantee is some contract", () => {
+        beforeEach(async () => {
+          await keepTokenGrantMock.setGrantStake(
+            operator.address,
+            grantId,
+            keepStakingMock.address,
+            tToken.address
+          )
+          tx = await tokenStaking.stakeKeep(operator.address)
+        })
+
+        it("should set roles equal to the Keep values", async () => {
+          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
+            tToken.address
+          )
+          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
+            beneficiary.address
+          )
+          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
+            authorizer.address
+          )
+        })
+
+        it("should emit KeepStaked and OperatorStaked events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "KeepStaked")
+            .withArgs(tToken.address, operator.address)
+
+          await expect(tx)
+            .to.emit(tokenStaking, "OperatorStaked")
+            .withArgs(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              tAmount
+            )
+        })
+      })
+
+      context("when grantee is uninitialized ManagedGrant contract", () => {
+        beforeEach(async () => {
+          const KeepManagerGrantMock = await ethers.getContractFactory(
+            "KeepManagedGrantMock"
+          )
+          keepManagerGrantMock = await KeepManagerGrantMock.deploy()
+          await keepManagerGrantMock.deployed()
+
+          await keepTokenGrantMock.setGrantStake(
+            operator.address,
+            grantId,
+            keepStakingMock.address,
+            keepManagerGrantMock.address
+          )
+          tx = await tokenStaking.stakeKeep(operator.address)
+        })
+
+        it("should set roles equal to the Keep values", async () => {
+          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
+            keepManagerGrantMock.address
+          )
+          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
+            beneficiary.address
+          )
+          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
+            authorizer.address
+          )
+        })
+
+        it("should emit KeepStaked and OperatorStaked events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "KeepStaked")
+            .withArgs(keepManagerGrantMock.address, operator.address)
+
+          await expect(tx)
+            .to.emit(tokenStaking, "OperatorStaked")
+            .withArgs(
+              operator.address,
+              beneficiary.address,
+              authorizer.address,
+              tAmount
+            )
+        })
+      })
+
+      context("when grantee is initialized ManagedGrant contract", () => {
+        beforeEach(async () => {
+          const KeepManagerGrantMock = await ethers.getContractFactory(
+            "KeepManagedGrantMock"
+          )
+          keepManagerGrantMock = await KeepManagerGrantMock.deploy()
+          await keepManagerGrantMock.deployed()
+          keepManagerGrantMock.setGrantee(otherStaker.address)
+
+          await keepTokenGrantMock.setGrantStake(
+            operator.address,
+            grantId,
+            keepStakingMock.address,
+            keepManagerGrantMock.address
+          )
+          tx = await tokenStaking.stakeKeep(operator.address)
+        })
+
+        it("should set roles equal to the Keep values", async () => {
+          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
+            otherStaker.address
+          )
+          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
+            beneficiary.address
+          )
+          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
+            authorizer.address
+          )
+        })
+
+        it("should emit KeepStaked and OperatorStaked events", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "KeepStaked")
+            .withArgs(otherStaker.address, operator.address)
 
           await expect(tx)
             .to.emit(tokenStaking, "OperatorStaked")

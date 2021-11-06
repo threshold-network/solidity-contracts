@@ -90,3 +90,49 @@ interface INuCypherStakingEscrow {
     /// @notice Get all tokens belonging to the staker
     function getAllTokens(address _staker) external view returns (uint256);
 }
+
+/// @title IKeepTokenGrant
+/// @notice Interface for Keep TokenGrant contract
+interface IKeepTokenGrant {
+    /// @notice Gets grant by ID. Returns only basic grant data.
+    /// @param _id ID of the token grant.
+    /// @return amount The amount of tokens the grant provides.
+    /// @return withdrawn The amount of tokens that have already been withdrawn
+    ///                   from the grant.
+    /// @return staked The amount of tokens that have been staked from the grant.
+    /// @return revokedAmount The number of tokens revoked from the grantee.
+    /// @return revokedAt Timestamp at which grant was revoked by the grant manager.
+    /// @return grantee The grantee of grant.
+    function getGrant(uint256 _id)
+        external
+        view
+        returns (
+            uint256 amount,
+            uint256 withdrawn,
+            uint256 staked,
+            uint256 revokedAmount,
+            uint256 revokedAt,
+            address grantee
+        );
+
+    /// @notice Gets grant stake details of the given operator.
+    /// @param operator The operator address.
+    /// @return grantId ID of the token grant.
+    /// @return amount The amount of tokens the given operator delegated.
+    /// @return stakingContract The address of staking contract.
+    function getGrantStakeDetails(address operator)
+        external
+        view
+        returns (
+            uint256 grantId,
+            uint256 amount,
+            address stakingContract
+        );
+}
+
+/// @title IKeepManagedGrant
+/// @notice Interface for Keep ManagedGrant contract
+interface IKeepManagedGrant {
+    /// @notice Returns address of grantee
+    function grantee() external view returns (address);
+}

@@ -284,3 +284,70 @@ contract ExpensiveApplicationMock is ApplicationMock {
         }
     }
 }
+
+contract KeepTokenGrantMock is IKeepTokenGrant {
+    struct GrantStake {
+        uint256 grantId;
+        address stakingContract;
+    }
+
+    mapping(uint256 => address) internal grants;
+    mapping(address => GrantStake) internal grantStakes;
+
+    function setGrantStake(
+        address operator,
+        uint256 grantId,
+        address stakingContract,
+        address grantee
+    ) external {
+        GrantStake storage grantStake = grantStakes[operator];
+        grantStake.grantId = grantId;
+        grantStake.stakingContract = stakingContract;
+        grants[grantId] = grantee;
+    }
+
+    function getGrant(uint256 id)
+        external
+        view
+        returns (
+            uint256 amount,
+            uint256 withdrawn,
+            uint256 staked,
+            uint256 revokedAmount,
+            uint256 revokedAt,
+            address grantee
+        )
+    {
+        amount = 0;
+        withdrawn = 0;
+        staked = 0;
+        revokedAmount = 0;
+        revokedAt = 0;
+        grantee = grants[id];
+    }
+
+    function getGrantStakeDetails(address operator)
+        external
+        view
+        returns (
+            uint256 grantId,
+            uint256 amount,
+            address stakingContract
+        )
+    {
+        GrantStake storage grantStake = grantStakes[operator];
+        require(grantStake.grantId != 0, "No stake for the operator");
+        grantId = grantStake.grantId;
+        amount = 0;
+        stakingContract = grantStake.stakingContract;
+    }
+}
+
+contract KeepManagedGrantMock is IKeepManagedGrant {
+    address public grantee;
+
+    function setGrantee(address _grantee) external {
+        require(_grantee != address(0), "Address must not be zero");
+        grantee = _grantee;
+    }
+}
