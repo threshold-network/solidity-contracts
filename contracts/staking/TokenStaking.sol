@@ -281,7 +281,7 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmount = getKeepAmountInT(_operator);
 
         operator.keepInTStake = tAmount;
-        operator.owner = getKeepOwner(_operator);
+        (operator.owner, ) = getKeepOwner(_operator);
         operator.authorizer = keepStakingContract.authorizerOf(_operator);
         operator.beneficiary = keepStakingContract.beneficiaryOf(_operator);
         emit KeepStaked(operator.owner, _operator);
@@ -340,19 +340,10 @@ contract TokenStaking is Ownable, IStaking {
         external
         onlyOwnerOrOperator(_operator)
     {
-        (uint256 grantId, , address grantStakingContract) = keepTokenGrant
-            .getGrantStakeDetails(_operator);
+        (address managedGrantee, bool isManagedGrant) = getKeepOwner(_operator);
         require(
-            address(keepStakingContract) == grantStakingContract,
-            "Delegation in TokenGrant must be defined for Keep staking contract"
-        );
-
-        (, , , , , address grantee) = keepTokenGrant.getGrant(grantId);
-
-        address managedGrantee = IKeepManagedGrant(grantee).grantee();
-        require(
-            managedGrantee != address(0),
-            "Grantee in ManagedGrant is not set"
+            isManagedGrant,
+            "Refreshing is possible only for managed grant"
         );
 
         OperatorInfo storage operator = operators[_operator];
@@ -1386,7 +1377,13 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Extract owner of Keep stake. Possible ways: grantee in ManagedGrant,
     ///         grantee in TokenGrant or owner in Keep staking contract
-    function getKeepOwner(address operator) internal view returns (address) {
+    /// @return keepOwner Owner of stake
+    /// @return isManagedGrant Returns true if owner is grantee in ManagedGrant contract
+    function getKeepOwner(address operator)
+        internal
+        view
+        returns (address keepOwner, bool isManagedGrant)
+    {
         //slither-disable-next-line uninitialized-local
         address grantee;
         //slither-disable-next-line unused-return
@@ -1401,17 +1398,17 @@ contract TokenStaking is Ownable, IStaking {
             // for Keep staking contract
             //slither-disable-next-line variable-scope
             if (address(keepStakingContract) != grantStakingContract) {
-                return keepStakingContract.ownerOf(operator);
+                return (keepStakingContract.ownerOf(operator), false);
             }
 
             //slither-disable-next-line variable-scope
             (, , , , , grantee) = keepTokenGrant.getGrant(grantId);
         } catch {
-            return keepStakingContract.ownerOf(operator);
+            return (keepStakingContract.ownerOf(operator), false);
         }
 
         if (!Address.isContract(grantee)) {
-            return grantee;
+            return (grantee, false);
         }
 
         //slither-disable-next-line unused-return
@@ -1422,9 +1419,9 @@ contract TokenStaking is Ownable, IStaking {
             //slither-disable-next-line variable-scope
             if (managedGrantee != address(0)) {
                 //slither-disable-next-line variable-scope
-                return managedGrantee;
+                return (managedGrantee, true);
             }
         } catch {}
-        return grantee;
+        return (grantee, false);
     }
 }

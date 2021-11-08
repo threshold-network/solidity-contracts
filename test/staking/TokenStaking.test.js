@@ -1035,7 +1035,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("No stake for the operator")
+        ).to.be.revertedWith("Refreshing is possible only for managed grant")
       })
     })
 
@@ -1064,9 +1064,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith(
-          "Delegation in TokenGrant must be defined for Keep staking contract"
-        )
+        ).to.be.revertedWith("Refreshing is possible only for managed grant")
       })
     })
 
@@ -1100,9 +1098,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith(
-          "Transaction reverted: function call to a non-contract account"
-        )
+        ).to.be.revertedWith("Refreshing is possible only for managed grant")
       })
     })
 
@@ -1136,9 +1132,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith(
-          "Transaction reverted: function selector was not recognized and there's no fallback function"
-        )
+        ).to.be.revertedWith("Refreshing is possible only for managed grant")
       })
     })
 
@@ -1179,7 +1173,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Grantee in ManagedGrant is not set")
+        ).to.be.revertedWith("Refreshing is possible only for managed grant")
       })
     })
 
