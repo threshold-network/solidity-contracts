@@ -669,7 +669,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.connect(operator).refreshKeepStakeOwner(operator.address)
-        ).to.be.revertedWith("Not old owner")
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
@@ -690,7 +690,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(authorizer)
             .refreshKeepStakeOwner(operator.address)
-        ).to.be.revertedWith("Not old owner")
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 

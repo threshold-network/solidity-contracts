@@ -346,7 +346,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @notice Refresh Keep stake owner. Can be called only by the old owner.
     function refreshKeepStakeOwner(address operator) external override {
         OperatorInfo storage operatorStruct = operators[operator];
-        require(operatorStruct.owner == msg.sender, "Not old owner");
+        require(operatorStruct.owner == msg.sender, "Caller is not owner");
         address newOwner = keepStake.resolveOwner(operator);
 
         emit OwnerRefreshed(operator, operatorStruct.owner, newOwner);
@@ -1051,6 +1051,13 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         return slashingQueue.length;
     }
 
+    /// @notice Delegate voting power from the stake associated to the
+    ///         `operator` to a `delegatee` address. Caller must be the owner
+    ///         of this stake.
+    function delegateVoting(address operator, address delegatee) public {
+        delegate(operator, delegatee);
+    }
+
     /// @notice Requests decrease of the authorization for the given operator on
     ///         the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When
@@ -1159,6 +1166,32 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         availableTValue -= operatorStruct
             .authorizations[application]
             .authorized;
+    }
+
+    /// @notice Delegate voting power from the stake associated to the 
+    ///         `operator` to a `delegatee` address. Caller must be the owner
+    ///         of this stake.
+    /// @dev Original abstract function defined in Checkpoints contract had two
+    ///      parameters, `delegator` and `delegatee`. Here we override it and 
+    ///      comply with the same signature but the semantics of the first 
+    ///      parameter changes to the `operator` address.
+    function delegate(address operator, address delegatee) 
+        internal
+        virtual
+        override
+    {
+        OperatorInfo storage operatorStruct = operators[operator];
+        require(operatorStruct.owner == msg.sender, "Caller is not owner");
+
+        address currentDelegate = delegates(delegator);
+        uint96 delegatorBalance = operatorStruct.tStake + 
+            operatorStruct.keepInTStake +
+            operatorStruct.nuInTStake;
+        _delegates[delegator] = delegatee;
+
+        emit DelegateChanged(delegator, currentDelegate, delegatee);
+
+        moveVotingPower(currentDelegate, delegatee, delegatorBalance);
     }
 
     /// @notice Adds operators to the slashing queue along with the amount.
