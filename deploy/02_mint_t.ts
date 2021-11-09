@@ -23,13 +23,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const tTotalSupply = await read("T", "totalSupply")
 
   log("minted", tTotalSupply.toString(), "T")
-
-  if (hre.network.tags.tenderly) {
-    await hre.tenderly.verify({
-      name: "T",
-      address: T.address,
-    })
-  }
 }
 
 export default func
