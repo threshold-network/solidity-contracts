@@ -48,7 +48,7 @@ const config: HardhatUserConfig = {
   },
   tenderly: {
     username: "thesis",
-    project: "",
+    project: "thesis/threshold-network",
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
