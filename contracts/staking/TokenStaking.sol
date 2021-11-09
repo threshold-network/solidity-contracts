@@ -914,8 +914,9 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Returns start staking timestamp for T stake.
-    /// @dev    If operator has no T stake or T was topped-up then result will
-    ///         be zero
+    /// @dev    This value is set at most once, and only when a stake is created
+    ///         with T tokens. If a stake is created from a legacy stake,
+    ///         this value will remain as zero
     function getStartTStakingTimestamp(address operator)
         external
         view
