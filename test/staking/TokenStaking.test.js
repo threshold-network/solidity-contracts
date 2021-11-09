@@ -203,7 +203,7 @@ describe("TokenStaking", () => {
               authorizer.address,
               amount
             )
-        ).to.be.revertedWith("Operator must be specified")
+        ).to.be.revertedWith("Roles must be specified")
       })
     })
 
@@ -214,7 +214,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stake(operator.address, ZERO_ADDRESS, authorizer.address, amount)
-        ).to.be.revertedWith("Beneficiary must be specified")
+        ).to.be.revertedWith("Roles must be specified")
       })
     })
 
@@ -225,7 +225,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stake(operator.address, beneficiary.address, ZERO_ADDRESS, amount)
-        ).to.be.revertedWith("Authorizer must be specified")
+        ).to.be.revertedWith("Roles must be specified")
       })
     })
 
@@ -298,7 +298,7 @@ describe("TokenStaking", () => {
                 authorizer.address,
                 amount
               )
-          ).to.be.revertedWith("Amount to stake must be greater than minimum")
+          ).to.be.revertedWith("Amount is less than minimum")
         })
       })
 
@@ -318,7 +318,7 @@ describe("TokenStaking", () => {
                 authorizer.address,
                 amount
               )
-          ).to.be.revertedWith("Amount to stake must be greater than minimum")
+          ).to.be.revertedWith("Amount is less than minimum")
         })
       })
     })
@@ -418,7 +418,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.stakeKeep(operator.address)
-        ).to.be.revertedWith("Can't stake KEEP for this operator")
+        ).to.be.revertedWith("Operator is already in use")
       })
     })
 
@@ -827,7 +827,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(ZERO_ADDRESS, beneficiary.address, authorizer.address)
-        ).to.be.revertedWith("Operator must be specified")
+        ).to.be.revertedWith("Roles must be specified")
       })
     })
 
@@ -837,7 +837,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(operator.address, ZERO_ADDRESS, authorizer.address)
-        ).to.be.revertedWith("Beneficiary must be specified")
+        ).to.be.revertedWith("Roles must be specified")
       })
     })
 
@@ -847,7 +847,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(operator.address, beneficiary.address, ZERO_ADDRESS)
-        ).to.be.revertedWith("Authorizer must be specified")
+        ).to.be.revertedWith("Roles must be specified")
       })
     })
 
@@ -992,7 +992,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -1013,7 +1013,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(authorizer)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -1035,7 +1035,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Refreshing is possible only for managed grant")
+        ).to.be.revertedWith("Owner is not ManagedGrant")
       })
     })
 
@@ -1064,7 +1064,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Refreshing is possible only for managed grant")
+        ).to.be.revertedWith("Owner is not ManagedGrant")
       })
     })
 
@@ -1098,7 +1098,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Refreshing is possible only for managed grant")
+        ).to.be.revertedWith("Owner is not ManagedGrant")
       })
     })
 
@@ -1132,7 +1132,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Refreshing is possible only for managed grant")
+        ).to.be.revertedWith("Owner is not ManagedGrant")
       })
     })
 
@@ -1173,7 +1173,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Refreshing is possible only for managed grant")
+        ).to.be.revertedWith("Owner is not ManagedGrant")
       })
     })
 
@@ -1301,7 +1301,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(deployer)
             .approveApplication(application1Mock.address)
-        ).to.be.revertedWith("Application has already been approved")
+        ).to.be.revertedWith("Application already approved")
       })
     })
 
@@ -1466,7 +1466,7 @@ describe("TokenStaking", () => {
                   application2Mock.address,
                   amount
                 )
-            ).to.be.revertedWith("Can't authorize more applications")
+            ).to.be.revertedWith("Too many applications")
           })
         })
 
@@ -2029,9 +2029,7 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 0
               )
-          ).to.be.revertedWith(
-            "Amount to decrease authorization must greater than 0"
-          )
+          ).to.be.revertedWith("Amount must be greater than 0")
         })
       })
 
@@ -2045,9 +2043,7 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 amount.add(1)
               )
-          ).to.be.revertedWith(
-            "Amount to decrease authorization must be less than authorized"
-          )
+          ).to.be.revertedWith("Amount exceeds authorized")
         })
       })
 
@@ -2294,7 +2290,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           application1Mock.approveAuthorizationDecrease(operator.address)
-        ).to.be.revertedWith("There is no deauthorizing in process")
+        ).to.be.revertedWith("No deauthorizing in process")
       })
     })
 
@@ -2316,7 +2312,7 @@ describe("TokenStaking", () => {
         application1Mock.approveAuthorizationDecrease(operator.address)
         await expect(
           application1Mock.approveAuthorizationDecrease(operator.address)
-        ).to.be.revertedWith("There is no deauthorizing in process")
+        ).to.be.revertedWith("No deauthorizing in process")
       })
     })
 
@@ -2519,7 +2515,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(deployer)
             .disableApplication(application1Mock.address)
-        ).to.be.revertedWith("Caller is not the address of panic button")
+        ).to.be.revertedWith("Caller is not the panic button")
       })
     })
 
@@ -2532,7 +2528,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(panicButton)
             .disableApplication(application1Mock.address)
-        ).to.be.revertedWith("Application has already been disabled")
+        ).to.be.revertedWith("Application already disabled")
       })
     })
 
@@ -2663,7 +2659,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(operator).topUp(operator.address, 0)
-        ).to.be.revertedWith("Amount to top-up must be greater than 0")
+        ).to.be.revertedWith("Amount must be greater than 0")
       })
     })
 
@@ -2673,7 +2669,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .topUp(operator.address, initialStakerBalance)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -2694,7 +2690,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(authorizer)
             .topUp(operator.address, initialStakerBalance)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -2957,7 +2953,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.connect(operator).topUpKeep(operator.address)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -2976,7 +2972,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).topUpKeep(operator.address)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -3022,9 +3018,7 @@ describe("TokenStaking", () => {
         )
         await expect(
           tokenStaking.connect(staker).topUpKeep(operator.address)
-        ).to.be.revertedWith(
-          "Amount in Keep contract is equal to or less than the stored amount"
-        )
+        ).to.be.revertedWith("Nothing to top-up")
       })
     })
 
@@ -3051,9 +3045,7 @@ describe("TokenStaking", () => {
         await keepStakingMock.setAmount(operator.address, amount)
         await expect(
           tokenStaking.connect(operator).topUpKeep(operator.address)
-        ).to.be.revertedWith(
-          "Amount in Keep contract is equal to or less than the stored amount"
-        )
+        ).to.be.revertedWith("Nothing to top-up")
       })
     })
 
@@ -3325,7 +3317,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.connect(operator).topUpNu(operator.address)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -3344,7 +3336,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).topUpNu(operator.address)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -3362,9 +3354,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(operator).topUpNu(operator.address)
-        ).to.be.revertedWith(
-          "Amount in NuCypher contract is equal to or less than the stored amount"
-        )
+        ).to.be.revertedWith("Nothing to top-up")
       })
     })
 
@@ -3379,9 +3369,7 @@ describe("TokenStaking", () => {
         await nucypherStakingMock.setStaker(staker.address, amount)
         await expect(
           tokenStaking.connect(staker).topUpNu(operator.address)
-        ).to.be.revertedWith(
-          "Amount in NuCypher contract is equal to or less than the stored amount"
-        )
+        ).to.be.revertedWith("Nothing to top-up")
       })
     })
 
@@ -3626,7 +3614,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.unstakeT(deployer.address, 0)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -3645,7 +3633,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).unstakeT(operator.address, 0)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -3664,7 +3652,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(staker).unstakeT(operator.address, 0)
-        ).to.be.revertedWith("Can't unstake specified amount of tokens")
+        ).to.be.revertedWith("Too much to unstake")
       })
     })
 
@@ -3698,7 +3686,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .unstakeT(operator.address, amountToUnstake)
-        ).to.be.revertedWith("Can't unstake specified amount of tokens")
+        ).to.be.revertedWith("Too much to unstake")
       })
     })
 
@@ -3731,7 +3719,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .unstakeT(operator.address, amountToUnstake)
-        ).to.be.revertedWith("Can't unstake specified amount of tokens")
+        ).to.be.revertedWith("Too much to unstake")
       })
     })
 
@@ -3755,7 +3743,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .unstakeT(operator.address, amountToUnstake)
-        ).to.be.revertedWith("Unstaking is possible only after 24 hours")
+        ).to.be.revertedWith("Can't unstake earlier than 24h")
       })
     })
 
@@ -3986,7 +3974,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.unstakeKeep(deployer.address)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -4005,7 +3993,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).unstakeKeep(operator.address)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -4075,7 +4063,7 @@ describe("TokenStaking", () => {
 
         await expect(
           tokenStaking.connect(staker).unstakeKeep(operator.address)
-        ).to.be.revertedWith("At least one application prevents from unstaking")
+        ).to.be.revertedWith("Keep stake has still delegated")
       })
     })
 
@@ -4179,7 +4167,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.unstakeNu(deployer.address, 0)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -4194,7 +4182,7 @@ describe("TokenStaking", () => {
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
         await expect(
           tokenStaking.connect(authorizer).unstakeNu(operator.address, 0)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -4209,7 +4197,7 @@ describe("TokenStaking", () => {
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
         await expect(
           tokenStaking.connect(staker).unstakeNu(operator.address, 0)
-        ).to.be.revertedWith("Can't unstake specified amount of tokens")
+        ).to.be.revertedWith("Too much to unstake")
       })
     })
 
@@ -4244,7 +4232,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .unstakeNu(operator.address, amountToUnstake)
-        ).to.be.revertedWith("Can't unstake specified amount of tokens")
+        ).to.be.revertedWith("Too much to unstake")
       })
     })
 
@@ -4279,7 +4267,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(operator)
             .unstakeNu(operator.address, amountToUnstake)
-        ).to.be.revertedWith("Can't unstake specified amount of tokens")
+        ).to.be.revertedWith("Too much to unstake")
       })
     })
 
@@ -4436,7 +4424,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.unstakeAll(deployer.address)
-        ).to.be.revertedWith("Operator has no stake")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -4455,7 +4443,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(authorizer).unstakeAll(operator.address)
-        ).to.be.revertedWith("Only owner and operator can execute this method")
+        ).to.be.revertedWith("Not owner or operator")
       })
     })
 
@@ -4485,7 +4473,7 @@ describe("TokenStaking", () => {
 
         await expect(
           tokenStaking.connect(operator).unstakeAll(operator.address)
-        ).to.be.revertedWith("At least one application is still authorized")
+        ).to.be.revertedWith("Stake has still delegated")
       })
     })
 
@@ -4506,7 +4494,7 @@ describe("TokenStaking", () => {
 
         await expect(
           tokenStaking.connect(staker).unstakeAll(operator.address)
-        ).to.be.revertedWith("Unstaking is possible only after 24 hours")
+        ).to.be.revertedWith("Can't unstake earlier than 24h")
       })
     })
 
@@ -5410,7 +5398,7 @@ describe("TokenStaking", () => {
               brokenApplicationMock.approveAuthorizationDecrease(
                 operator.address
               )
-            ).to.be.revertedWith("There is no deauthorizing in process")
+            ).to.be.revertedWith("No deauthorizing in process")
           })
 
           it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
@@ -5883,7 +5871,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.slash(0, [operator.address])
-        ).to.be.revertedWith("Specify amount and operators to slash")
+        ).to.be.revertedWith("Specify amount and operators")
       })
     })
 
@@ -5891,7 +5879,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.slash(initialStakerBalance, [])
-        ).to.be.revertedWith("Specify amount and operators to slash")
+        ).to.be.revertedWith("Specify amount and operators")
       })
     })
 
@@ -5927,9 +5915,7 @@ describe("TokenStaking", () => {
           .approveApplication(application1Mock.address)
         await expect(
           application1Mock.slash(initialStakerBalance, [operator.address])
-        ).to.be.revertedWith(
-          "Operator didn't authorize sufficient amount to application"
-        )
+        ).to.be.revertedWith("Amount exceeds authorized")
       })
     })
 
@@ -5977,9 +5963,7 @@ describe("TokenStaking", () => {
             operator.address,
             otherStaker.address,
           ])
-        ).to.be.revertedWith(
-          "Operator didn't authorize sufficient amount to application"
-        )
+        ).to.be.revertedWith("Amount exceeds authorized")
       })
     })
 

@@ -153,7 +153,7 @@ contract TokenStaking is Ownable, IStaking {
     modifier onlyPanicButtonOf(address application) {
         require(
             applicationInfo[application].panicButton == msg.sender,
-            "Caller is not the address of panic button"
+            "Caller is not the panic button"
         );
         _;
     }
@@ -168,14 +168,12 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     modifier onlyOwnerOrOperator(address operator) {
-        require(
-            operators[operator].owner != address(0),
-            "Operator has no stake"
-        );
         //slither-disable-next-line incorrect-equality
         require(
-            operator == msg.sender || operators[operator].owner == msg.sender,
-            "Only owner and operator can execute this method"
+            operators[operator].owner != address(0) &&
+                (operator == msg.sender ||
+                    operators[operator].owner == msg.sender),
+            "Not owner or operator"
         );
         _;
     }
@@ -232,9 +230,12 @@ contract TokenStaking is Ownable, IStaking {
         address _authorizer,
         uint96 _amount
     ) external override {
-        require(_operator != address(0), "Operator must be specified");
-        require(_beneficiary != address(0), "Beneficiary must be specified");
-        require(_authorizer != address(0), "Authorizer must be specified");
+        require(
+            _operator != address(0) &&
+                _beneficiary != address(0) &&
+                _authorizer != address(0),
+            "Roles must be specified"
+        );
         OperatorInfo storage operator = operators[_operator];
         (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
             _operator
@@ -243,10 +244,7 @@ contract TokenStaking is Ownable, IStaking {
             createdAt == 0 && operator.owner == address(0),
             "Operator is already in use"
         );
-        require(
-            _amount > minTStakeAmount,
-            "Amount to stake must be greater than minimum"
-        );
+        require(_amount > minTStakeAmount, "Amount is less than minimum");
         operator.owner = msg.sender;
         operator.authorizer = _authorizer;
         operator.beneficiary = _beneficiary;
@@ -273,10 +271,7 @@ contract TokenStaking is Ownable, IStaking {
         require(_operator != address(0), "Operator must be specified");
         OperatorInfo storage operator = operators[_operator];
 
-        require(
-            operator.owner == address(0),
-            "Can't stake KEEP for this operator"
-        );
+        require(operator.owner == address(0), "Operator is already in use");
 
         uint96 tAmount = getKeepAmountInT(_operator);
 
@@ -302,9 +297,12 @@ contract TokenStaking is Ownable, IStaking {
         address payable _beneficiary,
         address _authorizer
     ) external override {
-        require(_operator != address(0), "Operator must be specified");
-        require(_beneficiary != address(0), "Beneficiary must be specified");
-        require(_authorizer != address(0), "Authorizer must be specified");
+        require(
+            _operator != address(0) &&
+                _beneficiary != address(0) &&
+                _authorizer != address(0),
+            "Roles must be specified"
+        );
         OperatorInfo storage operator = operators[_operator];
         (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
             _operator
@@ -341,10 +339,7 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(_operator)
     {
         (address managedGrantee, bool isManagedGrant) = getKeepOwner(_operator);
-        require(
-            isManagedGrant,
-            "Refreshing is possible only for managed grant"
-        );
+        require(isManagedGrant, "Owner is not ManagedGrant");
 
         OperatorInfo storage operator = operators[_operator];
         require(
@@ -385,7 +380,7 @@ contract TokenStaking is Ownable, IStaking {
         ApplicationInfo storage info = applicationInfo[application];
         require(
             !info.approved || info.disabled,
-            "Application has already been approved"
+            "Application already approved"
         );
         info.approved = true;
         info.disabled = false;
@@ -427,7 +422,7 @@ contract TokenStaking is Ownable, IStaking {
                 authorizationCeiling == 0 ||
                     operator.authorizedApplications.length <
                     authorizationCeiling,
-                "Can't authorize more applications"
+                "Too many applications"
             );
             operator.authorizedApplications.push(_application);
         }
@@ -498,10 +493,7 @@ contract TokenStaking is Ownable, IStaking {
         AppAuthorization storage authorization = operator.authorizations[
             msg.sender
         ];
-        require(
-            authorization.deauthorizing > 0,
-            "There is no deauthorizing in process"
-        );
+        require(authorization.deauthorizing > 0, "No deauthorizing in process");
 
         emit AuthorizationDecreaseApproved(
             _operator,
@@ -536,7 +528,7 @@ contract TokenStaking is Ownable, IStaking {
         onlyPanicButtonOf(_application)
     {
         ApplicationInfo storage application = applicationInfo[_application];
-        require(!application.disabled, "Application has already been disabled");
+        require(!application.disabled, "Application already disabled");
         application.disabled = true;
         emit ApplicationDisabled(_application);
     }
@@ -583,7 +575,7 @@ contract TokenStaking is Ownable, IStaking {
         override
         onlyOwnerOrOperator(_operator)
     {
-        require(_amount > 0, "Amount to top-up must be greater than 0");
+        require(_amount > 0, "Amount must be greater than 0");
         OperatorInfo storage operator = operators[_operator];
         operator.tStake += _amount;
         emit ToppedUp(_operator, _amount);
@@ -600,10 +592,7 @@ contract TokenStaking is Ownable, IStaking {
     {
         OperatorInfo storage operator = operators[_operator];
         uint96 tAmount = getKeepAmountInT(_operator);
-        require(
-            tAmount > operator.keepInTStake,
-            "Amount in Keep contract is equal to or less than the stored amount"
-        );
+        require(tAmount > operator.keepInTStake, "Nothing to top-up");
 
         emit ToppedUp(_operator, tAmount - operator.keepInTStake);
         operator.keepInTStake = tAmount;
@@ -623,10 +612,7 @@ contract TokenStaking is Ownable, IStaking {
             _operator
         );
         (uint96 tAmount, ) = nuToT(nuStakeAmount);
-        require(
-            tAmount > operator.nuInTStake,
-            "Amount in NuCypher contract is equal to or less than the stored amount"
-        );
+        require(tAmount > operator.nuInTStake, "Nothing to top-up");
 
         emit ToppedUp(_operator, tAmount - operator.nuInTStake);
         operator.nuInTStake = tAmount;
@@ -654,7 +640,7 @@ contract TokenStaking is Ownable, IStaking {
             _amount > 0 &&
                 _amount + getMinStaked(_operator, StakingProvider.T) <=
                 operator.tStake,
-            "Can't unstake specified amount of tokens"
+            "Too much to unstake"
         );
         operator.tStake -= _amount;
         require(
@@ -662,7 +648,7 @@ contract TokenStaking is Ownable, IStaking {
                 operator.startTStakingTimestamp + MIN_STAKE_TIME <=
                 /* solhint-disable-next-line not-rely-on-time */
                 block.timestamp,
-            "Unstaking is possible only after 24 hours"
+            "Can't unstake earlier than 24h"
         );
         emit Unstaked(_operator, _amount);
         token.safeTransfer(operator.owner, _amount);
@@ -684,7 +670,7 @@ contract TokenStaking is Ownable, IStaking {
         require(operator.keepInTStake != 0, "Nothing to unstake");
         require(
             getMinStaked(_operator, StakingProvider.KEEP) == 0,
-            "At least one application prevents from unstaking"
+            "Keep stake has still delegated"
         );
         emit Unstaked(_operator, operator.keepInTStake);
         operator.keepInTStake = 0;
@@ -712,7 +698,7 @@ contract TokenStaking is Ownable, IStaking {
             _amount > 0 &&
                 _amount + getMinStaked(_operator, StakingProvider.NU) <=
                 operator.nuInTStake,
-            "Can't unstake specified amount of tokens"
+            "Too much to unstake"
         );
         operator.nuInTStake -= _amount;
 
@@ -731,7 +717,7 @@ contract TokenStaking is Ownable, IStaking {
         OperatorInfo storage operator = operators[_operator];
         require(
             operator.authorizedApplications.length == 0,
-            "At least one application is still authorized"
+            "Stake has still delegated"
         );
         require(
             operator.tStake == 0 ||
@@ -739,7 +725,7 @@ contract TokenStaking is Ownable, IStaking {
                 operator.startTStakingTimestamp + MIN_STAKE_TIME <=
                 /* solhint-disable-next-line not-rely-on-time */
                 block.timestamp,
-            "Unstaking is possible only after 24 hours"
+            "Can't unstake earlier than 24h"
         );
 
         emit Unstaked(
@@ -1030,16 +1016,13 @@ contract TokenStaking is Ownable, IStaking {
         ApplicationInfo storage application = applicationInfo[_application];
         require(!application.disabled, "Application is disabled");
 
-        require(
-            _amount > 0,
-            "Amount to decrease authorization must greater than 0"
-        );
+        require(_amount > 0, "Amount must be greater than 0");
 
         AppAuthorization storage authorization = operators[_operator]
             .authorizations[_application];
         require(
             authorization.authorized >= _amount,
-            "Amount to decrease authorization must be less than authorized"
+            "Amount exceeds authorized"
         );
 
         authorization.deauthorizing = _amount;
@@ -1110,7 +1093,7 @@ contract TokenStaking is Ownable, IStaking {
     ) internal {
         require(
             _amount > 0 && _operators.length > 0,
-            "Specify amount and operators to slash"
+            "Specify amount and operators"
         );
 
         ApplicationInfo storage application = applicationInfo[msg.sender];
@@ -1122,7 +1105,7 @@ contract TokenStaking is Ownable, IStaking {
             require(
                 operators[operator].authorizations[msg.sender].authorized >=
                     _amount,
-                "Operator didn't authorize sufficient amount to application"
+                "Amount exceeds authorized"
             );
             slashingQueue.push(SlashingEvent(operator, _amount));
         }
