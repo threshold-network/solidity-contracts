@@ -19,7 +19,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     throw new Error("deployed KeepToken contract not found")
   } else {
     // For deployments on hardhat network we don't have the KeepToken deployed,
-    // so wee're deloying a stub contact and minting the KEEP in the amount
+    // so we're deploying a stub contact and minting the KEEP in the amount
     // close to the KEEP supply on the production environment (~1B KEEP).
     log(`deploying KeepToken stub`)
 

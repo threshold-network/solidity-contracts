@@ -12,8 +12,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // There will be 10B T minted on the production environment. The 45% of this
   // amount will go to the KEEP holders, 45% will go to NU holders and 10% will
   // be sent to the DAO treasury. In this script we're simulating the part
-  // related to distribution of T to the Vendingachine for KEEP holders.
-  // In the future we'll also have a separate instance of the VendiingMachine
+  // related to distribution of T to the VendingMachine for KEEP holders.
+  // In the future we'll also have a separate instance of the VendingMachine
   // (for NU holders), to which we'll send the other 45% of T (4.5B T).
   await execute(
     "T",
