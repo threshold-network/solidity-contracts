@@ -2,6 +2,7 @@ const { expect } = require("chai")
 const {
   ZERO_ADDRESS,
   lastBlockTime,
+  mineBlock,
   to1e18,
   to1ePrecision,
 } = require("../helpers/contract-test-helpers")
@@ -65,6 +66,7 @@ describe("TokenStaking", () => {
   let operator
   let authorizer
   let beneficiary
+  let delegatee
 
   let otherStaker
   let auxiliaryAccount
@@ -79,6 +81,7 @@ describe("TokenStaking", () => {
       beneficiary,
       otherStaker,
       auxiliaryAccount,
+      delegatee,
     ] = await ethers.getSigners()
 
     const T = await ethers.getContractFactory("T")
@@ -372,6 +375,47 @@ describe("TokenStaking", () => {
             amount
           )
       })
+
+      it("should create a new checkpoint for staked total supply", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          amount
+        )
+      })
+      it("shouldn't create a new checkpoint for any stake role", async () => {
+        expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+      })
+
+      context("after vote delegation", () => {
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(staker)
+            .delegateVoting(operator.address, delegatee.address)
+        })
+
+        it("checkpoint for staked total supply should remain constant", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            amount
+          )
+        })
+
+        it("should create a new checkpoint for staker's delegatee", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            amount
+          )
+        })
+
+        it("shouldn't create a new checkpoint for any stake role", async () => {
+          expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+        })
+      })
     })
   })
 
@@ -503,6 +547,43 @@ describe("TokenStaking", () => {
               authorizer.address,
               tAmount
             )
+        })
+
+        it("should create a new checkpoint for staked total supply", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            tAmount
+          )
+        })
+        it("shouldn't create a new checkpoint for stake owner", async () => {
+          expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+        })
+
+        context("after vote delegation", () => {
+          beforeEach(async () => {
+            tx = await tokenStaking
+              .connect(staker)
+              .delegateVoting(operator.address, delegatee.address)
+          })
+
+          it("should create a new checkpoint for staker's delegatee", async () => {
+            expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+              tAmount
+            )
+          })
+
+          it("checkpoint for staked total supply should remain constant", async () => {
+            const lastBlock = await mineBlock()
+            expect(
+              await tokenStaking.getPastTotalSupply(lastBlock - 1)
+            ).to.equal(tAmount)
+          })
+
+          it("shouldn't create new checkpoint for any staker role", async () => {
+            expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+            expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+            expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+          })
         })
       })
     })
@@ -660,6 +741,43 @@ describe("TokenStaking", () => {
             authorizer.address,
             tAmount
           )
+      })
+
+      it("should create a new checkpoint for staked total supply", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          tAmount
+        )
+      })
+      it("shouldn't create a new checkpoint for stake owner", async () => {
+        expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+      })
+
+      context("after vote delegation", () => {
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(staker)
+            .delegateVoting(operator.address, delegatee.address)
+        })
+
+        it("should create a new checkpoint for staker's delegatee", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            tAmount
+          )
+        })
+
+        it("checkpoint for staked total supply should remain constant", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            tAmount
+          )
+        })
+
+        it("shouldn't create new checkpoint for any staker role", async () => {
+          expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+        })
       })
     })
   })
