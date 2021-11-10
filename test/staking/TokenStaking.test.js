@@ -141,21 +141,12 @@ describe("TokenStaking", () => {
 
   describe("setup", () => {
     context("once deployed", () => {
-      it("should set contracts addresses correctly", async () => {
-        expect(await tokenStaking.token()).to.equal(tToken.address)
-        expect(await tokenStaking.keepStakingContract()).to.equal(
-          keepStakingMock.address
+      it("should give acces to constans", async () => {
+        expect(await tokenStaking.SLASHING_REWARD_PERCENT()).to.equal(5)
+        expect(await tokenStaking.MIN_STAKE_TIME()).to.equal(24 * 60 * 60)
+        expect(await tokenStaking.GAS_LIMIT_AUTHORIZATION_DECREASE()).to.equal(
+          250000
         )
-        expect(await tokenStaking.nucypherStakingContract()).to.equal(
-          nucypherStakingMock.address
-        )
-      })
-      it("should set conversion ratios correctly", async () => {
-        expect(await tokenStaking.keepFloatingPointDivisor()).to.equal(
-          floatingPointDivisor
-        )
-        expect(await tokenStaking.keepRatio()).to.equal(keepRatio)
-        expect(await tokenStaking.nucypherRatio()).to.equal(nuRatio)
       })
     })
   })
@@ -342,15 +333,11 @@ describe("TokenStaking", () => {
       })
 
       it("should set roles equal to the provided values", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           amount,
           zeroBigNumber,
@@ -449,15 +436,11 @@ describe("TokenStaking", () => {
         })
 
         it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            staker.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
           expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
             zeroBigNumber,
             zeroBigNumber,
@@ -517,15 +500,11 @@ describe("TokenStaking", () => {
         })
 
         it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            staker.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
           expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
             zeroBigNumber,
             tAmount,
@@ -622,15 +601,11 @@ describe("TokenStaking", () => {
         })
 
         it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            staker.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
         })
 
         it("should emit KeepStaked and OperatorStaked events", async () => {
@@ -661,15 +636,11 @@ describe("TokenStaking", () => {
         })
 
         it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            otherStaker.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            otherStaker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
         })
 
         it("should emit KeepStaked and OperatorStaked events", async () => {
@@ -700,15 +671,11 @@ describe("TokenStaking", () => {
         })
 
         it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            tToken.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            tToken.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
         })
 
         it("should emit KeepStaked and OperatorStaked events", async () => {
@@ -729,37 +696,33 @@ describe("TokenStaking", () => {
 
       context("when grantee is uninitialized ManagedGrant contract", () => {
         beforeEach(async () => {
-          const KeepManagerGrantMock = await ethers.getContractFactory(
+          const KeepManagedGrantMock = await ethers.getContractFactory(
             "KeepManagedGrantMock"
           )
-          keepManagerGrantMock = await KeepManagerGrantMock.deploy()
-          await keepManagerGrantMock.deployed()
+          keepManagedGrantMock = await KeepManagedGrantMock.deploy()
+          await keepManagedGrantMock.deployed()
 
           await keepTokenGrantMock.setGrantStake(
             operator.address,
             grantId,
             keepStakingMock.address,
-            keepManagerGrantMock.address
+            keepManagedGrantMock.address
           )
           tx = await tokenStaking.stakeKeep(operator.address)
         })
 
         it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            keepManagerGrantMock.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            keepManagedGrantMock.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
         })
 
         it("should emit KeepStaked and OperatorStaked events", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(keepManagerGrantMock.address, operator.address)
+            .withArgs(keepManagedGrantMock.address, operator.address)
 
           await expect(tx)
             .to.emit(tokenStaking, "OperatorStaked")
@@ -774,32 +737,28 @@ describe("TokenStaking", () => {
 
       context("when grantee is initialized ManagedGrant contract", () => {
         beforeEach(async () => {
-          const KeepManagerGrantMock = await ethers.getContractFactory(
+          const KeepManagedGrantMock = await ethers.getContractFactory(
             "KeepManagedGrantMock"
           )
-          keepManagerGrantMock = await KeepManagerGrantMock.deploy()
-          await keepManagerGrantMock.deployed()
-          await keepManagerGrantMock.setGrantee(otherStaker.address)
+          keepManagedGrantMock = await KeepManagedGrantMock.deploy()
+          await keepManagedGrantMock.deployed()
+          await keepManagedGrantMock.setGrantee(otherStaker.address)
 
           await keepTokenGrantMock.setGrantStake(
             operator.address,
             grantId,
             keepStakingMock.address,
-            keepManagerGrantMock.address
+            keepManagedGrantMock.address
           )
           tx = await tokenStaking.stakeKeep(operator.address)
         })
 
         it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            otherStaker.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            otherStaker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
         })
 
         it("should emit KeepStaked and OperatorStaked events", async () => {
@@ -928,15 +887,11 @@ describe("TokenStaking", () => {
       })
 
       it("should set roles equal to the provided values", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
@@ -1154,17 +1109,17 @@ describe("TokenStaking", () => {
           true
         )
 
-        const KeepManagerGrantMock = await ethers.getContractFactory(
+        const KeepManagedGrantMock = await ethers.getContractFactory(
           "KeepManagedGrantMock"
         )
-        keepManagerGrantMock = await KeepManagerGrantMock.deploy()
-        await keepManagerGrantMock.deployed()
+        keepManagedGrantMock = await KeepManagedGrantMock.deploy()
+        await keepManagedGrantMock.deployed()
         const grantId = 1
         await keepTokenGrantMock.setGrantStake(
           operator.address,
           grantId,
           keepStakingMock.address,
-          keepManagerGrantMock.address
+          keepManagedGrantMock.address
         )
 
         await tokenStaking.stakeKeep(operator.address)
@@ -1195,20 +1150,20 @@ describe("TokenStaking", () => {
           true
         )
 
-        const KeepManagerGrantMock = await ethers.getContractFactory(
+        const KeepManagedGrantMock = await ethers.getContractFactory(
           "KeepManagedGrantMock"
         )
-        keepManagerGrantMock = await KeepManagerGrantMock.deploy()
-        await keepManagerGrantMock.deployed()
+        keepManagedGrantMock = await KeepManagedGrantMock.deploy()
+        await keepManagedGrantMock.deployed()
         const grantId = 1
         await keepTokenGrantMock.setGrantStake(
           operator.address,
           grantId,
           keepStakingMock.address,
-          keepManagerGrantMock.address
+          keepManagedGrantMock.address
         )
 
-        await keepManagerGrantMock.setGrantee(otherStaker.address)
+        await keepManagedGrantMock.setGrantee(otherStaker.address)
         await tokenStaking.stakeKeep(operator.address)
 
         await expect(
@@ -1239,32 +1194,34 @@ describe("TokenStaking", () => {
           true
         )
 
-        const KeepManagerGrantMock = await ethers.getContractFactory(
+        const KeepManagedGrantMock = await ethers.getContractFactory(
           "KeepManagedGrantMock"
         )
-        keepManagerGrantMock = await KeepManagerGrantMock.deploy()
-        await keepManagerGrantMock.deployed()
+        keepManagedGrantMock = await KeepManagedGrantMock.deploy()
+        await keepManagedGrantMock.deployed()
         const grantId = 1
         await keepTokenGrantMock.setGrantStake(
           operator.address,
           grantId,
           keepStakingMock.address,
-          keepManagerGrantMock.address
+          keepManagedGrantMock.address
         )
 
-        await keepManagerGrantMock.setGrantee(otherStaker.address)
+        await keepManagedGrantMock.setGrantee(otherStaker.address)
         await tokenStaking.stakeKeep(operator.address)
 
-        await keepManagerGrantMock.setGrantee(staker.address)
+        await keepManagedGrantMock.setGrantee(staker.address)
         tx = await tokenStaking
           .connect(otherStaker)
           .refreshKeepManagedGrantOwner(operator.address)
       })
 
       it("should update owner", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
       })
 
       it("should emit GrantOwnerRefreshed", async () => {
@@ -2717,15 +2674,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          staker.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           expectedAmount,
           zeroBigNumber,
@@ -2843,15 +2796,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           topUpAmount,
           keepInTAmount,
@@ -2906,15 +2855,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          staker.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           topUpAmount,
           zeroBigNumber,
@@ -3081,15 +3026,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           newKeepInTAmount,
@@ -3209,15 +3150,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          staker.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           keepInTAmount,
@@ -3276,15 +3213,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          staker.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           keepInTAmount,
@@ -3390,15 +3323,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          staker.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
@@ -3495,15 +3424,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          staker.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
@@ -3570,15 +3495,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           keepInTAmount,
@@ -3790,15 +3711,11 @@ describe("TokenStaking", () => {
         })
 
         it("should update T staked amount", async () => {
-          expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-            staker.address
-          )
-          expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-            beneficiary.address
-          )
-          expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-            authorizer.address
-          )
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
           expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
             minAmount,
             zeroBigNumber,
@@ -3883,15 +3800,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
@@ -3937,15 +3850,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
@@ -4111,15 +4020,11 @@ describe("TokenStaking", () => {
       })
 
       it("should set Keep staked amount to zero", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
@@ -4310,15 +4215,11 @@ describe("TokenStaking", () => {
       })
 
       it("should ypdate Nu staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
@@ -4515,15 +4416,11 @@ describe("TokenStaking", () => {
       })
 
       it("should update staked amount", async () => {
-        expect(await tokenStaking.ownerOf(operator.address)).to.equal(
-          staker.address
-        )
-        expect(await tokenStaking.beneficiaryOf(operator.address)).to.equal(
-          beneficiary.address
-        )
-        expect(await tokenStaking.authorizerOf(operator.address)).to.equal(
-          authorizer.address
-        )
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,

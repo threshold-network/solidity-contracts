@@ -64,15 +64,15 @@ contract TokenStaking is Ownable, IStaking {
     uint256 public constant MIN_STAKE_TIME = 24 hours;
     uint256 public constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
 
-    T public immutable token;
-    IKeepTokenStaking public immutable keepStakingContract;
-    IKeepTokenGrant public immutable keepTokenGrant;
-    INuCypherStakingEscrow public immutable nucypherStakingContract;
+    T internal immutable token;
+    IKeepTokenStaking internal immutable keepStakingContract;
+    IKeepTokenGrant internal immutable keepTokenGrant;
+    INuCypherStakingEscrow internal immutable nucypherStakingContract;
 
-    uint256 public immutable keepFloatingPointDivisor;
-    uint256 public immutable keepRatio;
-    uint256 public immutable nucypherFloatingPointDivisor;
-    uint256 public immutable nucypherRatio;
+    uint256 internal immutable keepFloatingPointDivisor;
+    uint256 internal immutable keepRatio;
+    uint256 internal immutable nucypherFloatingPointDivisor;
+    uint256 internal immutable nucypherRatio;
 
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
@@ -82,7 +82,7 @@ contract TokenStaking is Ownable, IStaking {
     uint256 public notifiersTreasury;
     uint256 public notificationReward;
 
-    mapping(address => OperatorInfo) public operators;
+    mapping(address => OperatorInfo) internal operators;
     mapping(address => ApplicationInfo) public applicationInfo;
     address[] public applications;
 
@@ -955,26 +955,24 @@ contract TokenStaking is Ownable, IStaking {
         (nuAmount, ) = tToNu(operators[operator].nuInTStake);
     }
 
-    /// @notice Gets the stake owner for the specified operator address.
-    /// @return Stake owner address.
-    function ownerOf(address operator) external view returns (address) {
-        return operators[operator].owner;
-    }
-
-    /// @notice Gets the beneficiary for the specified operator address.
-    /// @return Beneficiary address.
-    function beneficiaryOf(address operator)
+    /// @notice Gets the stake owner, the beneficiary and the authorizer
+    ///         for the specified operator address.
+    /// @return owner Stake owner address.
+    /// @return beneficiary Beneficiary address.
+    /// @return authorizer Authorizer address.
+    function rolesOf(address _operator)
         external
         view
-        returns (address payable)
+        returns (
+            address owner,
+            address payable beneficiary,
+            address authorizer
+        )
     {
-        return operators[operator].beneficiary;
-    }
-
-    /// @notice Gets the authorizer for the specified operator address.
-    /// @return Authorizer address.
-    function authorizerOf(address operator) external view returns (address) {
-        return operators[operator].authorizer;
+        OperatorInfo storage operator = operators[_operator];
+        owner = operator.owner;
+        beneficiary = operator.beneficiary;
+        authorizer = operator.authorizer;
     }
 
     /// @notice Checks if the specified operator has a stake delegated and if it
