@@ -113,12 +113,13 @@ interface IStaking {
     ///         decrease the authorization for that operator.
     function approveAuthorizationDecrease(address operator) external;
 
-    /// @notice Disables the given application’s eligibility to slash stakes.
+    /// @notice Pauses the given application’s eligibility to slash stakes.
+    ///         Besides that stakers can't change authorization to the application.
     ///         Can be called only by the Panic Button of the particular
-    ///         application. The disabled application can not slash stakes until
+    ///         application. The paused application can not slash stakes until
     ///         it is approved again by the Governance using `approveApplication`
     ///         function. Should be used only in case of an emergency.
-    function disableApplication(address application) external;
+    function pauseApplication(address application) external;
 
     /// @notice Sets the Panic Button role for the given application to the
     ///         provided address. Can only be called by the Governance. If the

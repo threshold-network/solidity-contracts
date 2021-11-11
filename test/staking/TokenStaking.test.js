@@ -878,7 +878,7 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when approving disabled application", () => {
+    context("when approving paused application", () => {
       let tx
 
       beforeEach(async () => {
@@ -890,7 +890,7 @@ describe("TokenStaking", () => {
           .setPanicButton(application1Mock.address, panicButton.address)
         await tokenStaking
           .connect(panicButton)
-          .disableApplication(application1Mock.address)
+          .pauseApplication(application1Mock.address)
         tx = await tokenStaking
           .connect(deployer)
           .approveApplication(application1Mock.address)
@@ -969,14 +969,14 @@ describe("TokenStaking", () => {
             .approveApplication(application1Mock.address)
         })
 
-        context("when application was disabled", () => {
+        context("when application was paused", () => {
           it("should revert", async () => {
             await tokenStaking
               .connect(deployer)
               .setPanicButton(application1Mock.address, panicButton.address)
             await tokenStaking
               .connect(panicButton)
-              .disableApplication(application1Mock.address)
+              .pauseApplication(application1Mock.address)
             await expect(
               tokenStaking
                 .connect(authorizer)
@@ -985,7 +985,7 @@ describe("TokenStaking", () => {
                   application1Mock.address,
                   amount
                 )
-            ).to.be.revertedWith("Application is disabled")
+            ).to.be.revertedWith("Application is paused")
           })
         })
 
@@ -1506,7 +1506,7 @@ describe("TokenStaking", () => {
           )
       })
 
-      context("when application was disabled", () => {
+      context("when application was paused", () => {
         it("should revert", async () => {
           const amount = initialStakerBalance
           await tokenStaking
@@ -1514,7 +1514,7 @@ describe("TokenStaking", () => {
             .setPanicButton(application1Mock.address, panicButton.address)
           await tokenStaking
             .connect(panicButton)
-            .disableApplication(application1Mock.address)
+            .pauseApplication(application1Mock.address)
           await expect(
             tokenStaking
               .connect(authorizer)
@@ -1523,7 +1523,7 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 amount
               )
-          ).to.be.revertedWith("Application is disabled")
+          ).to.be.revertedWith("Application is paused")
         })
       })
 
@@ -1795,17 +1795,17 @@ describe("TokenStaking", () => {
         )
     })
 
-    context("when application was disabled", () => {
+    context("when application was paused", () => {
       it("should revert", async () => {
         await tokenStaking
           .connect(deployer)
           .setPanicButton(application1Mock.address, panicButton.address)
         await tokenStaking
           .connect(panicButton)
-          .disableApplication(application1Mock.address)
+          .pauseApplication(application1Mock.address)
         await expect(
           application1Mock.approveAuthorizationDecrease(operator.address)
-        ).to.be.revertedWith("Application is disabled")
+        ).to.be.revertedWith("Application is paused")
       })
     })
 
@@ -2006,7 +2006,7 @@ describe("TokenStaking", () => {
     )
   })
 
-  describe("disableApplication", () => {
+  describe("pauseApplication", () => {
     beforeEach(async () => {
       await tokenStaking
         .connect(deployer)
@@ -2021,34 +2021,34 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(deployer)
-            .disableApplication(application1Mock.address)
+            .pauseApplication(application1Mock.address)
         ).to.be.revertedWith("Caller is not the panic button")
       })
     })
 
-    context("when application was disabled", () => {
+    context("when application was paused", () => {
       it("should revert", async () => {
         await tokenStaking
           .connect(panicButton)
-          .disableApplication(application1Mock.address)
+          .pauseApplication(application1Mock.address)
         await expect(
           tokenStaking
             .connect(panicButton)
-            .disableApplication(application1Mock.address)
-        ).to.be.revertedWith("Application already disabled")
+            .pauseApplication(application1Mock.address)
+        ).to.be.revertedWith("Application already paused")
       })
     })
 
-    context("when disable active application", () => {
+    context("when pause active application", () => {
       let tx
 
       beforeEach(async () => {
         tx = await tokenStaking
           .connect(panicButton)
-          .disableApplication(application1Mock.address)
+          .pauseApplication(application1Mock.address)
       })
 
-      it("should disable application", async () => {
+      it("should pause application", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
         ).to.deep.equal([true, true, panicButton.address])
@@ -2061,9 +2061,9 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should emit ApplicationDisabled", async () => {
+      it("should emit ApplicationPaused", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ApplicationDisabled")
+          .to.emit(tokenStaking, "ApplicationPaused")
           .withArgs(application1Mock.address)
       })
     })
@@ -5290,7 +5290,7 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when application was disabled", () => {
+    context("when application was paused", () => {
       it("should revert", async () => {
         await tokenStaking
           .connect(deployer)
@@ -5300,10 +5300,10 @@ describe("TokenStaking", () => {
           .setPanicButton(application1Mock.address, panicButton.address)
         await tokenStaking
           .connect(panicButton)
-          .disableApplication(application1Mock.address)
+          .pauseApplication(application1Mock.address)
         await expect(
           application1Mock.slash(initialStakerBalance, [operator.address])
-        ).to.be.revertedWith("Application is disabled")
+        ).to.be.revertedWith("Application is paused")
       })
     })
 

@@ -349,12 +349,13 @@ Called by the application at its discretion to approve the previously requested
 authorization decrease request. Can only be called by the application that
 was previously requested to decrease the authorization for that operator.
 
-==== `disableApplication(address application) external onlyPanicButtonOf(application)`
+==== `pauseApplication(address application) external onlyPanicButtonOf(application)`
 
-Disables the given application's eligibility to slash stakes. Can be called only
-by a panic button of the particular application. The disabled application can not
-slash stakes until it is approved again by the governance using `approveApplication`
-function. Should be used only in case of an emergency.
+Pauses the given application's eligibility to slash stakes. Besides that stakers can't
+change authorization to the application.Can be called only by a panic button of the 
+particular application. The paused application can not slash stakes until it is 
+approved again by the governance using `approveApplication` function. Should be 
+used only in case of an emergency.
 
 ==== `setPanicButton(address application, address panicButton) external onlyGovernance`
 
