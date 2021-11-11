@@ -1169,9 +1169,8 @@ contract TokenStaking is Ownable, IStaking {
         for (uint256 i = 0; i < _operators.length; i++) {
             address operator = _operators[i];
             require(
-                operators[operator].authorizations[msg.sender].authorized >=
-                    amount,
-                "Amount exceeds authorized"
+                operators[operator].authorizations[msg.sender].authorized > 0,
+                "Application is not authorized"
             );
             slashingQueue.push(SlashingEvent(operator, amount));
         }

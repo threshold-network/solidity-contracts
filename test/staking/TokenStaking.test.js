@@ -5314,14 +5314,15 @@ describe("TokenStaking", () => {
           .approveApplication(application1Mock.address)
         await expect(
           application1Mock.slash(initialStakerBalance, [operator.address])
-        ).to.be.revertedWith("Amount exceeds authorized")
+        ).to.be.revertedWith("Application is not authorized")
       })
     })
 
     context("when authorized amount is less than amount to slash", () => {
-      it("should revert", async () => {
-        const amount = initialStakerBalance
-        const amountToSlash = convertToT(initialStakerBalance, nuRatio).result // amountToSlash > amount
+      const amount = initialStakerBalance
+      const amountToSlash = convertToT(initialStakerBalance, nuRatio).result // amountToSlash > amount
+
+      beforeEach(async () => {
         await tokenStaking
           .connect(deployer)
           .approveApplication(application1Mock.address)
@@ -5357,12 +5358,22 @@ describe("TokenStaking", () => {
             amountToSlash
           )
 
-        await expect(
-          application1Mock.slash(amountToSlash, [
-            operator.address,
-            otherStaker.address,
-          ])
-        ).to.be.revertedWith("Amount exceeds authorized")
+        await application1Mock.slash(amountToSlash, [
+          operator.address,
+          otherStaker.address,
+        ])
+      })
+
+      it("should add two slashing events", async () => {
+        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
+          operator.address,
+          amountToSlash,
+        ])
+        expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
+          otherStaker.address,
+          amountToSlash,
+        ])
+        expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
     })
 
