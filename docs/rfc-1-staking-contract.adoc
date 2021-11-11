@@ -325,6 +325,24 @@ on the application. It does not change the authorized amount. Can only be called
 by the given operator's authorizer. Overwrites pending authorization decrease
 for the given operator and application.
 
+==== `requestAuthorizationDecrease(address operator, address application) external onlyAuthorizerOf(operator)`
+
+Requests decrease of the authorization for the given operator on the given 
+application by all authorized amount. Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+on the given application. It may not change the authorized amount immediatelly. When
+it happens depends on the application. Can only be called by the given operator’s 
+authorizer. Overwrites pending authorization decrease for the given operator and 
+application.
+
+==== `requestAuthorizationDecrease(address operator) external onlyAuthorizerOf(operator)`
+
+Requests decrease of the all authorizations for the given operator on the all 
+applications by all authorized amount. Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+for each authorized application. It may not change the authorized amount immediatelly. 
+When it happens depends on the application. Can only be called by the given operator’s 
+authorizer. Overwrites pending authorization decrease for the given operator and 
+application.
+
 ==== `approveAuthorizationDecrease(address operator) external onlyRequestedApplication`
 
 Called by the application at its discretion to approve the previously requested

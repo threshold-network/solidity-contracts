@@ -86,6 +86,27 @@ interface IStaking {
         uint96 amount
     ) external;
 
+    /// @notice Requests decrease of the authorization for the given operator on
+    ///         the given application by all authorized amount.
+    ///         It may not change the authorized amount immediatelly. When
+    ///         it happens depends on the application. Can only be called by the
+    ///         given operator’s authorizer. Overwrites pending authorization
+    ///         decrease for the given operator and application.
+    /// @dev Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+    ///      on the given application. See `IApplication`.
+    function requestAuthorizationDecrease(address operator, address application)
+        external;
+
+    /// @notice Requests decrease of the all authorizations for the given operator on
+    ///         the all applications by all authorized amount.
+    ///         It may not change the authorized amount immediatelly. When
+    ///         it happens depends on the application. Can only be called by the
+    ///         given operator’s authorizer. Overwrites pending authorization
+    ///         decrease for the given operator and application.
+    /// @dev Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+    ///      for each authorized application. See `IApplication`.
+    function requestAuthorizationDecrease(address operator) external;
+
     /// @notice Called by the application at its discretion to approve the
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
