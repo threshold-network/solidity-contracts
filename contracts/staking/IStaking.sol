@@ -263,10 +263,4 @@ interface IStaking {
         external
         view
         returns (uint96);
-
-    /// @notice Checks if the specified operator has a stake delegated and if it
-    ///         has been authorized for at least one application. If this
-    ///         function returns true, off-chain client of the given operator is
-    ///         eligible to join the network.
-    function hasStakeDelegated(address operator) external view returns (bool);
 }

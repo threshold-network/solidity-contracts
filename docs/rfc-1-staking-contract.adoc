@@ -478,12 +478,6 @@ each affected application.
 
 Returns the authorized stake amount of the operator for the application.
 
-==== `hasStakeDelegated(address operator) external view returns (bool)`
-
-Checks if the specified operator has a stake delegated and if it has been
-authorized for at least one application. If this function returns true,
-off-chain client of the given operator is eligible to join the network.
-
 === Application callbacks
 
 ==== `authorizationIncreased(address operator, uint96 amount)`

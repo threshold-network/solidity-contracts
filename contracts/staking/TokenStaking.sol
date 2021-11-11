@@ -1007,19 +1007,6 @@ contract TokenStaking is Ownable, IStaking {
         authorizer = operatorStruct.authorizer;
     }
 
-    /// @notice Checks if the specified operator has a stake delegated and if it
-    ///         has been authorized for at least one application. If this
-    ///         function returns true, off-chain client of the given operator is
-    ///         eligible to join the network.
-    function hasStakeDelegated(address operator)
-        external
-        view
-        override
-        returns (bool)
-    {
-        return operators[operator].authorizedApplications.length > 0;
-    }
-
     /// @notice Returns length of application array
     function getApplicationsLength() external view returns (uint256) {
         return applications.length;

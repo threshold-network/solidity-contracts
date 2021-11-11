@@ -345,9 +345,6 @@ describe("TokenStaking", () => {
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(blockTimestamp)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
-        expect(await tokenStaking.hasStakeDelegated(operator.address)).to.equal(
-          false
-        )
       })
 
       it("should transfer tokens to the staking contract", async () => {
@@ -472,9 +469,6 @@ describe("TokenStaking", () => {
             await tokenStaking.getStartTStakingTimestamp(operator.address)
           ).to.equal(0)
           expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
-          expect(
-            await tokenStaking.hasStakeDelegated(operator.address)
-          ).to.equal(false)
         })
 
         it("should increase available amount to authorize", async () => {
@@ -637,9 +631,6 @@ describe("TokenStaking", () => {
         ).to.equal(0)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           nuAmount.sub(conversion.remainder)
-        )
-        expect(await tokenStaking.hasStakeDelegated(operator.address)).to.equal(
-          false
         )
       })
 
@@ -1013,9 +1004,6 @@ describe("TokenStaking", () => {
                 application1Mock.address
               )
             ).to.equal(authorizedAmount)
-            expect(
-              await tokenStaking.hasStakeDelegated(operator.address)
-            ).to.equal(true)
           })
 
           it("should increase min staked amount in T", async () => {
@@ -1207,9 +1195,6 @@ describe("TokenStaking", () => {
                 application2Mock.address
               )
             ).to.equal(amount)
-            expect(
-              await tokenStaking.hasStakeDelegated(operator.address)
-            ).to.equal(true)
           })
         })
       })
@@ -1541,9 +1526,6 @@ describe("TokenStaking", () => {
               application1Mock.address
             )
           ).to.equal(amount)
-          expect(
-            await tokenStaking.hasStakeDelegated(operator.address)
-          ).to.equal(true)
         })
 
         it("should send request to application", async () => {
@@ -1638,9 +1620,6 @@ describe("TokenStaking", () => {
                 application2Mock.address
               )
             ).to.equal(amount)
-            expect(
-              await tokenStaking.hasStakeDelegated(operator.address)
-            ).to.equal(true)
           })
 
           it("should send request to application", async () => {
@@ -1703,9 +1682,6 @@ describe("TokenStaking", () => {
               application1Mock.address
             )
           ).to.equal(amount)
-          expect(
-            await tokenStaking.hasStakeDelegated(operator.address)
-          ).to.equal(true)
         })
 
         it("should send request to application with last amount", async () => {
@@ -1828,9 +1804,6 @@ describe("TokenStaking", () => {
             application1Mock.address
           )
         ).to.equal(expectedAmount)
-        expect(await tokenStaking.hasStakeDelegated(operator.address)).to.equal(
-          true
-        )
       })
 
       it("should decrease min staked amount in T", async () => {
@@ -1893,9 +1866,6 @@ describe("TokenStaking", () => {
               application2Mock.address
             )
           ).to.equal(otherAmount)
-          expect(
-            await tokenStaking.hasStakeDelegated(operator.address)
-          ).to.equal(true)
         })
 
         it("should decrease min staked amount in T", async () => {
@@ -1956,9 +1926,6 @@ describe("TokenStaking", () => {
               application2Mock.address
             )
           ).to.equal(0)
-          expect(
-            await tokenStaking.hasStakeDelegated(operator.address)
-          ).to.equal(false)
         })
 
         it("should emit AuthorizationDecreaseApproved", async () => {
