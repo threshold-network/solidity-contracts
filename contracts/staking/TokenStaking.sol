@@ -879,6 +879,9 @@ contract TokenStaking is Ownable, IStaking {
     /// @notice Adds operators to the slashing queue along with the amount that
     ///         should be slashed from each one of them. Can only be called by
     ///         application authorized for all operators in the array.
+    /// @dev    This method doesn't emit events for operators that are added to
+    ///         the queue. If necessary  events can be added to the application
+    ///         level.
     function slash(uint96 amount, address[] memory _operators)
         external
         override
@@ -890,6 +893,9 @@ contract TokenStaking is Ownable, IStaking {
     ///         The notifier will receive reward per each operator from
     ///         notifiers treasury. Can only be called by application
     ///         authorized for all operators in the array.
+    /// @dev    This method doesn't emit events for operators that are added to
+    ///         the queue. If necessary  events can be added to the application
+    ///         level.
     function seize(
         uint96 amount,
         uint256 rewardMultiplier,
