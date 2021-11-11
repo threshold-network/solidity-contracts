@@ -163,7 +163,7 @@ jobs:
         #     etherscan-verify --license MIT
         run: |
           yarn run hardhat --network ropsten \
-            etherscan-verify --license MIT
+            etherscan-verify --license GPL-3.0 --force-license
 
   contracts-slither:
     runs-on: ubuntu-latest
