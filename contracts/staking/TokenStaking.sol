@@ -676,6 +676,9 @@ contract TokenStaking is Ownable, IStaking {
     ///         KEEP staking contract and still being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
     ///         called only by the delegation owner and operator.
+    /// @dev    This function (or `unstakeAll`) must be called before
+    ///         `undelegate`/`undelegateAt` in Keep staking contract. Otherwise
+    ///         operator can be slashed by `notifyKeepStakeDiscrepancy` method.
     function unstakeKeep(address operator)
         external
         override
@@ -701,6 +704,9 @@ contract TokenStaking is Ownable, IStaking {
     ///         still being able to operate in T network and earning rewards
     ///         based on the liquid T staked. Can be called only by the
     ///         delegation owner and operator.
+    /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
+    ///         in NuCypher staking contract. Otherwise NU tokens can't be
+    ///         unlocked.
     function unstakeNu(address operator, uint96 amount)
         external
         override
