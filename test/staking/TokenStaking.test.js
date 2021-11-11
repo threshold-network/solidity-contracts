@@ -363,14 +363,12 @@ describe("TokenStaking", () => {
         ).to.equal(amount)
       })
 
-      it("should emit TStaked and OperatorStaked events", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "TStaked")
-          .withArgs(staker.address, operator.address)
-
+      it("should emit OperatorStaked event", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "OperatorStaked")
           .withArgs(
+            StakeTypes.T,
+            staker.address,
             operator.address,
             beneficiary.address,
             authorizer.address,
@@ -458,14 +456,12 @@ describe("TokenStaking", () => {
           ).to.equal(0)
         })
 
-        it("should emit KeepStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(staker.address, operator.address)
-
+        it("should emit OperatorStaked event", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "OperatorStaked")
             .withArgs(
+              StakeTypes.KEEP,
+              staker.address,
               operator.address,
               beneficiary.address,
               authorizer.address,
@@ -538,14 +534,12 @@ describe("TokenStaking", () => {
           ).to.equal(0)
         })
 
-        it("should emit KeepStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(staker.address, operator.address)
-
+        it("should emit OperatorStaked event", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "OperatorStaked")
             .withArgs(
+              StakeTypes.KEEP,
+              staker.address,
               operator.address,
               beneficiary.address,
               authorizer.address,
@@ -700,14 +694,12 @@ describe("TokenStaking", () => {
         ).to.equal(tAmount)
       })
 
-      it("should emit NuStaked and OperatorStaked events", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "NuStaked")
-          .withArgs(staker.address, operator.address)
-
+      it("should emit OperatorStaked event", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "OperatorStaked")
           .withArgs(
+            StakeTypes.NU,
+            staker.address,
             operator.address,
             beneficiary.address,
             authorizer.address,
@@ -4326,7 +4318,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, 0)
+            .withArgs(operator.address, 0, true)
         })
       })
 
@@ -4363,7 +4355,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, 0)
+            .withArgs(operator.address, 0, true)
         })
       })
 
@@ -4434,7 +4426,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, 0)
+            .withArgs(operator.address, 0, true)
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
             .withArgs(
@@ -4561,7 +4553,8 @@ describe("TokenStaking", () => {
               .to.emit(tokenStaking, "TokensSeized")
               .withArgs(
                 operator.address,
-                convertToT(keepPenalty, keepRatio).result
+                convertToT(keepPenalty, keepRatio).result,
+                true
               )
             await expect(tx)
               .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
@@ -4669,7 +4662,7 @@ describe("TokenStaking", () => {
           it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
             await expect(tx)
               .to.emit(tokenStaking, "TokensSeized")
-              .withArgs(operator.address, expectedKeepPenalty.result)
+              .withArgs(operator.address, expectedKeepPenalty.result, true)
             await expect(tx)
               .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
               .withArgs(
@@ -4805,7 +4798,8 @@ describe("TokenStaking", () => {
               .to.emit(tokenStaking, "TokensSeized")
               .withArgs(
                 operator.address,
-                convertToT(keepPenalty, keepRatio).result
+                convertToT(keepPenalty, keepRatio).result,
+                true
               )
             await expect(tx)
               .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
@@ -4945,7 +4939,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, 0)
+            .withArgs(operator.address, 0, true)
         })
       })
 
@@ -4983,7 +4977,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, 0)
+            .withArgs(operator.address, 0, true)
         })
       })
 
@@ -5054,7 +5048,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, 0)
+            .withArgs(operator.address, 0, true)
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
             .withArgs(
@@ -5103,7 +5097,11 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, convertToT(nuPenalty, nuRatio).result)
+            .withArgs(
+              operator.address,
+              convertToT(nuPenalty, nuRatio).result,
+              true
+            )
         })
       })
 
@@ -5148,7 +5146,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, expectedNuPenalty.result)
+            .withArgs(operator.address, expectedNuPenalty.result, true)
         })
       })
     })
@@ -5869,7 +5867,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized and SlashingProcessed events", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, amountToSlash)
+            .withArgs(operator.address, amountToSlash, false)
           await expect(tx)
             .to.emit(tokenStaking, "SlashingProcessed")
             .withArgs(auxiliaryAccount.address, 1, expectedTReward1)
@@ -5955,12 +5953,13 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized, SlashingProcessed and AuthorizationInvoluntaryDecreased", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(otherStaker.address, amountToSlash)
+            .withArgs(otherStaker.address, amountToSlash, false)
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
             .withArgs(
               otherStaker.address,
-              tStake2.sub(amountToSlash).sub(keepInTAmount.div(2))
+              tStake2.sub(amountToSlash).sub(keepInTAmount.div(2)),
+              false
             )
           await expect(tx)
             .to.emit(tokenStaking, "SlashingProcessed")
@@ -6022,7 +6021,7 @@ describe("TokenStaking", () => {
         it("should emit TokensSeized and SlashingProcessed events", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "TokensSeized")
-            .withArgs(operator.address, 0)
+            .withArgs(operator.address, 0, false)
           await expect(tx)
             .to.emit(tokenStaking, "SlashingProcessed")
             .withArgs(auxiliaryAccount.address, 1, 0)

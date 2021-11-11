@@ -90,13 +90,12 @@ contract TokenStaking is Ownable, IStaking {
     SlashingEvent[] public slashingQueue;
     uint256 public slashingQueueIndex = 0;
 
-    event TStaked(address indexed owner, address indexed operator);
-    event KeepStaked(address indexed owner, address indexed operator);
-    event NuStaked(address indexed owner, address indexed operator);
     event OperatorStaked(
+        StakeType indexed stakeType,
+        address indexed owner,
         address indexed operator,
-        address indexed beneficiary,
-        address indexed authorizer,
+        address beneficiary,
+        address authorizer,
         uint96 amount
     );
     event MinimumStakeAmountSet(uint96 amount);
@@ -130,7 +129,11 @@ contract TokenStaking is Ownable, IStaking {
     event AuthorizationCeilingSet(uint256 ceiling);
     event ToppedUp(address indexed operator, uint96 amount);
     event Unstaked(address indexed operator, uint96 amount);
-    event TokensSeized(address indexed operator, uint96 amount);
+    event TokensSeized(
+        address indexed operator,
+        uint96 amount,
+        bool indexed discrepancy
+    );
     event StakeDiscrepancyPenaltySet(uint96 penalty, uint256 rewardMultiplier);
     event NotificationRewardSet(uint96 reward);
     event NotificationRewardPushed(uint96 reward);
@@ -253,8 +256,9 @@ contract TokenStaking is Ownable, IStaking {
         /* solhint-disable-next-line not-rely-on-time */
         operatorStruct.startTStakingTimestamp = block.timestamp;
 
-        emit TStaked(msg.sender, operator);
         emit OperatorStaked(
+            StakeType.T,
+            msg.sender,
             operator,
             operatorStruct.beneficiary,
             operatorStruct.authorizer,
@@ -287,8 +291,9 @@ contract TokenStaking is Ownable, IStaking {
         operatorStruct.beneficiary = keepStakingContract.beneficiaryOf(
             operator
         );
-        emit KeepStaked(operatorStruct.owner, operator);
         emit OperatorStaked(
+            StakeType.KEEP,
+            operatorStruct.owner,
             operator,
             operatorStruct.beneficiary,
             operatorStruct.authorizer,
@@ -332,8 +337,9 @@ contract TokenStaking is Ownable, IStaking {
         operatorStruct.authorizer = authorizer;
         operatorStruct.beneficiary = beneficiary;
 
-        emit NuStaked(msg.sender, operator);
         emit OperatorStaked(
+            StakeType.NU,
+            msg.sender,
             operator,
             operatorStruct.beneficiary,
             operatorStruct.authorizer,
@@ -799,7 +805,11 @@ contract TokenStaking is Ownable, IStaking {
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(operator, tAmount - operatorStruct.keepInTStake);
+        emit TokensSeized(
+            operator,
+            tAmount - operatorStruct.keepInTStake,
+            true
+        );
         if (undelegatedAt != 0) {
             operatorStruct.keepInTStake = 0;
         }
@@ -834,7 +844,7 @@ contract TokenStaking is Ownable, IStaking {
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(operator, tAmount - operatorStruct.nuInTStake);
+        emit TokensSeized(operator, tAmount - operatorStruct.nuInTStake, true);
         authorizationDecrease(operator, operatorStruct);
     }
 
@@ -847,7 +857,6 @@ contract TokenStaking is Ownable, IStaking {
         uint96 penalty,
         uint256 rewardMultiplier
     ) external override onlyGovernance {
-        // TODO optimization: can save NU and KEEP equivalents to exclude conversion during slashing
         stakeDiscrepancyPenalty = penalty;
         stakeDiscrepancyRewardMultiplier = rewardMultiplier;
         emit StakeDiscrepancyPenaltySet(penalty, rewardMultiplier);
@@ -1210,7 +1219,11 @@ contract TokenStaking is Ownable, IStaking {
             tAmountToSlash = seizeNu(operatorStruct, tAmountToSlash, 100);
         }
 
-        emit TokensSeized(slashing.operator, slashing.amount - tAmountToSlash);
+        emit TokensSeized(
+            slashing.operator,
+            slashing.amount - tAmountToSlash,
+            false
+        );
         authorizationDecrease(slashing.operator, operatorStruct);
     }
 
