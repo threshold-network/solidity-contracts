@@ -9,11 +9,13 @@ interface IManagedGrant {
 }
 
 contract KeepStake {
-    function resolveOwner(IKeepTokenStaking tokenStaking, address operator)
-        external
-        view
-        returns (address)
-    {
+    IKeepTokenStaking public immutable keepTokenStaking;
+
+    constructor(IKeepTokenStaking _keepTokenStaking) {
+        keepTokenStaking = _keepTokenStaking;
+    }
+
+    function resolveOwner(address operator) external view returns (address) {
         if (operator == 0x855A951162B1B93D70724484d5bdc9D00B56236B) {
             return
                 IManagedGrant(0xFADbF758307A054C57B365Db1De90acA71feaFE5)
@@ -292,6 +294,6 @@ contract KeepStake {
             return 0x66beda757939f8e505b5Eb883cd02C8d4a11Bca2;
         }
 
-        return tokenStaking.ownerOf(operator);
+        return keepTokenStaking.ownerOf(operator);
     }
 }
