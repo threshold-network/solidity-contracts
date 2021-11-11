@@ -713,6 +713,8 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(operator)
     {
         OperatorInfo storage operatorStruct = operators[operator];
+        // rounding amount to guarantee exact T<>NU conversion in both ways,
+        // so there's no remainder after unstaking
         (, uint96 tRemainder) = tToNu(amount);
         amount -= tRemainder;
         require(
