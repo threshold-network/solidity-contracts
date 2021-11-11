@@ -1144,19 +1144,21 @@ contract TokenStaking is Ownable, IStaking {
         require(applicationStruct.approved, "Application is not approved");
         require(!applicationStruct.paused, "Application is paused");
 
+        uint256 queueLength = slashingQueue.length;
         for (uint256 i = 0; i < _operators.length; i++) {
             address operator = _operators[i];
-            require(
-                operators[operator].authorizations[msg.sender].authorized > 0,
-                "Application is not authorized"
-            );
+            if (
+                //slither-disable-next-line incorrect-equality
+                operators[operator].authorizations[msg.sender].authorized == 0
+            ) {
+                continue;
+            }
             slashingQueue.push(SlashingEvent(operator, amount));
         }
 
         if (notifier != address(0)) {
-            uint256 reward = (_operators.length * notificationReward).percent(
-                rewardMultiplier
-            );
+            uint256 reward = ((slashingQueue.length - queueLength) *
+                notificationReward).percent(rewardMultiplier);
             reward = Math.min(reward, notifiersTreasury);
             emit NotifierRewarded(notifier, reward);
             if (reward != 0) {

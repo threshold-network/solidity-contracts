@@ -5239,13 +5239,15 @@ describe("TokenStaking", () => {
     })
 
     context("when application was not authorized by one operator", () => {
-      it("should revert", async () => {
+      beforeEach(async () => {
         await tokenStaking
           .connect(deployer)
           .approveApplication(application1Mock.address)
-        await expect(
-          application1Mock.slash(initialStakerBalance, [operator.address])
-        ).to.be.revertedWith("Application is not authorized")
+        await application1Mock.slash(initialStakerBalance, [operator.address])
+      })
+
+      it("should skip this event", async () => {
+        expect(await tokenStaking.getSlashingQueueLength()).to.equal(0)
       })
     })
 
@@ -5622,7 +5624,7 @@ describe("TokenStaking", () => {
           amountToSlash,
           rewardMultiplier,
           notifier.address,
-          [operator.address, otherStaker.address]
+          [operator.address, otherStaker.address, authorizer.address]
         )
       })
 
