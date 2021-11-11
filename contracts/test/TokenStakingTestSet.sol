@@ -77,7 +77,7 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
         );
     }
 
-    function getDelegationInfo(address _operator)
+    function getDelegationInfo(address operator)
         external
         view
         override
@@ -87,46 +87,46 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
             uint256 undelegatedAt
         )
     {
-        amount = operators[_operator].amount;
-        createdAt = operators[_operator].createdAt;
-        undelegatedAt = operators[_operator].undelegatedAt;
+        amount = operators[operator].amount;
+        createdAt = operators[operator].createdAt;
+        undelegatedAt = operators[operator].undelegatedAt;
     }
 
-    function ownerOf(address _operator)
+    function ownerOf(address operator)
         external
         view
         override
         returns (address)
     {
-        return operators[_operator].owner;
+        return operators[operator].owner;
     }
 
-    function beneficiaryOf(address _operator)
+    function beneficiaryOf(address operator)
         external
         view
         override
         returns (address payable)
     {
-        return operators[_operator].beneficiary;
+        return operators[operator].beneficiary;
     }
 
-    function authorizerOf(address _operator)
+    function authorizerOf(address operator)
         external
         view
         override
         returns (address)
     {
-        return operators[_operator].authorizer;
+        return operators[operator].authorizer;
     }
 
-    function eligibleStake(address _operator, address _operatorContract)
+    function eligibleStake(address operator, address operatorContract)
         external
         view
         override
         returns (uint256 balance)
     {
-        OperatorStruct storage operatorStrut = operators[_operator];
-        if (operatorStrut.eligibility[_operatorContract]) {
+        OperatorStruct storage operatorStrut = operators[operator];
+        if (operatorStrut.eligibility[operatorContract]) {
             return operatorStrut.amount;
         }
         return 0;
@@ -147,14 +147,14 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
     }
 
     function slashStaker(
-        address _staker,
-        uint256 _penalty,
-        address _investigator,
-        uint256 _reward
+        address staker,
+        uint256 penalty,
+        address investigator,
+        uint256 reward
     ) external override {
-        require(_penalty > 0, "Amount to slash must be greater than zero");
-        stakers[_staker].value -= _penalty;
-        investigators[_investigator] += _reward;
+        require(penalty > 0, "Amount to slash must be greater than zero");
+        stakers[staker].value -= penalty;
+        investigators[investigator] += reward;
     }
 
     function requestMerge(address staker, address operator)
@@ -230,17 +230,17 @@ contract ApplicationMock is IApplication {
         tokenStaking.approveAuthorizationDecrease(operator);
     }
 
-    function slash(uint96 _amount, address[] memory _operators) external {
-        tokenStaking.slash(_amount, _operators);
+    function slash(uint96 amount, address[] memory _operators) external {
+        tokenStaking.slash(amount, _operators);
     }
 
     function seize(
-        uint96 _amount,
-        uint256 _rewardMultiplier,
-        address _notifier,
+        uint96 amount,
+        uint256 rewardMultiplier,
+        address notifier,
         address[] memory _operators
     ) external {
-        tokenStaking.seize(_amount, _rewardMultiplier, _notifier, _operators);
+        tokenStaking.seize(amount, rewardMultiplier, notifier, _operators);
     }
 
     function involuntaryAuthorizationDecrease(address operator, uint96 amount)

@@ -20,12 +20,12 @@ interface IKeepTokenStaking {
     ) external;
 
     /// @notice Gets stake delegation info for the given operator.
-    /// @param _operator Operator address.
+    /// @param operator Operator address.
     /// @return amount The amount of tokens the given operator delegated.
     /// @return createdAt The time when the stake has been delegated.
     /// @return undelegatedAt The time when undelegation has been requested.
     /// If undelegation has not been requested, 0 is returned.
-    function getDelegationInfo(address _operator)
+    function getDelegationInfo(address operator)
         external
         view
         returns (
@@ -36,18 +36,18 @@ interface IKeepTokenStaking {
 
     /// @notice Gets the stake owner for the specified operator address.
     /// @return Stake owner address.
-    function ownerOf(address _operator) external view returns (address);
+    function ownerOf(address operator) external view returns (address);
 
     /// @notice Gets the beneficiary for the specified operator address.
     /// @return Beneficiary address.
-    function beneficiaryOf(address _operator)
+    function beneficiaryOf(address operator)
         external
         view
         returns (address payable);
 
     /// @notice Gets the authorizer for the specified operator address.
     /// @return Authorizer address.
-    function authorizerOf(address _operator) external view returns (address);
+    function authorizerOf(address operator) external view returns (address);
 
     /// @notice Gets the eligible stake balance of the specified address.
     /// An eligible stake is a stake that passed the initialization period
@@ -57,10 +57,10 @@ interface IKeepTokenStaking {
     /// Operator with a minimum required amount of eligible stake can join the
     /// network and participate in new work selection.
     ///
-    /// @param _operator address of stake operator.
-    /// @param _operatorContract address of operator contract.
+    /// @param operator address of stake operator.
+    /// @param operatorContract address of operator contract.
     /// @return balance an uint256 representing the eligible stake balance.
-    function eligibleStake(address _operator, address _operatorContract)
+    function eligibleStake(address operator, address operatorContract)
         external
         view
         returns (uint256 balance);
@@ -70,15 +70,15 @@ interface IKeepTokenStaking {
 /// @notice Interface for NuCypher StakingEscrow contract
 interface INuCypherStakingEscrow {
     /// @notice Slash the staker's stake and reward the investigator
-    /// @param _staker Staker's address
-    /// @param _penalty Penalty
-    /// @param _investigator Investigator
-    /// @param _reward Reward for the investigator
+    /// @param staker Staker's address
+    /// @param penalty Penalty
+    /// @param investigator Investigator
+    /// @param reward Reward for the investigator
     function slashStaker(
-        address _staker,
-        uint256 _penalty,
-        address _investigator,
-        uint256 _reward
+        address staker,
+        uint256 penalty,
+        address investigator,
+        uint256 reward
     ) external;
 
     /// @notice Request merge between NuCypher staking contract and T staking contract.
@@ -88,5 +88,5 @@ interface INuCypherStakingEscrow {
         returns (uint256);
 
     /// @notice Get all tokens belonging to the staker
-    function getAllTokens(address _staker) external view returns (uint256);
+    function getAllTokens(address staker) external view returns (uint256);
 }
