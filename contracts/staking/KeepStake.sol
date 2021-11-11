@@ -21,7 +21,7 @@ interface IManagedGrant {
 ///         complicated and not possible to do on-chain from a contract external
 ///         to KEEP TokenStaking contract. Keep TokenStaking knows the grant ID
 ///         but does not expose it externally.
-/// 
+///
 ///         KeepStake contract addresses this problem by exposing
 ///         operator-owner mappings snapshotted off-chain based on events and
 ///         information publicly available from KEEP TokenStaking contract and
@@ -54,7 +54,7 @@ contract KeepStake is Ownable {
 
     /// @notice Allows the Governance to set new operator-managed grant pair.
     ///         This function should only be called for managed grants if
-    ///         the snapshot does include this pair. 
+    ///         the snapshot does include this pair.
     function setManagedGrant(address operator, address managedGrant)
         external
         onlyOwner
@@ -64,7 +64,7 @@ contract KeepStake is Ownable {
 
     /// @notice Allows the Governance to set new operator-grantee pair.
     ///         This function should only be called for non-managed grants if
-    ///         the snapshot does include this pair. 
+    ///         the snapshot does include this pair.
     function setGrantee(address operator, address grantee) external onlyOwner {
         operatorToGrantee[operator] = grantee;
     }
