@@ -3,8 +3,9 @@
 pragma solidity 0.8.9;
 
 import "./IStaking.sol";
-import "./IStakingProviders.sol";
+import "./ILegacyTokenStaking.sol";
 import "./IApplication.sol";
+import "./KeepStake.sol";
 import "../token/T.sol";
 import "../vending/VendingMachine.sol";
 import "../utils/PercentUtils.sol";
@@ -26,7 +27,7 @@ contract TokenStaking is Ownable, IStaking {
     using PercentUtils for uint256;
     using SafeCast for uint256;
 
-    enum StakingProvider {
+    enum StakeType {
         NU,
         KEEP,
         T
@@ -66,7 +67,7 @@ contract TokenStaking is Ownable, IStaking {
 
     T internal immutable token;
     IKeepTokenStaking internal immutable keepStakingContract;
-    IKeepTokenGrant internal immutable keepTokenGrant;
+    KeepStake internal immutable keepStake;
     INuCypherStakingEscrow internal immutable nucypherStakingContract;
 
     uint256 internal immutable keepFloatingPointDivisor;
@@ -183,27 +184,26 @@ contract TokenStaking is Ownable, IStaking {
     /// @param _nucypherStakingContract Address of NuCypher staking contract
     /// @param _keepVendingMachine Address of Keep vending machine
     /// @param _nucypherVendingMachine Address of NuCypher vending machine
-    /// @param _keepTokenGrant Address of Keep TokenGrant contract
+    /// @param _keepStake Address of Keep contract with grant owners
     constructor(
         T _token,
         IKeepTokenStaking _keepStakingContract,
         INuCypherStakingEscrow _nucypherStakingContract,
         VendingMachine _keepVendingMachine,
         VendingMachine _nucypherVendingMachine,
-        IKeepTokenGrant _keepTokenGrant
+        KeepStake _keepStake
     ) {
         // calls to check contracts are working
-        //slither-disable-next-line unused-return
-        _keepTokenGrant.getGrant(0);
         require(
             _token.totalSupply() > 0 &&
                 _keepStakingContract.ownerOf(address(0)) == address(0) &&
-                _nucypherStakingContract.getAllTokens(address(0)) == 0,
+                _nucypherStakingContract.getAllTokens(address(0)) == 0 &&
+                Address.isContract(address(_keepStake)),
             "Wrong input parameters"
         );
         token = _token;
         keepStakingContract = _keepStakingContract;
-        keepTokenGrant = _keepTokenGrant;
+        keepStake = _keepStake;
         nucypherStakingContract = _nucypherStakingContract;
 
         keepFloatingPointDivisor = _keepVendingMachine.FLOATING_POINT_DIVISOR();
@@ -276,7 +276,7 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmount = getKeepAmountInT(_operator);
 
         operator.keepInTStake = tAmount;
-        (operator.owner, ) = getKeepOwner(_operator);
+        operator.owner = keepStake.resolveOwner(keepStakingContract, _operator);
         operator.authorizer = keepStakingContract.authorizerOf(_operator);
         operator.beneficiary = keepStakingContract.beneficiaryOf(_operator);
         emit KeepStaked(operator.owner, _operator);
@@ -338,16 +338,15 @@ contract TokenStaking is Ownable, IStaking {
         external
         onlyOwnerOrOperator(_operator)
     {
-        (address managedGrantee, bool isManagedGrant) = getKeepOwner(_operator);
-        require(isManagedGrant, "Owner is not ManagedGrant");
+        address newOwner = keepStake.resolveOwner(
+            keepStakingContract,
+            _operator
+        );
 
         OperatorInfo storage operator = operators[_operator];
-        require(
-            managedGrantee != operator.owner,
-            "Grantee has not been changed"
-        );
-        emit GrantOwnerRefreshed(_operator, operator.owner, managedGrantee);
-        operator.owner = managedGrantee;
+        require(newOwner != operator.owner, "Owner has not been changed");
+        emit GrantOwnerRefreshed(_operator, operator.owner, newOwner);
+        operator.owner = newOwner;
     }
 
     /// @notice Allows the Governance to set the minimum required stake amount.
@@ -638,7 +637,7 @@ contract TokenStaking is Ownable, IStaking {
         OperatorInfo storage operator = operators[_operator];
         require(
             _amount > 0 &&
-                _amount + getMinStaked(_operator, StakingProvider.T) <=
+                _amount + getMinStaked(_operator, StakeType.T) <=
                 operator.tStake,
             "Too much to unstake"
         );
@@ -669,7 +668,7 @@ contract TokenStaking is Ownable, IStaking {
         OperatorInfo storage operator = operators[_operator];
         require(operator.keepInTStake != 0, "Nothing to unstake");
         require(
-            getMinStaked(_operator, StakingProvider.KEEP) == 0,
+            getMinStaked(_operator, StakeType.KEEP) == 0,
             "Keep stake has still delegated"
         );
         emit Unstaked(_operator, operator.keepInTStake);
@@ -696,7 +695,7 @@ contract TokenStaking is Ownable, IStaking {
         _amount -= tRemainder;
         require(
             _amount > 0 &&
-                _amount + getMinStaked(_operator, StakingProvider.NU) <=
+                _amount + getMinStaked(_operator, StakeType.NU) <=
                 operator.nuInTStake,
             "Too much to unstake"
         );
@@ -1032,7 +1031,7 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
-    function getMinStaked(address _operator, StakingProvider stakingProviders)
+    function getMinStaked(address _operator, StakeType stakeTypes)
         public
         view
         returns (uint96)
@@ -1050,13 +1049,13 @@ contract TokenStaking is Ownable, IStaking {
         if (maxAuthorization == 0) {
             return 0;
         }
-        if (stakingProviders != StakingProvider.T) {
+        if (stakeTypes != StakeType.T) {
             maxAuthorization -= Math.min(maxAuthorization, operator.tStake);
         }
-        if (stakingProviders != StakingProvider.NU) {
+        if (stakeTypes != StakeType.NU) {
             maxAuthorization -= Math.min(maxAuthorization, operator.nuInTStake);
         }
-        if (stakingProviders != StakingProvider.KEEP) {
+        if (stakeTypes != StakeType.KEEP) {
             maxAuthorization -= Math.min(
                 maxAuthorization,
                 operator.keepInTStake
@@ -1354,55 +1353,5 @@ contract TokenStaking is Ownable, IStaking {
         nuAmount =
             (convertibleAmount * nucypherFloatingPointDivisor) /
             nucypherRatio;
-    }
-
-    /// @notice Extract owner of Keep stake. Possible ways: grantee in ManagedGrant,
-    ///         grantee in TokenGrant or owner in Keep staking contract
-    /// @return keepOwner Owner of stake
-    /// @return isManagedGrant Returns true if owner is grantee in ManagedGrant contract
-    function getKeepOwner(address operator)
-        internal
-        view
-        returns (address keepOwner, bool isManagedGrant)
-    {
-        //slither-disable-next-line uninitialized-local
-        address grantee;
-        //slither-disable-next-line unused-return
-        try keepTokenGrant.getGrantStakeDetails(operator) returns (
-            //slither-disable-next-line uninitialized-local
-            uint256 grantId,
-            uint256,
-            //slither-disable-next-line uninitialized-local
-            address grantStakingContract
-        ) {
-            // Double-check if the delegation in TokenGrant has been defined
-            // for Keep staking contract
-            //slither-disable-next-line variable-scope
-            if (address(keepStakingContract) != grantStakingContract) {
-                return (keepStakingContract.ownerOf(operator), false);
-            }
-
-            //slither-disable-next-line variable-scope
-            (, , , , , grantee) = keepTokenGrant.getGrant(grantId);
-        } catch {
-            return (keepStakingContract.ownerOf(operator), false);
-        }
-
-        if (!Address.isContract(grantee)) {
-            return (grantee, false);
-        }
-
-        //slither-disable-next-line unused-return
-        try IKeepManagedGrant(grantee).grantee() returns (
-            //slither-disable-next-line uninitialized-local
-            address managedGrantee
-        ) {
-            //slither-disable-next-line variable-scope
-            if (managedGrantee != address(0)) {
-                //slither-disable-next-line variable-scope
-                return (managedGrantee, true);
-            }
-        } catch {}
-        return (grantee, false);
     }
 }

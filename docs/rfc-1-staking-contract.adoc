@@ -155,8 +155,8 @@ with T earned from operating in the network, so they would be in a worse spot
 than new T stakers allowed to top-up their stakes using earned T and this way
 increasing their rewards.
 
-Anyone can execute a stake top-up for an operator using a liquid T. Stake top-up
-does not automatically increase authorization levels for applications.
+The owner or operator can execute a stake top-up for an operator using a liquid T. 
+Stake top-up does not automatically increase authorization levels for applications.
 Stake top-up is a one-step process and does not require any delay.
 
 ==== Undelegating a stake (unstaking)

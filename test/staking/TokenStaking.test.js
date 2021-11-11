@@ -6,7 +6,7 @@ const {
   to1ePrecision,
 } = require("../helpers/contract-test-helpers")
 const zeroBigNumber = ethers.BigNumber.from(0)
-const StakingProviders = {
+const StakeTypes = {
   NU: 0,
   KEEP: 1,
   T: 2,
@@ -17,7 +17,7 @@ describe("TokenStaking", () => {
   let keepVendingMachine
   let nucypherVendingMachine
   let keepStakingMock
-  let keepTokenGrantMock
+  let keepStake
   let nucypherStakingMock
   let application1Mock
   let application2Mock
@@ -110,11 +110,9 @@ describe("TokenStaking", () => {
     )
     keepStakingMock = await KeepTokenStakingMock.deploy()
     await keepStakingMock.deployed()
-    const KeepTokenGrantMock = await ethers.getContractFactory(
-      "KeepTokenGrantMock"
-    )
-    keepTokenGrantMock = await KeepTokenGrantMock.deploy()
-    await keepTokenGrantMock.deployed()
+    const KeepStake = await ethers.getContractFactory("KeepStake")
+    keepStake = await KeepStake.deploy()
+    await keepStake.deployed()
     const NuCypherTokenStakingMock = await ethers.getContractFactory(
       "NuCypherTokenStakingMock"
     )
@@ -128,7 +126,7 @@ describe("TokenStaking", () => {
       nucypherStakingMock.address,
       keepVendingMachine.address,
       nucypherVendingMachine.address,
-      keepTokenGrantMock.address
+      keepStake.address
     )
     await tokenStaking.deployed()
 
@@ -530,22 +528,13 @@ describe("TokenStaking", () => {
 
         it("should not increase min staked amount", async () => {
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.T
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.NU
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.KEEP
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
           ).to.equal(0)
         })
 
@@ -553,218 +542,6 @@ describe("TokenStaking", () => {
           await expect(tx)
             .to.emit(tokenStaking, "KeepStaked")
             .withArgs(staker.address, operator.address)
-
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              tAmount
-            )
-        })
-      })
-    })
-
-    context("when owner is grantee in TokenGrant", () => {
-      const keepAmount = initialStakerBalance
-      const tAmount = convertToT(keepAmount, keepRatio).result
-      const grantId = 1
-
-      beforeEach(async () => {
-        const createdAt = 1
-        await keepStakingMock.setOperator(
-          operator.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-          createdAt,
-          0,
-          initialStakerBalance
-        )
-        await keepStakingMock.setEligibility(
-          operator.address,
-          tokenStaking.address,
-          true
-        )
-      })
-
-      context("when staking data is incorrect", () => {
-        beforeEach(async () => {
-          await keepTokenGrantMock.setGrantStake(
-            operator.address,
-            grantId,
-            otherStaker.address,
-            otherStaker.address
-          )
-          tx = await tokenStaking.stakeKeep(operator.address)
-        })
-
-        it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-        })
-
-        it("should emit KeepStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(staker.address, operator.address)
-
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              tAmount
-            )
-        })
-      })
-
-      context("when grantee is not a contract", () => {
-        beforeEach(async () => {
-          await keepTokenGrantMock.setGrantStake(
-            operator.address,
-            grantId,
-            keepStakingMock.address,
-            otherStaker.address
-          )
-          tx = await tokenStaking.stakeKeep(operator.address)
-        })
-
-        it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            otherStaker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-        })
-
-        it("should emit KeepStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(otherStaker.address, operator.address)
-
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              tAmount
-            )
-        })
-      })
-
-      context("when grantee is some contract", () => {
-        beforeEach(async () => {
-          await keepTokenGrantMock.setGrantStake(
-            operator.address,
-            grantId,
-            keepStakingMock.address,
-            tToken.address
-          )
-          tx = await tokenStaking.stakeKeep(operator.address)
-        })
-
-        it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            tToken.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-        })
-
-        it("should emit KeepStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(tToken.address, operator.address)
-
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              tAmount
-            )
-        })
-      })
-
-      context("when grantee is uninitialized ManagedGrant contract", () => {
-        beforeEach(async () => {
-          const KeepManagedGrantMock = await ethers.getContractFactory(
-            "KeepManagedGrantMock"
-          )
-          keepManagedGrantMock = await KeepManagedGrantMock.deploy()
-          await keepManagedGrantMock.deployed()
-
-          await keepTokenGrantMock.setGrantStake(
-            operator.address,
-            grantId,
-            keepStakingMock.address,
-            keepManagedGrantMock.address
-          )
-          tx = await tokenStaking.stakeKeep(operator.address)
-        })
-
-        it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            keepManagedGrantMock.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-        })
-
-        it("should emit KeepStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(keepManagedGrantMock.address, operator.address)
-
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              tAmount
-            )
-        })
-      })
-
-      context("when grantee is initialized ManagedGrant contract", () => {
-        beforeEach(async () => {
-          const KeepManagedGrantMock = await ethers.getContractFactory(
-            "KeepManagedGrantMock"
-          )
-          keepManagedGrantMock = await KeepManagedGrantMock.deploy()
-          await keepManagedGrantMock.deployed()
-          await keepManagedGrantMock.setGrantee(otherStaker.address)
-
-          await keepTokenGrantMock.setGrantStake(
-            operator.address,
-            grantId,
-            keepStakingMock.address,
-            keepManagedGrantMock.address
-          )
-          tx = await tokenStaking.stakeKeep(operator.address)
-        })
-
-        it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            otherStaker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-        })
-
-        it("should emit KeepStaked and OperatorStaked events", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "KeepStaked")
-            .withArgs(otherStaker.address, operator.address)
 
           await expect(tx)
             .to.emit(tokenStaking, "OperatorStaked")
@@ -972,166 +749,6 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when there is no grant", () => {
-      it("should revert", async () => {
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            operator.address,
-            beneficiary.address,
-            authorizer.address,
-            initialStakerBalance
-          )
-
-        await expect(
-          tokenStaking
-            .connect(operator)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Owner is not ManagedGrant")
-      })
-    })
-
-    context("when staking data is incorrect", () => {
-      it("should revert", async () => {
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            operator.address,
-            beneficiary.address,
-            authorizer.address,
-            initialStakerBalance
-          )
-
-        const grantId = 1
-        await keepTokenGrantMock.setGrantStake(
-          operator.address,
-          grantId,
-          otherStaker.address,
-          otherStaker.address
-        )
-        await expect(
-          tokenStaking
-            .connect(operator)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Owner is not ManagedGrant")
-      })
-    })
-
-    context("when grantee is not a contract", () => {
-      it("should revert", async () => {
-        const createdAt = 1
-        await keepStakingMock.setOperator(
-          operator.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-          createdAt,
-          0,
-          initialStakerBalance
-        )
-        await keepStakingMock.setEligibility(
-          operator.address,
-          tokenStaking.address,
-          true
-        )
-        await tokenStaking.stakeKeep(operator.address)
-
-        const grantId = 1
-        await keepTokenGrantMock.setGrantStake(
-          operator.address,
-          grantId,
-          keepStakingMock.address,
-          otherStaker.address
-        )
-        await expect(
-          tokenStaking
-            .connect(operator)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Owner is not ManagedGrant")
-      })
-    })
-
-    context("when grantee is some contract", () => {
-      it("should revert", async () => {
-        const createdAt = 1
-        await keepStakingMock.setOperator(
-          operator.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-          createdAt,
-          0,
-          initialStakerBalance
-        )
-        await keepStakingMock.setEligibility(
-          operator.address,
-          tokenStaking.address,
-          true
-        )
-        await tokenStaking.stakeKeep(operator.address)
-
-        const grantId = 1
-        await keepTokenGrantMock.setGrantStake(
-          operator.address,
-          grantId,
-          keepStakingMock.address,
-          tToken.address
-        )
-        await expect(
-          tokenStaking
-            .connect(staker)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Owner is not ManagedGrant")
-      })
-    })
-
-    context("when grantee is uninitialized ManagedGrant contract", () => {
-      it("should revert", async () => {
-        const createdAt = 1
-        await keepStakingMock.setOperator(
-          operator.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-          createdAt,
-          0,
-          initialStakerBalance
-        )
-        await keepStakingMock.setEligibility(
-          operator.address,
-          tokenStaking.address,
-          true
-        )
-
-        const KeepManagedGrantMock = await ethers.getContractFactory(
-          "KeepManagedGrantMock"
-        )
-        keepManagedGrantMock = await KeepManagedGrantMock.deploy()
-        await keepManagedGrantMock.deployed()
-        const grantId = 1
-        await keepTokenGrantMock.setGrantStake(
-          operator.address,
-          grantId,
-          keepStakingMock.address,
-          keepManagedGrantMock.address
-        )
-
-        await tokenStaking.stakeKeep(operator.address)
-
-        await expect(
-          tokenStaking
-            .connect(operator)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Owner is not ManagedGrant")
-      })
-    })
-
     context("when grantee was not changed", () => {
       it("should revert", async () => {
         const createdAt = 1
@@ -1149,28 +766,13 @@ describe("TokenStaking", () => {
           tokenStaking.address,
           true
         )
-
-        const KeepManagedGrantMock = await ethers.getContractFactory(
-          "KeepManagedGrantMock"
-        )
-        keepManagedGrantMock = await KeepManagedGrantMock.deploy()
-        await keepManagedGrantMock.deployed()
-        const grantId = 1
-        await keepTokenGrantMock.setGrantStake(
-          operator.address,
-          grantId,
-          keepStakingMock.address,
-          keepManagedGrantMock.address
-        )
-
-        await keepManagedGrantMock.setGrantee(otherStaker.address)
         await tokenStaking.stakeKeep(operator.address)
 
         await expect(
           tokenStaking
-            .connect(otherStaker)
+            .connect(staker)
             .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Grantee has not been changed")
+        ).to.be.revertedWith("Owner has not been changed")
       })
     })
 
@@ -1181,7 +783,7 @@ describe("TokenStaking", () => {
         const createdAt = 1
         await keepStakingMock.setOperator(
           operator.address,
-          staker.address,
+          otherStaker.address,
           beneficiary.address,
           authorizer.address,
           createdAt,
@@ -1193,24 +795,17 @@ describe("TokenStaking", () => {
           tokenStaking.address,
           true
         )
-
-        const KeepManagedGrantMock = await ethers.getContractFactory(
-          "KeepManagedGrantMock"
-        )
-        keepManagedGrantMock = await KeepManagedGrantMock.deploy()
-        await keepManagedGrantMock.deployed()
-        const grantId = 1
-        await keepTokenGrantMock.setGrantStake(
-          operator.address,
-          grantId,
-          keepStakingMock.address,
-          keepManagedGrantMock.address
-        )
-
-        await keepManagedGrantMock.setGrantee(otherStaker.address)
         await tokenStaking.stakeKeep(operator.address)
 
-        await keepManagedGrantMock.setGrantee(staker.address)
+        await keepStakingMock.setOperator(
+          operator.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+          createdAt,
+          0,
+          initialStakerBalance
+        )
         tx = await tokenStaking
           .connect(otherStaker)
           .refreshKeepManagedGrantOwner(operator.address)
@@ -1469,22 +1064,13 @@ describe("TokenStaking", () => {
 
           it("should increase min staked amount in T", async () => {
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.T
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
             ).to.equal(authorizedAmount)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.NU
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
             ).to.equal(0)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.KEEP
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
             ).to.equal(0)
           })
 
@@ -1590,22 +1176,13 @@ describe("TokenStaking", () => {
 
           it("should increase min staked amount in T", async () => {
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.T
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
             ).to.equal(amount)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.NU
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
             ).to.equal(0)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.KEEP
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
             ).to.equal(0)
           })
 
@@ -1759,22 +1336,13 @@ describe("TokenStaking", () => {
 
         it("should increase min staked amount in KEEP and NU", async () => {
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.T
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.NU
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
           ).to.equal(nuInTStake.sub(notAuthorized))
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.KEEP
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
           ).to.equal(keepInTStake.sub(notAuthorized))
         })
 
@@ -1843,22 +1411,13 @@ describe("TokenStaking", () => {
 
           it("should set min staked amount equal to T/NU/KEEP stake", async () => {
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.T
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
             ).to.equal(tStake)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.NU
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
             ).to.equal(nuInTStake)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.KEEP
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
             ).to.equal(keepInTStake)
           })
 
@@ -2305,16 +1864,13 @@ describe("TokenStaking", () => {
 
       it("should decrease min staked amount in T", async () => {
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
         ).to.equal(expectedAmount)
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(
-            operator.address,
-            StakingProviders.KEEP
-          )
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
         ).to.equal(0)
       })
 
@@ -2377,22 +1933,13 @@ describe("TokenStaking", () => {
 
         it("should decrease min staked amount in T", async () => {
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.T
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
           ).to.equal(otherAmount)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.NU
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.KEEP
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
           ).to.equal(0)
         })
 
@@ -2706,16 +2253,13 @@ describe("TokenStaking", () => {
 
       it("should not increase min staked amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(
-            operator.address,
-            StakingProviders.KEEP
-          )
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
         ).to.equal(0)
       })
 
@@ -3052,16 +2596,13 @@ describe("TokenStaking", () => {
 
       it("should not increase min staked amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(
-            operator.address,
-            StakingProviders.KEEP
-          )
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
         ).to.equal(0)
       })
 
@@ -3352,16 +2893,13 @@ describe("TokenStaking", () => {
 
       it("should not increase min staked amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(
-            operator.address,
-            StakingProviders.KEEP
-          )
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
         ).to.equal(0)
       })
 
@@ -3746,22 +3284,13 @@ describe("TokenStaking", () => {
 
         it("should update min staked amount", async () => {
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.T
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
           ).to.equal(authorized.sub(nuInTAmount))
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.NU
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
           ).to.equal(authorized.sub(minAmount))
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.KEEP
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
           ).to.equal(0)
         })
 
@@ -4046,16 +3575,13 @@ describe("TokenStaking", () => {
 
       it("should update min staked amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
         ).to.equal(tAmount)
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(
-            operator.address,
-            StakingProviders.KEEP
-          )
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
         ).to.equal(0)
       })
 
@@ -4244,16 +3770,13 @@ describe("TokenStaking", () => {
 
       it("should update min staked amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(authorized.sub(tAmount))
         expect(
-          await tokenStaking.getMinStaked(
-            operator.address,
-            StakingProviders.KEEP
-          )
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
         ).to.equal(0)
       })
 
@@ -4449,16 +3972,13 @@ describe("TokenStaking", () => {
 
       it("should update min staked amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.T)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(operator.address, StakingProviders.NU)
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(0)
         expect(
-          await tokenStaking.getMinStaked(
-            operator.address,
-            StakingProviders.KEEP
-          )
+          await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
         ).to.equal(0)
       })
 
@@ -4886,22 +4406,13 @@ describe("TokenStaking", () => {
 
         it("should update min staked amount", async () => {
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.T
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.NU
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.KEEP
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
           ).to.equal(0)
         })
 
@@ -5017,22 +4528,13 @@ describe("TokenStaking", () => {
 
           it("should update min staked amount", async () => {
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.T
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
             ).to.equal(0)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.NU
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
             ).to.equal(0)
             expect(
-              await tokenStaking.getMinStaked(
-                operator.address,
-                StakingProviders.KEEP
-              )
+              await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
             ).to.equal(expectedKeepInTAmount)
           })
 
@@ -5524,22 +5026,13 @@ describe("TokenStaking", () => {
 
         it("should update min staked amount", async () => {
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.T
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.NU
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
           ).to.equal(0)
           expect(
-            await tokenStaking.getMinStaked(
-              operator.address,
-              StakingProviders.KEEP
-            )
+            await tokenStaking.getMinStaked(operator.address, StakeTypes.KEEP)
           ).to.equal(0)
         })
 
