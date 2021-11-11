@@ -199,7 +199,7 @@ contract VendingMachineMock {
 contract ApplicationMock is IApplication {
     struct OperatorStruct {
         uint96 authorized;
-        uint96 deauthorizing;
+        uint96 deauthorizingTo;
     }
 
     TokenStaking internal immutable tokenStaking;
@@ -213,20 +213,19 @@ contract ApplicationMock is IApplication {
         external
         override
     {
-        operators[operator].authorized += amount;
+        operators[operator].authorized = amount;
     }
 
     function authorizationDecreaseRequested(address operator, uint96 amount)
         external
         override
     {
-        operators[operator].deauthorizing = amount;
+        operators[operator].deauthorizingTo = amount;
     }
 
     function approveAuthorizationDecrease(address operator) external {
         OperatorStruct storage operatorStruct = operators[operator];
-        operatorStruct.authorized -= operatorStruct.deauthorizing;
-        operatorStruct.deauthorizing = 0;
+        operatorStruct.authorized = operatorStruct.deauthorizingTo;
         tokenStaking.approveAuthorizationDecrease(operator);
     }
 
@@ -248,12 +247,15 @@ contract ApplicationMock is IApplication {
         virtual
         override
     {
-        require(amount != 0, "Amount to decrease must be greater than zero");
         OperatorStruct storage operatorStruct = operators[operator];
-        operatorStruct.authorized -= amount;
-        if (operatorStruct.deauthorizing > operatorStruct.authorized) {
-            operatorStruct.deauthorizing = operatorStruct.authorized;
+        require(amount != operatorStruct.authorized, "Nothing to decrease");
+        uint96 decrease = operatorStruct.authorized - amount;
+        if (operatorStruct.deauthorizingTo > decrease) {
+            operatorStruct.deauthorizingTo -= decrease;
+        } else {
+            operatorStruct.deauthorizingTo = 0;
         }
+        operatorStruct.authorized = amount;
     }
 }
 

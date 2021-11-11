@@ -9,8 +9,8 @@ pragma solidity 0.8.9;
 ///         operator are eligible to slash the stake delegated to that operator.
 interface IApplication {
     /// @notice Used by T staking contract to inform the application that the
-    ///         authorized amount for the given operator increased. The
-    ///         application may do any necessary housekeeping.
+    ///         authorized amount for the given operator increased to the
+    ///         given amount. The application may do any necessary housekeeping.
     function authorizationIncreased(address operator, uint96 amount) external;
 
     /// @notice Used by T staking contract to inform the application that the

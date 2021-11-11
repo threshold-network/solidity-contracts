@@ -488,8 +488,8 @@ off-chain client of the given operator is eligible to join the network.
 ==== `authorizationIncreased(address operator, uint96 amount)`
 
 Used by T staking contract to inform the application the the authorized amount
-for the given operator increased. The application may do any housekeeping
-necessary.
+for the given operator increased to the given amount. The application may do any
+housekeeping necessary.
 
 ==== `authorizationDecreaseRequested(address operator, uint96 amount)`
 

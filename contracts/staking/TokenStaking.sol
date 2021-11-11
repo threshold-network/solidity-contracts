@@ -445,8 +445,15 @@ contract TokenStaking is Ownable, IStaking {
         uint96 availableTValue = getAvailableToAuthorize(operator, application);
         require(availableTValue >= amount, "Not enough stake to authorize");
         authorization.authorized += amount;
-        emit AuthorizationIncreased(operator, application, amount);
-        IApplication(application).authorizationIncreased(operator, amount);
+        emit AuthorizationIncreased(
+            operator,
+            application,
+            authorization.authorized
+        );
+        IApplication(application).authorizationIncreased(
+            operator,
+            authorization.authorized
+        );
     }
 
     /// @notice Requests decrease of the authorization for the given operator on
@@ -509,13 +516,13 @@ contract TokenStaking is Ownable, IStaking {
         ];
         require(authorization.deauthorizing > 0, "No deauthorizing in process");
 
+        authorization.authorized -= authorization.deauthorizing;
+        authorization.deauthorizing = 0;
         emit AuthorizationDecreaseApproved(
             operator,
             msg.sender,
-            authorization.deauthorizing
+            authorization.authorized
         );
-        authorization.authorized -= authorization.deauthorizing;
-        authorization.deauthorizing = 0;
 
         // remove application from an array
         if (authorization.authorized == 0) {
@@ -1060,10 +1067,15 @@ contract TokenStaking is Ownable, IStaking {
         );
 
         authorization.deauthorizing = amount;
-        emit AuthorizationDecreaseRequested(operator, application, amount);
+        uint96 deauthorizingTo = authorization.authorized - amount;
+        emit AuthorizationDecreaseRequested(
+            operator,
+            application,
+            deauthorizingTo
+        );
         IApplication(application).authorizationDecreaseRequested(
             operator,
-            amount
+            deauthorizingTo
         );
     }
 
@@ -1248,13 +1260,11 @@ contract TokenStaking is Ownable, IStaking {
             }
 
             bool successful = true;
-            uint96 amount = authorization.authorized - totalStake;
-
             //slither-disable-next-line calls-loop
             try
                 IApplication(application).involuntaryAuthorizationDecrease{
                     gas: GAS_LIMIT_AUTHORIZATION_DECREASE
-                }(operator, amount)
+                }(operator, totalStake)
             {} catch {
                 successful = false;
             }
@@ -1265,7 +1275,7 @@ contract TokenStaking is Ownable, IStaking {
             emit AuthorizationInvoluntaryDecreased(
                 operator,
                 application,
-                amount,
+                totalStake,
                 successful
             );
         }
