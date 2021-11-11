@@ -1051,6 +1051,14 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
+    /// @dev    For example, if the given operator has 10 T, 20 KEEP, and
+    ///         30 NU staked, their max authorization is 40, then `getMinStaked`
+    ///         for that operator returns 0 for KEEP stake type, 10 for NU stake
+    ///         type, and 0 for T stake type. In other words, minimum staked
+    ///         amount for the given stake type is the minimum amount of stake
+    ///         of the given type that needs to be preserved in the contract to
+    ///         satisfy the maximum application authorization given the amounts
+    ///         of other stake types for that operator.
     function getMinStaked(address operator, StakeType stakeTypes)
         public
         view
