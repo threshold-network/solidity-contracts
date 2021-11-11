@@ -417,7 +417,7 @@ describe("TokenStaking", () => {
       let tx
 
       context("when stake was canceled/withdrawn or not eligible", () => {
-        beforeEach(async () => {
+        it("should revert", async () => {
           const createdAt = 1
           await keepStakingMock.setOperator(
             operator.address,
@@ -428,45 +428,9 @@ describe("TokenStaking", () => {
             0,
             0
           )
-          tx = await tokenStaking.stakeKeep(operator.address)
-        })
-
-        it("should set roles equal to the Keep values", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-          expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
-            zeroBigNumber,
-            zeroBigNumber,
-            zeroBigNumber,
-          ])
-          expect(
-            await tokenStaking.getStartTStakingTimestamp(operator.address)
-          ).to.equal(0)
-        })
-
-        it("should not increase available amount to authorize", async () => {
-          expect(
-            await tokenStaking.getAvailableToAuthorize(
-              operator.address,
-              application1Mock.address
-            )
-          ).to.equal(0)
-        })
-
-        it("should emit OperatorStaked event", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "OperatorStaked")
-            .withArgs(
-              StakeTypes.KEEP,
-              staker.address,
-              operator.address,
-              beneficiary.address,
-              authorizer.address,
-              zeroBigNumber
-            )
+          await expect(
+            tokenStaking.stakeKeep(operator.address)
+          ).to.be.revertedWith("Nothing to sync")
         })
       })
 
@@ -2482,7 +2446,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(operator).topUpKeep(operator.address)
-        ).to.be.revertedWith("Nothing to sync")
+        ).to.be.revertedWith("Nothing to top-up")
       })
     })
 

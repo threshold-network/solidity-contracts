@@ -281,6 +281,7 @@ contract TokenStaking is Ownable, IStaking {
         );
 
         uint96 tAmount = getKeepAmountInT(operator);
+        require(tAmount != 0, "Nothing to sync");
 
         operatorStruct.keepInTStake = tAmount;
         operatorStruct.owner = keepStake.resolveOwner(
@@ -325,11 +326,7 @@ contract TokenStaking is Ownable, IStaking {
             "Operator is already in use"
         );
 
-        uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
-            msg.sender,
-            operator
-        );
-        (uint96 tAmount, ) = nuToT(nuStakeAmount);
+        uint96 tAmount = getNuAmountInT(msg.sender, operator);
         require(tAmount > 0, "Nothing to sync");
 
         operatorStruct.nuInTStake = tAmount;
@@ -633,11 +630,7 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(operator)
     {
         OperatorInfo storage operatorStruct = operators[operator];
-        uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
-            operatorStruct.owner,
-            operator
-        );
-        (uint96 tAmount, ) = nuToT(nuStakeAmount);
+        uint96 tAmount = getNuAmountInT(operatorStruct.owner, operator);
         require(tAmount > operatorStruct.nuInTStake, "Nothing to top-up");
 
         emit ToppedUp(operator, tAmount - operatorStruct.nuInTStake);
@@ -1357,19 +1350,25 @@ contract TokenStaking is Ownable, IStaking {
     /// @notice Returns amount of Keep stake in the Keep staking contract for the specified operator.
     ///         Resulting value in T denomination
     function getKeepAmountInT(address operator) internal view returns (uint96) {
-        (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
-            operator
-        );
-        require(createdAt != 0, "Nothing to sync");
-
         uint256 keepStakeAmount = keepStakingContract.eligibleStake(
             operator,
             address(this)
         );
-        uint96 tAmount = 0;
-        if (keepStakeAmount > 0) {
-            (tAmount, ) = keepToT(keepStakeAmount);
-        }
+        (uint96 tAmount, ) = keepToT(keepStakeAmount);
+        return tAmount;
+    }
+
+    /// @notice Returns amount of Nu stake in the NuCypher staking contract for the specified operator.
+    ///         Resulting value in T denomination
+    function getNuAmountInT(address owner, address operator)
+        internal
+        returns (uint96)
+    {
+        uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
+            owner,
+            operator
+        );
+        (uint96 tAmount, ) = nuToT(nuStakeAmount);
         return tAmount;
     }
 
