@@ -3,19 +3,83 @@
 pragma solidity 0.8.4;
 
 import "./ILegacyTokenStaking.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @title KEEP ManagedGrant contract interface
 interface IManagedGrant {
     function grantee() external view returns (address);
 }
 
-contract KeepStake {
+/// @title KEEP stake owner resolver
+/// @notice T network staking contract supports existing KEEP stakes by allowing
+///         KEEP stakers to use their stakes in T network and weights them based
+///         on KEEP<>T token ratio. KEEP stake owner is cached in T staking
+///         contract and used to restrict access to all functions only owner or
+///         operator should call. To cache KEEP staking contract in T staking
+///         contract, it fitst needs to resolve the owner. Resolving liquid
+///         KEEP stake owner is easy. Resolving token grant stake owner is
+///         complicated and not possible to do on-chain from a contract external
+///         to KEEP TokenStaking contract. Keep TokenStaking knows the grant ID
+///         but does not expose it externally.
+/// 
+///         KeepStake contract addresses this problem by exposing
+///         operator-owner mappings snapshotted off-chain based on events and
+///         information publicly available from KEEP TokenStaking contract and
+///         KEEP TokenGrant contract. Additionally, it gives the Governance
+///         ability to add new mappings in case they are ever needed; in
+///         practice, this will be needed only if someone decides to stake their
+///         KEEP token grant in KEEP network after 2021-11-11 when the snapshot
+///         was taken.
+///
+///         Operator-owner pairs were snapshotted 2021-11-11 in the following
+///         way:
+///         1. Fetch all TokenStaking events from KEEP staking contract.
+///         2. Filter out undelegated operators.
+///         3. Filter out canceled delegations.
+///         4. Fetch grant stake information from KEEP TokenGrant for that
+///            operator to determine if we are dealing with grant delegation.
+///         5. Fetch grantee address from KEEP TokenGrant contract.
+///         6. Check if we are dealing with ManagedGrant by looking for all
+///            created ManagedGrants and comparing their address against grantee
+///            address fetched from TokenGrant contract.
+contract KeepStake is Ownable {
     IKeepTokenStaking public immutable keepTokenStaking;
+
+    mapping(address => address) public operatorToManagedGrant;
+    mapping(address => address) public operatorToGrantee;
 
     constructor(IKeepTokenStaking _keepTokenStaking) {
         keepTokenStaking = _keepTokenStaking;
     }
 
+    /// @notice Allows the Governance to set new operator-managed grant pair.
+    ///         This function should only be called for managed grants if
+    ///         the snapshot does include this pair. 
+    function setManagedGrant(address operator, address managedGrant)
+        external
+        onlyOwner
+    {
+        operatorToManagedGrant[operator] = managedGrant;
+    }
+
+    /// @notice Allows the Governance to set new operator-grantee pair.
+    ///         This function should only be called for non-managed grants if
+    ///         the snapshot does include this pair. 
+    function setGrantee(address operator, address grantee) external onlyOwner {
+        operatorToGrantee[operator] = grantee;
+    }
+
+    /// @notice Resolves KEEP stake owner for the provided operator address.
     function resolveOwner(address operator) external view returns (address) {
+        address owner = operatorToManagedGrant[operator];
+        if (owner != address(0)) {
+            return IManagedGrant(owner).grantee();
+        }
+        owner = operatorToGrantee[operator];
+        if (owner != address(0)) {
+            return owner;
+        }
+
         if (operator == 0x855A951162B1B93D70724484d5bdc9D00B56236B) {
             return
                 IManagedGrant(0xFADbF758307A054C57B365Db1De90acA71feaFE5)
