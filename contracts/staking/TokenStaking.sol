@@ -138,10 +138,10 @@ contract TokenStaking is Ownable, IStaking {
         uint256 count,
         uint256 tAmount
     );
-    event GrantOwnerRefreshed(
+    event OwnerRefreshed(
         address indexed operator,
-        address indexed oldGrantee,
-        address indexed newGrantee
+        address indexed oldOwner,
+        address indexed newOwner
     );
 
     modifier onlyGovernance() {
@@ -336,20 +336,16 @@ contract TokenStaking is Ownable, IStaking {
         );
     }
 
-    /// @notice Extracts owner of Keep stake from grantee in ManagedGrant
-    function refreshKeepManagedGrantOwner(address operator)
-        external
-        override
-        onlyOwnerOrOperator(operator)
-    {
+    /// @notice Refresh Keep stake owner. Can be called only by the old owner.
+    function refreshKeepStakeOwner(address operator) external override {
+        OperatorInfo storage operatorStruct = operators[operator];
+        require(operatorStruct.owner == msg.sender, "Not old owner");
         address newOwner = keepStake.resolveOwner(
             keepStakingContract,
             operator
         );
 
-        OperatorInfo storage operatorStruct = operators[operator];
-        require(newOwner != operatorStruct.owner, "Owner has not been changed");
-        emit GrantOwnerRefreshed(operator, operatorStruct.owner, newOwner);
+        emit OwnerRefreshed(operator, operatorStruct.owner, newOwner);
         operatorStruct.owner = newOwner;
     }
 

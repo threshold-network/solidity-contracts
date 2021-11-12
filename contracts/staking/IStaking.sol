@@ -50,8 +50,8 @@ interface IStaking {
         address authorizer
     ) external;
 
-    /// @notice Extracts owner of Keep stake from grantee in ManagedGrant
-    function refreshKeepManagedGrantOwner(address operator) external;
+    /// @notice Refresh Keep stake owner. Can be called only by the old owner.
+    function refreshKeepStakeOwner(address operator) external;
 
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking

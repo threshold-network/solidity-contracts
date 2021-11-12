@@ -668,14 +668,12 @@ describe("TokenStaking", () => {
     context("when operator has no delegated stake", () => {
       it("should revert", async () => {
         await expect(
-          tokenStaking
-            .connect(operator)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Not owner or operator")
+          tokenStaking.connect(operator).refreshKeepStakeOwner(operator.address)
+        ).to.be.revertedWith("Not old owner")
       })
     })
 
-    context("when caller is not owner or operator", () => {
+    context("when caller is not old owner", () => {
       it("should revert", async () => {
         await tToken
           .connect(staker)
@@ -691,13 +689,15 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(authorizer)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Not owner or operator")
+            .refreshKeepStakeOwner(operator.address)
+        ).to.be.revertedWith("Not old owner")
       })
     })
 
     context("when grantee was not changed", () => {
-      it("should revert", async () => {
+      let tx
+
+      beforeEach(async () => {
         const createdAt = 1
         await keepStakingMock.setOperator(
           operator.address,
@@ -715,11 +715,23 @@ describe("TokenStaking", () => {
         )
         await tokenStaking.stakeKeep(operator.address)
 
-        await expect(
-          tokenStaking
-            .connect(staker)
-            .refreshKeepManagedGrantOwner(operator.address)
-        ).to.be.revertedWith("Owner has not been changed")
+        tx = await tokenStaking
+          .connect(staker)
+          .refreshKeepStakeOwner(operator.address)
+      })
+
+      it("should not update owner", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
+      })
+
+      it("should emit OwnerRefreshed", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "OwnerRefreshed")
+          .withArgs(operator.address, staker.address, staker.address)
       })
     })
 
@@ -755,7 +767,7 @@ describe("TokenStaking", () => {
         )
         tx = await tokenStaking
           .connect(otherStaker)
-          .refreshKeepManagedGrantOwner(operator.address)
+          .refreshKeepStakeOwner(operator.address)
       })
 
       it("should update owner", async () => {
@@ -766,9 +778,9 @@ describe("TokenStaking", () => {
         ])
       })
 
-      it("should emit GrantOwnerRefreshed", async () => {
+      it("should emit OwnerRefreshed", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "GrantOwnerRefreshed")
+          .to.emit(tokenStaking, "OwnerRefreshed")
           .withArgs(operator.address, otherStaker.address, staker.address)
       })
     })

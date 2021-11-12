@@ -297,9 +297,9 @@ additionally appointing beneficiary and authorizer roles. Caches the amount
 staked in NU staking contract. Can be called only by the original delegation
 owner.
 
-==== `refreshKeepManagedGrantOwner(address operator) external onlyOwnerOrOperator(operator)`
+==== `refreshKeepStakeOwner(address operator) external`
 
-Extracts owner of Keep stake from grantee in ManagedGrant
+Refresh Keep stake owner. Can be called only by the old owner.
 
 ==== `setMinimumStakeAmount(uint96 amount) external onlyGovernance`
 
