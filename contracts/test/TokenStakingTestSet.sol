@@ -225,8 +225,9 @@ contract ApplicationMock is IApplication {
 
     function approveAuthorizationDecrease(address operator) external {
         OperatorStruct storage operatorStruct = operators[operator];
-        operatorStruct.authorized = operatorStruct.deauthorizingTo;
-        tokenStaking.approveAuthorizationDecrease(operator);
+        operatorStruct.authorized = tokenStaking.approveAuthorizationDecrease(
+            operator
+        );
     }
 
     function slash(uint96 amount, address[] memory _operators) external {

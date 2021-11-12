@@ -109,7 +109,10 @@ interface IStaking {
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
     ///         decrease the authorization for that operator.
-    function approveAuthorizationDecrease(address operator) external;
+    ///         Returns resulting authorized amount for the application.
+    function approveAuthorizationDecrease(address operator)
+        external
+        returns (uint96);
 
     /// @notice Pauses the given application’s eligibility to slash stakes.
     ///         Besides that stakers can't change authorization to the application.

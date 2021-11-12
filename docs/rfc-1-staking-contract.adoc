@@ -297,7 +297,7 @@ additionally appointing beneficiary and authorizer roles. Caches the amount
 staked in NU staking contract. Can be called only by the original delegation
 owner.
 
-==== `refreshKeepStakeOwner(address operator) external`
+==== `refreshKeepStakeOwner(address operator) external onlyOwnerOf(operator)`
 
 Refresh Keep stake owner. Can be called only by the old owner.
 
@@ -338,11 +338,12 @@ When it happens depends on the application. Can only be called by the given oper
 authorizer. Overwrites pending authorization decrease for the given operator and 
 application.
 
-==== `approveAuthorizationDecrease(address operator) external onlyRequestedApplication`
+==== `approveAuthorizationDecrease(address operator) external onlyRequestedApplication returns (uint96)`
 
 Called by the application at its discretion to approve the previously requested
 authorization decrease request. Can only be called by the application that
 was previously requested to decrease the authorization for that operator.
+Returns resulting authorized amount for the application.
 
 ==== `pauseApplication(address application) external onlyPanicButtonOf(application)`
 

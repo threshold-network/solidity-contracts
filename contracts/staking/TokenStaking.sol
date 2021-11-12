@@ -476,7 +476,12 @@ contract TokenStaking is Ownable, IStaking {
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
     ///         decrease the authorization for that operator.
-    function approveAuthorizationDecrease(address operator) external override {
+    ///         Returns resulting authorized amount for the application.
+    function approveAuthorizationDecrease(address operator)
+        external
+        override
+        returns (uint96)
+    {
         ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
         require(!applicationStruct.paused, "Application is paused");
 
@@ -498,6 +503,8 @@ contract TokenStaking is Ownable, IStaking {
         if (authorization.authorized == 0) {
             cleanAuthorizedApplications(operatorStruct, 1);
         }
+
+        return authorization.authorized;
     }
 
     /// @notice Pauses the given application’s eligibility to slash stakes.

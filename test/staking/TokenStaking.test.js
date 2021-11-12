@@ -6078,7 +6078,6 @@ describe("TokenStaking", () => {
 
         const amountToSlash = tAmount.div(3)
         const authorized = amountToSlash
-        let tx
 
         beforeEach(async () => {
           await tokenStaking.connect(deployer).setAuthorizationCeiling(2)
