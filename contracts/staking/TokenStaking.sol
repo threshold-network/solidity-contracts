@@ -27,12 +27,6 @@ contract TokenStaking is Ownable, IStaking {
     using PercentUtils for uint256;
     using SafeCast for uint256;
 
-    enum StakeType {
-        NU,
-        KEEP,
-        T
-    }
-
     struct OperatorInfo {
         uint96 nuInTStake;
         address owner;
@@ -164,10 +158,7 @@ contract TokenStaking is Ownable, IStaking {
 
     modifier onlyAuthorizerOf(address operator) {
         //slither-disable-next-line incorrect-equality
-        require(
-            operators[operator].authorizer == msg.sender,
-            "Not operator authorizer"
-        );
+        require(operators[operator].authorizer == msg.sender, "Not authorizer");
         _;
     }
 
@@ -260,8 +251,8 @@ contract TokenStaking is Ownable, IStaking {
             StakeType.T,
             msg.sender,
             operator,
-            operatorStruct.beneficiary,
-            operatorStruct.authorizer,
+            beneficiary,
+            authorizer,
             amount
         );
         token.safeTransferFrom(msg.sender, address(this), amount);
@@ -338,15 +329,16 @@ contract TokenStaking is Ownable, IStaking {
             StakeType.NU,
             msg.sender,
             operator,
-            operatorStruct.beneficiary,
-            operatorStruct.authorizer,
+            beneficiary,
+            authorizer,
             tAmount
         );
     }
 
-    /// @notice Extract owner of Keep stake from grantee in ManagedGrant
+    /// @notice Extracts owner of Keep stake from grantee in ManagedGrant
     function refreshKeepManagedGrantOwner(address operator)
         external
+        override
         onlyOwnerOrOperator(operator)
     {
         address newOwner = keepStake.resolveOwner(
@@ -450,25 +442,8 @@ contract TokenStaking is Ownable, IStaking {
         );
     }
 
-    /// @notice Requests decrease of the authorization for the given operator on
-    ///         the given application by all authorized amount.
-    ///         It may not change the authorized amount immediatelly. When
-    ///         it happens depends on the application. Can only be called by the
-    ///         given operator’s authorizer. Overwrites pending authorization
-    ///         decrease for the given operator and application.
-    /// @dev Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
-    ///      on the given application. See `IApplication`.
-    function requestAuthorizationDecrease(address operator, address application)
-        external
-    {
-        uint96 authorized = operators[operator]
-            .authorizations[application]
-            .authorized;
-        requestAuthorizationDecrease(operator, application, authorized);
-    }
-
-    /// @notice Requests decrease of the all authorizations for the given operator on
-    ///         the all applications by all authorized amount.
+    /// @notice Requests decrease of all authorizations for the given operator on
+    ///         all applications by all authorized amount.
     ///         It may not change the authorized amount immediatelly. When
     ///         it happens depends on the application. Can only be called by the
     ///         given operator’s authorizer. Overwrites pending authorization
@@ -557,7 +532,7 @@ contract TokenStaking is Ownable, IStaking {
     /// @notice Sets the Panic Button role for the given application to the
     ///         provided address. Can only be called by the Governance. If the
     ///         Panic Button for the given application should be disabled, the
-    ///         role address should can set to 0x0 address.
+    ///         role address should be set to 0x0 address.
     function setPanicButton(address application, address panicButton)
         external
         override
@@ -692,7 +667,7 @@ contract TokenStaking is Ownable, IStaking {
         require(operatorStruct.keepInTStake != 0, "Nothing to unstake");
         require(
             getMinStaked(operator, StakeType.KEEP) == 0,
-            "Keep stake has still delegated"
+            "Keep stake still authorized"
         );
         emit Unstaked(operator, operatorStruct.keepInTStake);
         operatorStruct.keepInTStake = 0;
@@ -711,6 +686,8 @@ contract TokenStaking is Ownable, IStaking {
     /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
     ///         in NuCypher staking contract. Otherwise NU tokens can't be
     ///         unlocked.
+    /// @param operator Operator address.
+    /// @param amount Amount of NU to unstake in T denomination.
     function unstakeNu(address operator, uint96 amount)
         external
         override
@@ -744,7 +721,7 @@ contract TokenStaking is Ownable, IStaking {
         OperatorInfo storage operatorStruct = operators[operator];
         require(
             operatorStruct.authorizedApplications.length == 0,
-            "Stake has still delegated"
+            "Stake still authorized"
         );
         require(
             operatorStruct.tStake == 0 ||
@@ -960,6 +937,7 @@ contract TokenStaking is Ownable, IStaking {
     function stakes(address operator)
         external
         view
+        override
         returns (
             uint96 tStake,
             uint96 keepInTStake,
@@ -979,6 +957,7 @@ contract TokenStaking is Ownable, IStaking {
     function getStartTStakingTimestamp(address operator)
         external
         view
+        override
         returns (uint256)
     {
         return operators[operator].startTStakingTimestamp;
@@ -988,6 +967,7 @@ contract TokenStaking is Ownable, IStaking {
     function stakedNu(address operator)
         external
         view
+        override
         returns (uint256 nuAmount)
     {
         (nuAmount, ) = tToNu(operators[operator].nuInTStake);
@@ -1001,6 +981,7 @@ contract TokenStaking is Ownable, IStaking {
     function rolesOf(address operator)
         external
         view
+        override
         returns (
             address owner,
             address payable beneficiary,
@@ -1014,12 +995,12 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Returns length of application array
-    function getApplicationsLength() external view returns (uint256) {
+    function getApplicationsLength() external view override returns (uint256) {
         return applications.length;
     }
 
     /// @notice Returns length of slashing queue
-    function getSlashingQueueLength() external view returns (uint256) {
+    function getSlashingQueueLength() external view override returns (uint256) {
         return slashingQueue.length;
     }
 
@@ -1075,6 +1056,7 @@ contract TokenStaking is Ownable, IStaking {
     function getMinStaked(address operator, StakeType stakeTypes)
         public
         view
+        override
         returns (uint96)
     {
         OperatorInfo storage operatorStruct = operators[operator];
@@ -1119,6 +1101,7 @@ contract TokenStaking is Ownable, IStaking {
     function getAvailableToAuthorize(address operator, address application)
         public
         view
+        override
         returns (uint96 availableTValue)
     {
         OperatorInfo storage operatorStruct = operators[operator];

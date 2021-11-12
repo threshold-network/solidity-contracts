@@ -10,6 +10,12 @@ pragma solidity 0.8.9;
 ///         The stake delegation optimizes the network throughput without
 ///         compromising the security of the owners’ stake.
 interface IStaking {
+    enum StakeType {
+        NU,
+        KEEP,
+        T
+    }
+
     //
     //
     // Delegating a stake
@@ -43,6 +49,9 @@ interface IStaking {
         address payable beneficiary,
         address authorizer
     ) external;
+
+    /// @notice Extracts owner of Keep stake from grantee in ManagedGrant
+    function refreshKeepManagedGrantOwner(address operator) external;
 
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking
@@ -86,19 +95,8 @@ interface IStaking {
         uint96 amount
     ) external;
 
-    /// @notice Requests decrease of the authorization for the given operator on
-    ///         the given application by all authorized amount.
-    ///         It may not change the authorized amount immediatelly. When
-    ///         it happens depends on the application. Can only be called by the
-    ///         given operator’s authorizer. Overwrites pending authorization
-    ///         decrease for the given operator and application.
-    /// @dev Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
-    ///      on the given application. See `IApplication`.
-    function requestAuthorizationDecrease(address operator, address application)
-        external;
-
-    /// @notice Requests decrease of the all authorizations for the given operator on
-    ///         the all applications by all authorized amount.
+    /// @notice Requests decrease of all authorizations for the given operator on
+    ///         the applications by all authorized amount.
     ///         It may not change the authorized amount immediatelly. When
     ///         it happens depends on the application. Can only be called by the
     ///         given operator’s authorizer. Overwrites pending authorization
@@ -124,7 +122,7 @@ interface IStaking {
     /// @notice Sets the Panic Button role for the given application to the
     ///         provided address. Can only be called by the Governance. If the
     ///         Panic Button for the given application should be disabled, the
-    ///         role address should can set to 0x0 address.
+    ///         role address should be set to 0x0 address.
     function setPanicButton(address application, address panicButton) external;
 
     /// @notice Sets the maximum number of applications one operator can
@@ -260,6 +258,70 @@ interface IStaking {
     /// @notice Returns the authorized stake amount of the operator for the
     ///         application.
     function authorizedStake(address operator, address application)
+        external
+        view
+        returns (uint96);
+
+    /// @notice Returns staked amount of T, Keep and Nu for the specified
+    ///         operator.
+    /// @dev    All values are in T denomination
+    function stakes(address operator)
+        external
+        view
+        returns (
+            uint96 tStake,
+            uint96 keepInTStake,
+            uint96 nuInTStake
+        );
+
+    /// @notice Returns start staking timestamp for T stake.
+    /// @dev    This value is set at most once, and only when a stake is created
+    ///         with T tokens. If a stake is created from a legacy stake,
+    ///         this value will remain as zero
+    function getStartTStakingTimestamp(address operator)
+        external
+        view
+        returns (uint256);
+
+    /// @notice Returns staked amount of NU for the specified operator
+    function stakedNu(address operator) external view returns (uint256);
+
+    /// @notice Gets the stake owner, the beneficiary and the authorizer
+    ///         for the specified operator address.
+    /// @return owner Stake owner address.
+    /// @return beneficiary Beneficiary address.
+    /// @return authorizer Authorizer address.
+    function rolesOf(address operator)
+        external
+        view
+        returns (
+            address owner,
+            address payable beneficiary,
+            address authorizer
+        );
+
+    /// @notice Returns length of application array
+    function getApplicationsLength() external view returns (uint256);
+
+    /// @notice Returns length of slashing queue
+    function getSlashingQueueLength() external view returns (uint256);
+
+    /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
+    /// @dev    For example, if the given operator has 10 T, 20 KEEP, and
+    ///         30 NU staked, their max authorization is 40, then `getMinStaked`
+    ///         for that operator returns 0 for KEEP stake type, 10 for NU stake
+    ///         type, and 0 for T stake type. In other words, minimum staked
+    ///         amount for the given stake type is the minimum amount of stake
+    ///         of the given type that needs to be preserved in the contract to
+    ///         satisfy the maximum application authorization given the amounts
+    ///         of other stake types for that operator.
+    function getMinStaked(address operator, StakeType stakeTypes)
+        external
+        view
+        returns (uint96);
+
+    /// @notice Returns available amount to authorize for the specified application
+    function getAvailableToAuthorize(address operator, address application)
         external
         view
         returns (uint96);
