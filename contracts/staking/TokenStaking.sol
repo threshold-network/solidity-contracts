@@ -1390,20 +1390,20 @@ contract TokenStaking is Ownable, IStaking {
         }
 
         uint256 deleted = 0;
-        for (
-            uint256 index = 0;
-            index < length - numberToDelete && deleted < numberToDelete;
-
-        ) {
+        uint256 index = 0;
+        uint256 newLength = length - numberToDelete;
+        while (index < newLength && deleted < numberToDelete) {
             address application = operatorStruct.authorizedApplications[index];
             if (operatorStruct.authorizations[application].authorized == 0) {
                 operatorStruct.authorizedApplications[index] = operatorStruct
-                    .authorizedApplications[length - 1];
-                operatorStruct.authorizedApplications.pop();
+                    .authorizedApplications[length - deleted - 1];
                 deleted++;
             } else {
                 index++;
             }
+        }
+        for (index = newLength; index < length; index++) {
+            operatorStruct.authorizedApplications.pop();
         }
     }
 

@@ -5143,7 +5143,7 @@ describe("TokenStaking", () => {
     context("when reward is zero", () => {
       it("should revert", async () => {
         await expect(tokenStaking.pushNotificationReward(0)).to.be.revertedWith(
-          "Reward must be specified"
+          "Amount must be greater than 0"
         )
       })
     })
@@ -6152,14 +6152,14 @@ describe("TokenStaking", () => {
             .connect(staker)
             .increaseAuthorization(
               operator.address,
-              application1Mock.address,
+              application2Mock.address,
               authorized
             )
           await tokenStaking
             .connect(staker)
             .increaseAuthorization(
               operator.address,
-              application2Mock.address,
+              application1Mock.address,
               authorized
             )
 
