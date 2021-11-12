@@ -357,6 +357,10 @@ contract TokenStaking is Ownable, IStaking {
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
     ///         higher minimum stakes if necessary.
+    /// @dev Operators are not required to maintain a minimum T stake all
+    ///      the time. 24 hours after the delegation, T stake can be reduced
+    ///      below the minimum stake. The minimum stake is just to protect
+    ///      against griefing stake operation.
     function setMinimumStakeAmount(uint96 amount)
         external
         override
