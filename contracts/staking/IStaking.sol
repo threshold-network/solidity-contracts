@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 
 /// @title Interface of Threshold Network staking contract
 /// @notice The staking contract enables T owners to have their wallets offline
@@ -10,6 +10,12 @@ pragma solidity 0.8.4;
 ///         The stake delegation optimizes the network throughput without
 ///         compromising the security of the owners’ stake.
 interface IStaking {
+    enum StakeType {
+        NU,
+        KEEP,
+        T
+    }
+
     //
     //
     // Delegating a stake
@@ -23,9 +29,9 @@ interface IStaking {
     ///      transfer to the staking contract.
     function stake(
         address operator,
-        address beneficiary,
+        address payable beneficiary,
         address authorizer,
-        uint256 amount
+        uint96 amount
     ) external;
 
     /// @notice Copies delegation from the legacy KEEP staking contract to T
@@ -40,15 +46,18 @@ interface IStaking {
     ///         contract. Can be called only by the original delegation owner.
     function stakeNu(
         address operator,
-        address beneficiary,
+        address payable beneficiary,
         address authorizer
     ) external;
+
+    /// @notice Refresh Keep stake owner. Can be called only by the old owner.
+    function refreshKeepStakeOwner(address operator) external;
 
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
     ///         higher minimum stakes if necessary.
-    function setMinimumStakeAmount(uint256 amount) external;
+    function setMinimumStakeAmount(uint96 amount) external;
 
     //
     //
@@ -69,7 +78,7 @@ interface IStaking {
     function increaseAuthorization(
         address operator,
         address application,
-        uint256 amount
+        uint96 amount
     ) external;
 
     /// @notice Requests decrease of the authorization for the given operator on
@@ -83,26 +92,40 @@ interface IStaking {
     function requestAuthorizationDecrease(
         address operator,
         address application,
-        uint256 amount
+        uint96 amount
     ) external;
+
+    /// @notice Requests decrease of all authorizations for the given operator on
+    ///         the applications by all authorized amount.
+    ///         It may not change the authorized amount immediatelly. When
+    ///         it happens depends on the application. Can only be called by the
+    ///         given operator’s authorizer. Overwrites pending authorization
+    ///         decrease for the given operator and application.
+    /// @dev Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+    ///      for each authorized application. See `IApplication`.
+    function requestAuthorizationDecrease(address operator) external;
 
     /// @notice Called by the application at its discretion to approve the
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
     ///         decrease the authorization for that operator.
-    function approveAuthorizationDecrease(address operator) external;
+    ///         Returns resulting authorized amount for the application.
+    function approveAuthorizationDecrease(address operator)
+        external
+        returns (uint96);
 
-    /// @notice Disables the given application’s eligibility to slash stakes.
+    /// @notice Pauses the given application’s eligibility to slash stakes.
+    ///         Besides that stakers can't change authorization to the application.
     ///         Can be called only by the Panic Button of the particular
-    ///         application. The disabled application can not slash stakes until
+    ///         application. The paused application can not slash stakes until
     ///         it is approved again by the Governance using `approveApplication`
     ///         function. Should be used only in case of an emergency.
-    function disableApplication(address application) external;
+    function pauseApplication(address application) external;
 
     /// @notice Sets the Panic Button role for the given application to the
     ///         provided address. Can only be called by the Governance. If the
     ///         Panic Button for the given application should be disabled, the
-    ///         role address should can set to 0x0 address.
+    ///         role address should be set to 0x0 address.
     function setPanicButton(address application, address panicButton) external;
 
     /// @notice Sets the maximum number of applications one operator can
@@ -117,17 +140,19 @@ interface IStaking {
     //
 
     /// @notice Increases the amount of the stake for the given operator.
-    ///         Can be called by anyone.
+    ///         Can be called only by the owner or operator.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
-    function topUp(address operator, uint256 amount) external;
+    function topUp(address operator, uint96 amount) external;
 
     /// @notice Propagates information about stake top-up from the legacy KEEP
-    ///         staking contract to T staking contract. Can be called by anyone.
+    ///         staking contract to T staking contract. Can be called only by
+    ///         the owner or operator.
     function topUpKeep(address operator) external;
 
     /// @notice Propagates information about stake top-up from the legacy NU
-    ///         staking contract to T staking contract. Can be called by anyone.
+    ///         staking contract to T staking contract. Can be called only by
+    ///         the owner or operator.
     function topUpNu(address operator) external;
 
     //
@@ -142,13 +167,13 @@ interface IStaking {
     ///         remaining liquid T stake or if the unstake amount is higher than
     ///         the liquid T stake amount. Can be called only by the owner or
     ///         operator.
-    function unstakeT(address operator, uint256 amount) external;
+    function unstakeT(address operator, uint96 amount) external;
 
     /// @notice Sets the legacy KEEP staking contract active stake amount cached
     ///         in T staking contract to 0. Reverts if the amount of liquid T
     ///         staked in T staking contract is lower than the highest
     ///         application authorization. This function allows to unstake from
-    ///         KEEP staking contract and sill being able to operate in T
+    ///         KEEP staking contract and still being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
     ///         called only by the delegation owner and operator.
     function unstakeKeep(address operator) external;
@@ -163,7 +188,7 @@ interface IStaking {
     ///         still being able to operate in T network and earning rewards
     ///         based on the liquid T staked. Can be called only by the
     ///         delegation owner and operator.
-    function unstakeNu(address operator, uint256 amount) external;
+    function unstakeNu(address operator, uint96 amount) external;
 
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
     ///         amount to 0 and withdraws all liquid T from the stake to the
@@ -201,32 +226,41 @@ interface IStaking {
     ///         multiplier, is given to the notifier. The rest of the tokens are
     ///         burned. Can only be called by the Governance. See `seize` function.
     function setStakeDiscrepancyPenalty(
-        uint256 penalty,
+        uint96 penalty,
         uint256 rewardMultiplier
     ) external;
+
+    /// @notice Sets reward in T tokens for notification of misbehaviour
+    ///         of one operator. Can only be called by the governance.
+    function setNotificationReward(uint96 reward) external;
+
+    /// @notice Transfer some amount of T tokens as reward for notifications
+    ///         of misbehaviour
+    function pushNotificationReward(uint96 reward) external;
+
+    /// @notice Withdraw some amount of T tokens from notifiers treasury.
+    ///         Can only be called by the governance.
+    function withdrawNotificationReward(address recipient, uint96 amount)
+        external;
 
     /// @notice Adds operators to the slashing queue along with the amount that
     ///         should be slashed from each one of them. Can only be called by
     ///         application authorized for all operators in the array.
-    function slash(uint256 amount, address[] memory operators) external;
+    function slash(uint96 amount, address[] memory operators) external;
 
-    /// @notice Adds operators to the slashing queue along with the amount,
-    ///         reward multiplier and notifier address. The notifier will
-    ///         receive 1% of the slashed amount scaled by the reward adjustment
-    ///         parameter once the seize order will be processed. Can only be
-    ///         called by application authorized for all operators in the array.
+    /// @notice Adds operators to the slashing queue along with the amount.
+    ///         The notifier will receive reward per each operator from
+    ///         notifiers treasury. Can only be called by application
+    ///         authorized for all operators in the array.
     function seize(
-        uint256 amount,
+        uint96 amount,
         uint256 rewardMultipier,
         address notifier,
         address[] memory operators
     ) external;
 
     /// @notice Takes the given number of queued slashing operations and
-    ///         processes them. Receives 5% of the slashed amount if the
-    ///         slashing request was created by the application with a slash
-    ///         call and 4% of the slashed amount if the slashing request was
-    ///         created by the application with seize call.
+    ///         processes them. Receives 5% of the slashed amount.
     ///         Executes `involuntaryAllocationDecrease` function on each
     ///         affected application.
     function processSlashing(uint256 count) external;
@@ -242,11 +276,69 @@ interface IStaking {
     function authorizedStake(address operator, address application)
         external
         view
+        returns (uint96);
+
+    /// @notice Returns staked amount of T, Keep and Nu for the specified
+    ///         operator.
+    /// @dev    All values are in T denomination
+    function stakes(address operator)
+        external
+        view
+        returns (
+            uint96 tStake,
+            uint96 keepInTStake,
+            uint96 nuInTStake
+        );
+
+    /// @notice Returns start staking timestamp for T stake.
+    /// @dev    This value is set at most once, and only when a stake is created
+    ///         with T tokens. If a stake is created from a legacy stake,
+    ///         this value will remain as zero
+    function getStartTStakingTimestamp(address operator)
+        external
+        view
         returns (uint256);
 
-    /// @notice Checks if the specified operator has a stake delegated and if it
-    ///         has been authorized for at least one application. If this
-    ///         function returns true, off-chain client of the given operator is
-    ///         eligible to join the network.
-    function hasStakeDelegated(address operator) external view returns (bool);
+    /// @notice Returns staked amount of NU for the specified operator
+    function stakedNu(address operator) external view returns (uint256);
+
+    /// @notice Gets the stake owner, the beneficiary and the authorizer
+    ///         for the specified operator address.
+    /// @return owner Stake owner address.
+    /// @return beneficiary Beneficiary address.
+    /// @return authorizer Authorizer address.
+    function rolesOf(address operator)
+        external
+        view
+        returns (
+            address owner,
+            address payable beneficiary,
+            address authorizer
+        );
+
+    /// @notice Returns length of application array
+    function getApplicationsLength() external view returns (uint256);
+
+    /// @notice Returns length of slashing queue
+    function getSlashingQueueLength() external view returns (uint256);
+
+    /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
+    /// @dev    For example, if the given operator has 10 T, 20 KEEP, and
+    ///         30 NU staked, their max authorization is 40, then `getMinStaked`
+    ///         for that operator returns 0 for KEEP stake type, 10 for NU stake
+    ///         type, and 0 for T stake type. In other words, minimum staked
+    ///         amount for the given stake type is the minimum amount of stake
+    ///         of the given type that needs to be preserved in the contract to
+    ///         satisfy the maximum application authorization given the amounts
+    ///         of other stake types for that operator.
+    function getMinStaked(address operator, StakeType stakeTypes)
+        external
+        view
+        returns (uint96);
+
+    /// @notice Returns available amount to authorize for the specified application
+    function getAvailableToAuthorize(address operator, address application)
+        external
+        view
+        returns (uint96);
 }
