@@ -4341,10 +4341,11 @@ describe("TokenStaking", () => {
       })
 
       context(
-        "when penalty is less than Keep stake (2 apps, 1 involuntary call)",
+        "when penalty is less than Keep stake (2 apps, 2 involuntary calls)",
         () => {
           const authorizedAmount1 = keepInTAmount.sub(1)
-          const keepPenalty = convertFromT(tPenalty, keepRatio).result
+          const conversion = convertFromT(tPenalty, keepRatio)
+          const keepPenalty = conversion.result
           const expectedKeepAmount = newKeepAmount.sub(keepPenalty)
           const expectedKeepInTAmount = convertToT(
             expectedKeepAmount,
@@ -4355,6 +4356,10 @@ describe("TokenStaking", () => {
             rewardMultiplier
           )
           const authorizedAmount2 = expectedKeepInTAmount.sub(1)
+          const expectedTPenalty = tPenalty.sub(conversion.remainder)
+          const expectedAuthorizedAmount1 = expectedKeepInTAmount
+          const expectedAuthorizedAmount2 =
+            authorizedAmount2.sub(expectedTPenalty)
 
           beforeEach(async () => {
             await tokenStaking
@@ -4402,22 +4407,22 @@ describe("TokenStaking", () => {
                 operator.address,
                 application2Mock.address
               )
-            ).to.equal(expectedKeepInTAmount.sub(authorizedAmount2))
+            ).to.equal(expectedKeepInTAmount.sub(expectedAuthorizedAmount2))
           })
 
-          it("should decrease authorized amount only for one application", async () => {
+          it("should decrease authorized amount only for both applications", async () => {
             expect(
               await tokenStaking.authorizedStake(
                 operator.address,
                 application1Mock.address
               )
-            ).to.equal(expectedKeepInTAmount)
+            ).to.equal(expectedAuthorizedAmount1)
             expect(
               await tokenStaking.authorizedStake(
                 operator.address,
                 application2Mock.address
               )
-            ).to.equal(authorizedAmount2)
+            ).to.equal(expectedAuthorizedAmount2)
           })
 
           it("should update min staked amount", async () => {
@@ -4444,10 +4449,10 @@ describe("TokenStaking", () => {
           it("should inform only one application", async () => {
             expect(
               await application1Mock.operators(operator.address)
-            ).to.deep.equal([expectedKeepInTAmount, zeroBigNumber])
+            ).to.deep.equal([expectedAuthorizedAmount1, zeroBigNumber])
             expect(
               await application2Mock.operators(operator.address)
-            ).to.deep.equal([authorizedAmount2, zeroBigNumber])
+            ).to.deep.equal([expectedAuthorizedAmount2, zeroBigNumber])
           })
 
           it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
@@ -5260,11 +5265,13 @@ describe("TokenStaking", () => {
       it("should add two slashing events", async () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           operator.address,
-          amountToSlash,
+          amount,
+          application1Mock.address,
         ])
         expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
+          application1Mock.address,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
@@ -5320,10 +5327,12 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           operator.address,
           amountToSlash,
+          application1Mock.address,
         ])
         expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
+          application1Mock.address,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
@@ -5401,10 +5410,12 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
+          application1Mock.address,
         ])
         expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
           operator.address,
           amountToSlash,
+          application1Mock.address,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
@@ -5440,6 +5451,7 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           operator.address,
           amountToSlash,
+          application1Mock.address,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(1)
       })
@@ -5482,6 +5494,7 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
+          application1Mock.address,
         ])
       })
 
@@ -5627,9 +5640,11 @@ describe("TokenStaking", () => {
       const tAmount = initialStakerBalance.div(2)
       const tStake2 = keepInTAmount.add(nuInTAmount).add(tAmount)
 
-      const authorized1 = tAmount.div(2)
-      const amountToSlash = authorized1.div(2)
-      const authorized2 = tStake2
+      const operator1Authorized1 = tAmount.div(2)
+      const amountToSlash = operator1Authorized1.div(2)
+      const operator1Authorized2 = operator1Authorized1
+      const operator2Authorized1 = tStake2
+      const operator2Authorized2 = tAmount.div(100)
 
       const expectedTReward1 = rewardFromPenalty(amountToSlash, 100)
       const expectedTReward2 = rewardFromPenalty(tAmount, 100)
@@ -5641,6 +5656,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(deployer)
           .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application2Mock.address)
 
         await tToken
           .connect(staker)
@@ -5653,7 +5671,14 @@ describe("TokenStaking", () => {
           .increaseAuthorization(
             operator.address,
             application1Mock.address,
-            authorized1
+            operator1Authorized1
+          )
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            operator.address,
+            application2Mock.address,
+            operator1Authorized2
           )
 
         await keepStakingMock.setOperator(
@@ -5685,7 +5710,14 @@ describe("TokenStaking", () => {
           .increaseAuthorization(
             otherStaker.address,
             application1Mock.address,
-            authorized2
+            operator2Authorized1
+          )
+        await tokenStaking
+          .connect(otherStaker)
+          .increaseAuthorization(
+            otherStaker.address,
+            application2Mock.address,
+            operator2Authorized2
           )
 
         await application1Mock.slash(amountToSlash, [
@@ -5764,19 +5796,49 @@ describe("TokenStaking", () => {
           ).to.equal(0)
         })
 
-        it("should not decrease authorized amount", async () => {
+        it("should decrease authorized amount only for one application", async () => {
           expect(
             await tokenStaking.authorizedStake(
               operator.address,
               application1Mock.address
             )
-          ).to.equal(authorized1)
+          ).to.equal(operator1Authorized1.sub(amountToSlash))
+          expect(
+            await tokenStaking.authorizedStake(
+              operator.address,
+              application2Mock.address
+            )
+          ).to.equal(operator1Authorized2)
           expect(
             await tokenStaking.authorizedStake(
               otherStaker.address,
               application1Mock.address
             )
-          ).to.equal(authorized2)
+          ).to.equal(operator2Authorized1)
+          expect(
+            await tokenStaking.authorizedStake(
+              otherStaker.address,
+              application2Mock.address
+            )
+          ).to.equal(operator2Authorized2)
+        })
+
+        it("should inform only one application", async () => {
+          expect(
+            await application1Mock.operators(operator.address)
+          ).to.deep.equal([
+            operator1Authorized1.sub(amountToSlash),
+            zeroBigNumber,
+          ])
+          expect(
+            await application2Mock.operators(operator.address)
+          ).to.deep.equal([operator1Authorized2, zeroBigNumber])
+          expect(
+            await application1Mock.operators(otherStaker.address)
+          ).to.deep.equal([operator2Authorized1, zeroBigNumber])
+          expect(
+            await application2Mock.operators(otherStaker.address)
+          ).to.deep.equal([operator2Authorized2, zeroBigNumber])
         })
 
         it("should emit TokensSeized and SlashingProcessed events", async () => {
@@ -5861,7 +5923,16 @@ describe("TokenStaking", () => {
             )
           ).to.equal(0)
           expect(
+            await tokenStaking.authorizedStake(
+              otherStaker.address,
+              application2Mock.address
+            )
+          ).to.equal(0)
+          expect(
             await application1Mock.operators(otherStaker.address)
+          ).to.deep.equal([zeroBigNumber, zeroBigNumber])
+          expect(
+            await application2Mock.operators(otherStaker.address)
           ).to.deep.equal([zeroBigNumber, zeroBigNumber])
         })
 
@@ -5884,7 +5955,7 @@ describe("TokenStaking", () => {
             .withArgs(
               otherStaker.address,
               application1Mock.address,
-              authorized2.sub(amountToSlash),
+              operator2Authorized1.sub(amountToSlash),
               true
             )
           await expect(tx)
@@ -5904,6 +5975,7 @@ describe("TokenStaking", () => {
             .connect(staker)
             ["requestAuthorizationDecrease(address)"](operator.address)
           await application1Mock.approveAuthorizationDecrease(operator.address)
+          await application2Mock.approveAuthorizationDecrease(operator.address)
           await tokenStaking.connect(operator).unstakeAll(operator.address)
           tx = await tokenStaking.connect(auxiliaryAccount).processSlashing(1)
         })

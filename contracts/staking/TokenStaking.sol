@@ -53,6 +53,7 @@ contract TokenStaking is Ownable, IStaking {
     struct SlashingEvent {
         address operator;
         uint96 amount;
+        address application;
     }
 
     uint256 public constant SLASHING_REWARD_PERCENT = 5;
@@ -780,16 +781,18 @@ contract TokenStaking is Ownable, IStaking {
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(
-            operator,
-            tAmount - operatorStruct.keepInTStake,
-            true
-        );
+        uint96 slashedAmount = tAmount - operatorStruct.keepInTStake;
+        emit TokensSeized(operator, slashedAmount, true);
         if (undelegatedAt != 0) {
             operatorStruct.keepInTStake = 0;
         }
 
-        authorizationDecrease(operator, operatorStruct);
+        authorizationDecrease(
+            operator,
+            operatorStruct,
+            slashedAmount,
+            address(0)
+        );
     }
 
     /// @notice Notifies about the discrepancy between legacy NU active stake
@@ -819,8 +822,14 @@ contract TokenStaking is Ownable, IStaking {
             stakeDiscrepancyRewardMultiplier
         );
 
-        emit TokensSeized(operator, tAmount - operatorStruct.nuInTStake, true);
-        authorizationDecrease(operator, operatorStruct);
+        uint96 slashedAmount = tAmount - operatorStruct.nuInTStake;
+        emit TokensSeized(operator, slashedAmount, true);
+        authorizationDecrease(
+            operator,
+            operatorStruct,
+            slashedAmount,
+            address(0)
+        );
     }
 
     /// @notice Sets the penalty amount for stake discrepancy and reward
@@ -1136,13 +1145,19 @@ contract TokenStaking is Ownable, IStaking {
         uint256 queueLength = slashingQueue.length;
         for (uint256 i = 0; i < _operators.length; i++) {
             address operator = _operators[i];
+            uint256 amountToSlash = Math.min(
+                operators[operator].authorizations[msg.sender].authorized,
+                amount
+            );
             if (
                 //slither-disable-next-line incorrect-equality
-                operators[operator].authorizations[msg.sender].authorized == 0
+                amountToSlash == 0
             ) {
                 continue;
             }
-            slashingQueue.push(SlashingEvent(operator, amount));
+            slashingQueue.push(
+                SlashingEvent(operator, amountToSlash.toUint96(), msg.sender)
+            );
         }
 
         if (notifier != address(0)) {
@@ -1199,18 +1214,22 @@ contract TokenStaking is Ownable, IStaking {
             tAmountToSlash = seizeNu(operatorStruct, tAmountToSlash, 100);
         }
 
-        emit TokensSeized(
+        uint96 slashedAmount = slashing.amount - tAmountToSlash;
+        emit TokensSeized(slashing.operator, slashedAmount, false);
+        authorizationDecrease(
             slashing.operator,
-            slashing.amount - tAmountToSlash,
-            false
+            operatorStruct,
+            slashedAmount,
+            slashing.application
         );
-        authorizationDecrease(slashing.operator, operatorStruct);
     }
 
     /// @notice Synchronize authorizations (if needed) after slashing stake
     function authorizationDecrease(
         address operator,
-        OperatorInfo storage operatorStruct
+        OperatorInfo storage operatorStruct,
+        uint96 slashedAmount,
+        address application
     ) internal {
         uint96 totalStake = operatorStruct.tStake +
             operatorStruct.nuInTStake +
@@ -1220,32 +1239,45 @@ contract TokenStaking is Ownable, IStaking {
             i < operatorStruct.authorizedApplications.length;
             i++
         ) {
-            address application = operatorStruct.authorizedApplications[i];
+            address authorizedApplication = operatorStruct
+                .authorizedApplications[i];
             AppAuthorization storage authorization = operatorStruct
-                .authorizations[application];
-            if (authorization.authorized <= totalStake) {
+                .authorizations[authorizedApplication];
+
+            if (
+                application == address(0) ||
+                authorizedApplication == application
+            ) {
+                authorization.authorized -= Math
+                    .min(authorization.authorized, slashedAmount)
+                    .toUint96();
+            } else if (authorization.authorized <= totalStake) {
                 continue;
+            }
+            if (authorization.authorized > totalStake) {
+                authorization.authorized = totalStake;
             }
 
             bool successful = true;
             //slither-disable-next-line calls-loop
             try
-                IApplication(application).involuntaryAuthorizationDecrease{
+                IApplication(authorizedApplication)
+                    .involuntaryAuthorizationDecrease{
                     gas: GAS_LIMIT_AUTHORIZATION_DECREASE
-                }(operator, totalStake)
+                }(operator, authorization.authorized)
             {} catch {
                 successful = false;
             }
-            authorization.authorized = totalStake;
-            if (authorization.deauthorizing > totalStake) {
-                authorization.deauthorizing = totalStake;
+            if (authorization.deauthorizing > authorization.authorized) {
+                authorization.deauthorizing = authorization.authorized;
             }
             emit AuthorizationInvoluntaryDecreased(
                 operator,
-                application,
-                totalStake,
+                authorizedApplication,
+                authorization.authorized,
                 successful
             );
+            // TODO mark for removing this app in case authorized == 0
         }
     }
 
