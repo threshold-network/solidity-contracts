@@ -230,6 +230,19 @@ interface IStaking {
         uint256 rewardMultiplier
     ) external;
 
+    /// @notice Sets reward in T tokens for notification of misbehaviour
+    ///         of one operator. Can only be called by the governance.
+    function setNotificationReward(uint96 reward) external;
+
+    /// @notice Transfer some amount of T tokens as reward for notifications
+    ///         of misbehaviour
+    function pushNotificationReward(uint96 reward) external;
+
+    /// @notice Withdraw some amount of T tokens from notifiers treasury.
+    ///         Can only be called by the governance.
+    function withdrawNotificationReward(address recipient, uint96 amount)
+        external;
+
     /// @notice Adds operators to the slashing queue along with the amount that
     ///         should be slashed from each one of them. Can only be called by
     ///         application authorized for all operators in the array.

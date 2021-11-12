@@ -449,6 +449,20 @@ reporting it. The penalty is seized from the operator account, and 5% of the
 penalty, scaled by the multiplier, is given to the notifier. The rest of the
 tokens are burned. Can only be called by the governance. See `seize` function.
 
+==== `setNotificationReward(uint96 reward) external onlyGovernance`
+
+Sets reward in T tokens for notification of misbehaviour of one operator.
+Can only be called by the governance.
+
+==== `pushNotificationReward(uint96 reward) external`
+
+Transfer some amount of T tokens as reward for notifications of misbehaviour.
+
+==== `withdrawNotificationReward(address recipient, uint96 amount) external onlyGovernance`
+
+Withdraw some amount of T tokens from notifiers treasury. Can only be called by 
+the governance.
+
 === Slashing a stake
 
 ==== `slash(uint96 amount, address[] memory operators) external onlyAuthorizedApplication`

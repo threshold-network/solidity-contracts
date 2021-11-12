@@ -5173,6 +5173,62 @@ describe("TokenStaking", () => {
     })
   })
 
+  describe("withdrawNotificationReward", () => {
+    context("when caller is not the governance", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .withdrawNotificationReward(deployer.address, 1)
+        ).to.be.revertedWith("Caller is not the governance")
+      })
+    })
+
+    context("when amount is more than in treasury", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .withdrawNotificationReward(deployer.address, 1)
+        ).to.be.revertedWith("Not enough tokens")
+      })
+    })
+
+    context("when amount is less than in treasury", () => {
+      const reward = initialStakerBalance
+      const amount = reward.div(3)
+      const expectedReward = reward.sub(amount)
+      let tx
+
+      beforeEach(async () => {
+        await tToken.connect(staker).approve(tokenStaking.address, reward)
+        await tokenStaking.connect(staker).pushNotificationReward(reward)
+        tx = await tokenStaking
+          .connect(deployer)
+          .withdrawNotificationReward(auxiliaryAccount.address, amount)
+      })
+
+      it("should decrease treasury amount", async () => {
+        expect(await tokenStaking.notifiersTreasury()).to.equal(expectedReward)
+      })
+
+      it("should transfer tokens to the recipient", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
+          expectedReward
+        )
+        expect(await tToken.balanceOf(auxiliaryAccount.address)).to.equal(
+          amount
+        )
+      })
+
+      it("should emit NotificationRewardWithdrawn event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "NotificationRewardWithdrawn")
+          .withArgs(auxiliaryAccount.address, amount)
+      })
+    })
+  })
+
   describe("slash", () => {
     context("when amount is zero", () => {
       it("should revert", async () => {

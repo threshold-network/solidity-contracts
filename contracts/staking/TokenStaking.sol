@@ -132,6 +132,7 @@ contract TokenStaking is Ownable, IStaking {
     event StakeDiscrepancyPenaltySet(uint96 penalty, uint256 rewardMultiplier);
     event NotificationRewardSet(uint96 reward);
     event NotificationRewardPushed(uint96 reward);
+    event NotificationRewardWithdrawn(address recipient, uint96 amount);
     event NotifierRewarded(address indexed notifier, uint256 amount);
     event SlashingProcessed(
         address indexed caller,
@@ -843,19 +844,36 @@ contract TokenStaking is Ownable, IStaking {
     }
 
     /// @notice Sets reward in T tokens for notification of misbehaviour
-    ///         of one operator
-    function setNotificationReward(uint96 reward) external onlyGovernance {
+    ///         of one operator. Can only be called by the governance.
+    function setNotificationReward(uint96 reward)
+        external
+        override
+        onlyGovernance
+    {
         notificationReward = reward;
         emit NotificationRewardSet(reward);
     }
 
     /// @notice Transfer some amount of T tokens as reward for notifications
     ///         of misbehaviour
-    function pushNotificationReward(uint96 reward) external {
-        require(reward > 0, "Reward must be specified");
+    function pushNotificationReward(uint96 reward) external override {
+        require(reward > 0, "Amount must be greater than 0");
         notifiersTreasury += reward;
         emit NotificationRewardPushed(reward);
         token.safeTransferFrom(msg.sender, address(this), reward);
+    }
+
+    /// @notice Withdraw some amount of T tokens from notifiers treasury.
+    ///         Can only be called by the governance.
+    function withdrawNotificationReward(address recipient, uint96 amount)
+        external
+        override
+        onlyGovernance
+    {
+        require(amount <= notifiersTreasury, "Not enough tokens");
+        notifiersTreasury -= amount;
+        emit NotificationRewardWithdrawn(recipient, amount);
+        token.safeTransfer(recipient, amount);
     }
 
     /// @notice Adds operators to the slashing queue along with the amount that
