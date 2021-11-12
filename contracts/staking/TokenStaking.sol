@@ -500,18 +500,7 @@ contract TokenStaking is Ownable, IStaking {
 
         // remove application from an array
         if (authorization.authorized == 0) {
-            uint256 length = operatorStruct.authorizedApplications.length;
-            for (uint256 index = 0; index < length - 1; index++) {
-                if (
-                    operatorStruct.authorizedApplications[index] == msg.sender
-                ) {
-                    operatorStruct.authorizedApplications[
-                        index
-                    ] = operatorStruct.authorizedApplications[length - 1];
-                    break;
-                }
-            }
-            operatorStruct.authorizedApplications.pop();
+            cleanAuthorizedApplications(operatorStruct, 1);
         }
     }
 
@@ -1238,6 +1227,7 @@ contract TokenStaking is Ownable, IStaking {
         uint96 totalStake = operatorStruct.tStake +
             operatorStruct.nuInTStake +
             operatorStruct.keepInTStake;
+        uint256 applicationsToDelete = 0;
         for (
             uint256 i = 0;
             i < operatorStruct.authorizedApplications.length;
@@ -1281,7 +1271,12 @@ contract TokenStaking is Ownable, IStaking {
                 authorization.authorized,
                 successful
             );
-            // TODO mark for removing this app in case authorized == 0
+            if (authorization.authorized == 0) {
+                applicationsToDelete++;
+            }
+        }
+        if (applicationsToDelete > 0) {
+            cleanAuthorizedApplications(operatorStruct, applicationsToDelete);
         }
     }
 
@@ -1361,15 +1356,34 @@ contract TokenStaking is Ownable, IStaking {
         return tAmountToSlash;
     }
 
-    /// @notice Returns amount of Keep stake in the Keep staking contract for the specified operator.
-    ///         Resulting value in T denomination
-    function getKeepAmountInT(address operator) internal view returns (uint96) {
-        uint256 keepStakeAmount = keepStakingContract.eligibleStake(
-            operator,
-            address(this)
-        );
-        (uint96 tAmount, ) = keepToT(keepStakeAmount);
-        return tAmount;
+    /// @notice Removes application with zero authorization from authorized
+    ///         applications array
+    function cleanAuthorizedApplications(
+        OperatorInfo storage operatorStruct,
+        uint256 numberToDelete
+    ) internal {
+        uint256 length = operatorStruct.authorizedApplications.length;
+        if (numberToDelete == length) {
+            delete operatorStruct.authorizedApplications;
+            return;
+        }
+
+        uint256 deleted = 0;
+        for (
+            uint256 index = 0;
+            index < length - numberToDelete && deleted < numberToDelete;
+
+        ) {
+            address application = operatorStruct.authorizedApplications[index];
+            if (operatorStruct.authorizations[application].authorized == 0) {
+                operatorStruct.authorizedApplications[index] = operatorStruct
+                    .authorizedApplications[length - 1];
+                operatorStruct.authorizedApplications.pop();
+                deleted++;
+            } else {
+                index++;
+            }
+        }
     }
 
     /// @notice Returns amount of Nu stake in the NuCypher staking contract for the specified operator.
@@ -1383,6 +1397,17 @@ contract TokenStaking is Ownable, IStaking {
             operator
         );
         (uint96 tAmount, ) = nuToT(nuStakeAmount);
+        return tAmount;
+    }
+
+    /// @notice Returns amount of Keep stake in the Keep staking contract for the specified operator.
+    ///         Resulting value in T denomination
+    function getKeepAmountInT(address operator) internal view returns (uint96) {
+        uint256 keepStakeAmount = keepStakingContract.eligibleStake(
+            operator,
+            address(this)
+        );
+        (uint96 tAmount, ) = keepToT(keepStakeAmount);
         return tAmount;
     }
 
