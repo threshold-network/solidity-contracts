@@ -70,6 +70,7 @@ contract KeepStake is Ownable {
     }
 
     /// @notice Resolves KEEP stake owner for the provided operator address.
+    ///         Reverts if could not resolve the owner.
     function resolveOwner(address operator) external view returns (address) {
         address owner = operatorToManagedGrant[operator];
         if (owner != address(0)) {
@@ -91,7 +92,10 @@ contract KeepStake is Ownable {
             return owner;
         }
 
-        return keepTokenStaking.ownerOf(operator);
+        owner = keepTokenStaking.ownerOf(operator);
+        require(owner != address(0), "Could not resolve the owner");
+
+        return owner;
     }
 
     function resolveSnapshottedManagedGrantees(address operator)
