@@ -75,11 +75,30 @@ contract KeepStake is Ownable {
         if (owner != address(0)) {
             return IManagedGrant(owner).grantee();
         }
+
         owner = operatorToGrantee[operator];
         if (owner != address(0)) {
             return owner;
         }
 
+        owner = resolveSnapshottedManagedGrantees(operator);
+        if (owner != address(0)) {
+            return owner;
+        }
+
+        owner = resolveSnapshottedGrantees(operator);
+        if (owner != address(0)) {
+            return owner;
+        }
+
+        return keepTokenStaking.ownerOf(operator);
+    }
+
+    function resolveSnapshottedManagedGrantees(address operator)
+        internal
+        view
+        returns (address)
+    {
         if (operator == 0x855A951162B1B93D70724484d5bdc9D00B56236B) {
             return
                 IManagedGrant(0xFADbF758307A054C57B365Db1De90acA71feaFE5)
@@ -231,6 +250,14 @@ contract KeepStake is Ownable {
                     .grantee();
         }
 
+        return address(0);
+    }
+
+    function resolveSnapshottedGrantees(address operator)
+        internal
+        pure
+        returns (address)
+    {
         if (operator == 0x1147ccFB4AEFc6e587a23b78724Ef20Ec6e474D4) {
             return 0x3FB49dA4375Ef9019f17990D04c6d5daD482D80a;
         }
@@ -268,6 +295,6 @@ contract KeepStake is Ownable {
             return 0x61C6E5DDacded540CD08066C08cbc096d22D91f4;
         }
 
-        return keepTokenStaking.ownerOf(operator);
+        return address(0);
     }
 }
