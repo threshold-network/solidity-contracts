@@ -155,8 +155,8 @@ with T earned from operating in the network, so they would be in a worse spot
 than new T stakers allowed to top-up their stakes using earned T and this way
 increasing their rewards.
 
-Anyone can execute a stake top-up for an operator using a liquid T. Stake top-up
-does not automatically increase authorization levels for applications.
+The owner or operator can execute a stake top-up for an operator using a liquid T. 
+Stake top-up does not automatically increase authorization levels for applications.
 Stake top-up is a one-step process and does not require any delay.
 
 ==== Undelegating a stake (unstaking)
@@ -194,7 +194,7 @@ notified about the discrepancy and the rest is burned. The amount is a
 governable parameter and can be updated at any time by the governance, with no
 governance delay. The transaction notifying about stake amounts not being in sync
 needs to update authorizations of all affected applications and execute an
-involuntary allocation decrease on each affected application.
+involuntary authorization decrease on each affected application.
 
 For legacy stakers, staked amount can become out-of-sync in three cases:
 
@@ -277,7 +277,7 @@ out of the scope of this document.
 
 === Delegating a stake
 
-==== `stake(address operator, address beneficiary, address authorizer, uint256 amount) external` 
+==== `stake(address operator, address beneficiary, address authorizer, uint96 amount) external` 
    
 Creates a delegation with `msg.sender` owner with the given operator,
 beneficiary, and authorizer. Transfers the given amount of T to the staking
@@ -290,14 +290,18 @@ Copies delegation from the legacy KEEP staking contract to T staking contract.
 No tokens are transferred. Caches the active stake amount from KEEP staking 
 contract. Can be called by anyone.
 
-==== `stakeNu(address operator, address beneficiary, address authorizer) external`
+==== `stakeNu(address operator, address payable beneficiary, address authorizer) external`
 
 Copies delegation from the legacy NU staking contract to T staking contract,
 additionally appointing beneficiary and authorizer roles. Caches the amount
 staked in NU staking contract. Can be called only by the original delegation
 owner.
 
-==== `setMinimumStakeAmount(uint256 amount) external onlyGovernance`
+==== `refreshKeepStakeOwner(address operator) external onlyOwnerOf(operator)`
+
+Refresh Keep stake owner. Can be called only by the old owner.
+
+==== `setMinimumStakeAmount(uint96 amount) external onlyGovernance`
 
 Allows the governance to set the minimum required stake amount. This amount is
 required to protect against griefing the staking contract and individual
@@ -310,39 +314,50 @@ applications are allowed to require higher minimum stakes if necessary.
 Allows the governance to approve the particular application before individual
 stake authorizers are able to authorize it.
 
-==== `increaseAuthorization(address operator, address application, uint256 amount) external onlyAuthorizerOf(operator)`
+==== `increaseAuthorization(address operator, address application, uint96 amount) external onlyAuthorizerOf(operator)`
 
 Increases the authorization of the given operator for the given application by
-the given amount. Calls `authorizationIncreased(address operator, uint256 amount)`
+the given amount. Calls `authorizationIncreased(address operator, uint96 amount)`
 callback on the given application to notify the application. Can only be called
 by the given operator's authorizer.
 
-==== `requestAuthorizationDecrease(address operator, address application, uint256 amount) external onlyAuthorizerOf(operator)`
+==== `requestAuthorizationDecrease(address operator, address application, uint96 amount) external onlyAuthorizerOf(operator)`
 
 Requests decrease of the authorization for the given operator on the given
-application by the provided amount. Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+application by the provided amount. Calls `authorizationDecreaseRequested(address operator, uint96 amount)`
 on the application. It does not change the authorized amount. Can only be called
 by the given operator's authorizer. Overwrites pending authorization decrease
 for the given operator and application.
 
-==== `approveAuthorizationDecrease(address operator) external onlyRequestedApplication`
+==== `requestAuthorizationDecrease(address operator) external onlyAuthorizerOf(operator)`
+
+Requests decrease of all authorizations for the given operator on all 
+applications by all authorized amount. Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+for each authorized application. It may not change the authorized amount immediatelly. 
+When it happens depends on the application. Can only be called by the given operator’s 
+authorizer. Overwrites pending authorization decrease for the given operator and 
+application.
+
+==== `approveAuthorizationDecrease(address operator) external onlyRequestedApplication returns (uint96)`
 
 Called by the application at its discretion to approve the previously requested
 authorization decrease request. Can only be called by the application that
 was previously requested to decrease the authorization for that operator.
+Returns resulting authorized amount for the application.
 
-==== `disableApplication(address application) external onlyPanicButtonOf(application)`
+==== `pauseApplication(address application) external onlyPanicButtonOf(application)`
 
-Disables the given application's eligibility to slash stakes. Can be called only
-by a panic button of the particular application. The disabled application can not
-slash stakes until it is approved again by the governance using `approveApplication`
-function. Should be used only in case of an emergency.
+Pauses the given application's eligibility to slash stakes. Besides that stakers can't
+change authorization to the application. Can be called only by a panic button of the 
+particular application. The paused application can not slash stakes until it is 
+approved again by the governance using `approveApplication` function. Should be 
+used only in case of an emergency.
 
 ==== `setPanicButton(address application, address panicButton) external onlyGovernance`
 
 Sets the panic button role for the given application to the provided address.
 Can only be called by the governance. If the panic button for the given
-application should be disabled, the role address should can set to 0x0 address.
+application should be disabled, the role address should be set to 0x0 address.
 
 ==== `setAuthorizationCeiling(uint256 ceiling) external onlyGovernance`
 
@@ -351,32 +366,32 @@ protect against DoSing slashing queue. Can only be called by the governance.
 
 === Stake top-up
 
-==== `topUp(address operator, uint256 amount) external`
+==== `topUp(address operator, uint96 amount) external onlyOwnerOrOperator(operator)`
 
 Increases the amount of the stake for the given operator. The sender of this
 transaction needs to have the amount approved to transfer to the staking
-contract. Can be called by anyone.
+contract. Can be called only by the owner or operator.
 
-==== `topUpKeep(address operator) external`
+==== `topUpKeep(address operator) external onlyOwnerOrOperator(operator)`
 
 Propagates information about stake top-up from the legacy KEEP staking contract
-to T staking contract. Can be called by anyone.
+to T staking contract. Can be called only by the owner or operator.
 
-==== `topUpNu(address operator) external`
+==== `topUpNu(address operator) external onlyOwnerOrOperator(operator)`
 
 Propagates information about stake top-up from the legacy NU staking contract
-to T staking contract. Can be called by anyone.
+to T staking contract. Can be called only by the owner or operator.
 
 === Undelegating a stake (unstaking)
 
-==== `unstakeT(address operator, uint256 amount) external`
+==== `unstakeT(address operator, uint96 amount) external onlyOwnerOrOperator(operator)`
 
 Reduces the liquid T stake amount by `amount` and withdraws `amount` of T 
 to the owner. Reverts if there is at least one authorization higher than the sum
 of a legacy stake and remaining liquid T stake or if the `amount` is higher than
 the liquid T stake amount. Can be called only by the owner or operator.
 
-==== `unstakeKeep(address operator) external`
+==== `unstakeKeep(address operator) external onlyOwnerOrOperator(operator)`
 
 Sets the legacy staking contract active stake amount cached in T staking
 contract to 0. Reverts if the amount of liquid T staked in T staking contract is
@@ -385,7 +400,7 @@ unstake from Keep staking contract and sill being able to operate in T network
 and earning rewards based on the liquid T staked. Can be called only by the
 delegation owner and operator.
 
-==== `unstakeNu(address operator, uint256 amount) external`
+==== `unstakeNu(address operator, uint96 amount) external onlyOwnerOrOperator(operator)`
 
 Reduces cached legacy NU stake amount by `amount`. Reverts if there is at least
 one authorization higher than the sum of remaining legacy NU stake and liquid T
@@ -395,7 +410,7 @@ on the legacy staking contract. This function allows to unstake from NU staking
 contract and sill being able to operate in T network and earning rewards based
 on the liquid T staked. Can be called only by the delegation owner and operator.
 
-==== `unstakeAll(address operator)`
+==== `unstakeAll(address operator) external onlyOwnerOrOperator(operator)`
 
 Sets cached legacy stake amount to 0, sets the liquid T stake amount to 0 and
 withdraws all liquid T from the stake to the owner. Reverts if there is at least one
@@ -409,7 +424,7 @@ Notifies about the discrepancy between legacy KEEP active stake and amount
 cached in T staking contract. Slashes the operator in case the amount cached
 is higher than the actual active stake amount in KEEP staking contract. 
 Needs to update authorizations of all affected applications and execute an
-involuntary allocation decrease on all affected applications.
+involuntary authorization decrease on all affected applications.
 Can be called by anyone, notifier receives a reward.
 
 Optionally: reward withdrawal can be split into a separate function to protect
@@ -421,62 +436,109 @@ Notifies about the discrepancy between legacy NU active stake and amount
 cached in T staking contract. Slashes the operator in case the amount cached
 is higher than the actual active stake amount in NU staking contract.
 Needs to update authorizations of all affected applications and execute an
-involuntary allocation decrease on all affected applications.
+involuntary authorization decrease on all affected applications.
 Can be called by anyone, notifier receives a reward.
 
 Optionally: reward withdrawal can be split into a separate function to protect
 against MEV frontrunners. 
 
-==== `setStakeDiscrepancyPenalty(uint256 penalty, unit256 rewardMultiplier) external onlyGovernance`
+==== `setStakeDiscrepancyPenalty(uint96 penalty, unit256 rewardMultiplier) external onlyGovernance`
 
 Sets the penalty amount for stake discrepancy and reward multiplier for
 reporting it. The penalty is seized from the operator account, and 5% of the
 penalty, scaled by the multiplier, is given to the notifier. The rest of the
 tokens are burned. Can only be called by the governance. See `seize` function.
 
+==== `setNotificationReward(uint96 reward) external onlyGovernance`
+
+Sets reward in T tokens for notification of misbehaviour of one operator.
+Can only be called by the governance.
+
+==== `pushNotificationReward(uint96 reward) external`
+
+Transfer some amount of T tokens as reward for notifications of misbehaviour.
+
+==== `withdrawNotificationReward(address recipient, uint96 amount) external onlyGovernance`
+
+Withdraw some amount of T tokens from notifiers treasury. Can only be called by 
+the governance.
+
 === Slashing a stake
 
-==== `slash(uint256 amount, address[] memory operators) external onlyAuthorizedApplication`
+==== `slash(uint96 amount, address[] memory operators) external onlyAuthorizedApplication`
 
 Adds operators to the slashing queue along with the amount that should be
 slashed from each one of them. Can only be called by an authorized application.
 
-==== `seize(uint256 amount, uint256 rewardMultipier, address notifier, address[] memory operators) external onlyAuthorizedApplication`
-
-Adds operators to the slashing queue along with the amount, reward multiplier
-and notifier address. The notifier will receive 1% of the slashed amount scaled
-by the reward adjustment parameter once the seize order will be processed. Can
-only be called by an authorized application.
+==== `seize(uint96 amount, uint256 rewardMultipier, address notifier, address[] memory operators) external onlyAuthorizedApplication`
+	
+Adds operators to the slashing queue along with the amount. The notifier will 
+receive reward per each operator from notifiers treasury. Can only be called by 
+application authorized for all operators in the array.
 
 ==== `processSlashing(uint256 count)`
 
 Takes the `count` of queued slashing operations and processes them. Receives 5%
-of the slashed amount if the slashing request was created by the application with
-a `slash` call and 4% of the slashed amount if the slashing request was created
-by the application with `seize` call. Executes `involuntaryAllocationDecrease`
-function on each affected application.
+of the slashed amount. Executes `involuntaryAuthorizationDecrease` function on 
+each affected application.
 
 === Auxiliary functions
 
-==== `authorizedStake(address operator, address application) external view returns (uint256)`
+==== `authorizedStake(address operator, address application) external view returns (uint96)`
 
 Returns the authorized stake amount of the operator for the application.
 
-==== `hasStakeDelegated(address operator) external view returns (bool)`
+==== `stakes(address operator) external view returns (uint96 tStake, uint96 keepInTStake, uint96 nuInTStake)`
 
-Checks if the specified operator has a stake delegated and if it has been
-authorized for at least one application. If this function returns true,
-off-chain client of the given operator is eligible to join the network.
+Returns staked amount of T, Keep and Nu for the specified operator. All values
+are in T denomination.
+
+==== `getStartTStakingTimestamp(address operator) external view returns (uint256)`
+
+Returns start staking timestamp for T stake. This value is set at most once, 
+and only when a stake is created with T tokens. If a stake is created from 
+a legacy stake, this value will remain as zero.
+
+==== `stakedNu(address operator) external view returns (uint256)`
+
+Returns staked amount of NU for the specified operator
+
+==== `rolesOf(address operator) external view returns (address owner, address payable beneficiary, address authorizer)`
+
+Gets the stake owner, the beneficiary and the authorizer for the specified 
+operator address.
+
+==== `getApplicationsLength() external view returns (uint256)`
+
+Returns length of application array
+
+==== `getSlashingQueueLength() external view returns (uint256)`
+
+Returns length of slashing queue
+
+==== `getMinStaked(address operator, StakeType stakeTypes) external view returns (uint96)`
+
+Returns minimum possible stake for T, KEEP or NU in T denomination. For example,
+if the given operator has 10 T, 20 KEEP, and 30 NU staked, their max authorization
+is 40, then `getMinStaked` for that operator returns 0 for KEEP stake type, 10 for
+NU stake type, and 0 for T stake type. In other words, minimum staked amount for 
+the given stake type is the minimum amount of stake of the given type that needs 
+to be preserved in the contract to satisfy the maximum application authorization 
+given the amounts of other stake types for that operator.
+
+==== `getAvailableToAuthorize(address operator, address application) external view returns (uint96)`
+
+Returns available amount to authorize for the specified application
 
 === Application callbacks
 
-==== `authorizationIncreased(address operator, uint256 amount)`
+==== `authorizationIncreased(address operator, uint96 amount)`
 
 Used by T staking contract to inform the application the the authorized amount
-for the given operator increased. The application may do any housekeeping
-necessary.
+for the given operator increased to the given amount. The application may do any
+housekeeping necessary.
 
-==== `authorizationDecreaseRequested(address operator, uint256 amount)`
+==== `authorizationDecreaseRequested(address operator, uint96 amount)`
 
 Used by T staking contract to inform the application that the given operator
 requested to decrease the authorization to the given amount. The application
@@ -484,10 +546,10 @@ should mark the authorization as pending decrease and respond to the staking
 contract with `approveAuthorizationDecrease` at its discretion. It may
 happen right away but it also may happen several months later.
 
-==== `involuntaryAllocationDecrease(address operator, uint256 amount)`
+==== `involuntaryAuthorizationDecrease(address operator, uint96 amount)`
 
 Used by T staking contract to inform the application the authorization has
 been decreased for the given operator to the given amount involuntarily, as
 a result of slashing. Lets the application to do any housekeeping neccessary.
 Called with 250k gas limit and does not revert the transaction if 
-`involuntaryAllocationDecrease` call failed.
+`involuntaryAuthorizationDecrease` call failed.
