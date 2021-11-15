@@ -345,10 +345,10 @@ authorization decrease request. Can only be called by the application that
 was previously requested to decrease the authorization for that operator.
 Returns resulting authorized amount for the application.
 
-==== `quitDisabledApplication(address operator, address application) external`
+==== `forceDecreaseAuthorization(address operator, address application) external`
 
-Decreases of the authorization for the given operator on the given disabled 
-application by the all authorized amount. Can be called by anyone.
+Decreases the authorization for the given `operator` on the given disabled 
+`application`, for all authorized amount. Can be called by anyone.
 
 ==== `pauseApplication(address application) external onlyPanicButtonOf(application)`
 
@@ -362,7 +362,7 @@ used only in case of an emergency.
 
 Disables the given application. The disabled application can't slash stakers. Also 
 stakers can't increase authorization to that application but can decrease without 
-waiting by calling `quitDisabledApplication` at any moment. Can be called only 
+waiting by calling `forceDecreaseAuthorization` at any moment. Can be called only 
 by the governance. The disabled application can't be approved again. Should be used 
 only in case of an emergency.
 

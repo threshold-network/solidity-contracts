@@ -333,15 +333,21 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should set value of stakes", async () => {
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           amount,
           zeroBigNumber,
           zeroBigNumber,
         ])
+        expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
+      })
+
+      it("should start T staking timestamp", async () => {
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(blockTimestamp)
-        expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
       })
 
       it("should transfer tokens to the staking contract", async () => {
@@ -498,15 +504,21 @@ describe("TokenStaking", () => {
             beneficiary.address,
             authorizer.address,
           ])
+        })
+
+        it("should set value of stakes", async () => {
           expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
             zeroBigNumber,
             tAmount,
             zeroBigNumber,
           ])
+          expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
+        })
+
+        it("should not start T staking timestamp", async () => {
           expect(
             await tokenStaking.getStartTStakingTimestamp(operator.address)
           ).to.equal(0)
-          expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
         })
 
         it("should increase available amount to authorize", async () => {
@@ -696,17 +708,23 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should set value of stakes", async () => {
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           tAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(0)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
+      })
+
+      it("should not start T staking timestamp", async () => {
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(0)
       })
 
       it("should do callback to NuCypher staking contract", async () => {
@@ -799,9 +817,7 @@ describe("TokenStaking", () => {
             initialStakerBalance
           )
         await expect(
-          tokenStaking
-            .connect(authorizer)
-            .refreshKeepStakeOwner(operator.address)
+          tokenStaking.connect(operator).refreshKeepStakeOwner(operator.address)
         ).to.be.revertedWith("Caller is not owner")
       })
     })
@@ -2086,13 +2102,16 @@ describe("TokenStaking", () => {
     )
   })
 
-  describe("quitDisabledApplication", () => {
+  describe("forceDecreaseAuthorization", () => {
     context("when application is not approved", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking
             .connect(auxiliaryAccount)
-            .quitDisabledApplication(operator.address, application1Mock.address)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
         ).to.be.revertedWith("Application is not disabled")
       })
     })
@@ -2105,7 +2124,10 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(deployer)
-            .quitDisabledApplication(operator.address, application1Mock.address)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
         ).to.be.revertedWith("Application is not disabled")
       })
     })
@@ -2124,7 +2146,10 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(staker)
-            .quitDisabledApplication(operator.address, application1Mock.address)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
         ).to.be.revertedWith("Application is not disabled")
       })
     })
@@ -2140,7 +2165,10 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(deployer)
-            .quitDisabledApplication(operator.address, application1Mock.address)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
         ).to.be.revertedWith("Application is not authorized")
       })
     })
@@ -2180,7 +2208,10 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          .quitDisabledApplication(operator.address, application1Mock.address)
+          .forceDecreaseAuthorization(
+            operator.address,
+            application1Mock.address
+          )
       })
 
       it("should set authorized amount to 0", async () => {
@@ -2547,15 +2578,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           expectedAmount,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2682,15 +2716,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           topUpAmount,
           keepInTAmount,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2757,15 +2794,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           topUpAmount,
           zeroBigNumber,
           nuInTAmount,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2944,15 +2984,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           newKeepInTAmount,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3078,15 +3121,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           keepInTAmount,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3141,15 +3187,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           keepInTAmount,
           nuInTAmount,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3254,22 +3303,25 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           newNuInTAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(0)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           newNuAmount
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(0)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -3365,22 +3417,25 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
           nuInTAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(blockTimestamp)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(blockTimestamp)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -3436,22 +3491,25 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           keepInTAmount,
           nuInTAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(0)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(0)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -3652,15 +3710,18 @@ describe("TokenStaking", () => {
         })
 
         it("should update T staked amount", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
           expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
             minAmount,
             zeroBigNumber,
             nuInTAmount,
+          ])
+        })
+
+        it("should not update roles and start T staking timestamp", async () => {
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
           ])
           expect(
             await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3732,15 +3793,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3784,15 +3848,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           nuInTAmount,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3970,15 +4037,18 @@ describe("TokenStaking", () => {
       })
 
       it("should set Keep staked amount to zero", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -4175,11 +4245,6 @@ describe("TokenStaking", () => {
       })
 
       it("should update Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
@@ -4188,6 +4253,14 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           expectedNuAmount
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(0)
@@ -4386,15 +4459,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)

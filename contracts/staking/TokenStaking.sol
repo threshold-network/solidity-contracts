@@ -520,10 +520,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         return authorization.authorized;
     }
 
-    /// @notice Decreases of the authorization for the given operator on
-    ///         the given disabled application by the all authorized amount.
+    /// @notice Decreases the authorization for the given `operator` on
+    ///         the given disabled `application`, for all authorized amount.
     ///         Can be called by anyone.
-    function quitDisabledApplication(address operator, address application)
+    function forceDecreaseAuthorization(address operator, address application)
         external
     {
         require(
@@ -568,7 +568,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @notice Disables the given application. The disabled application can't
     ///         slash stakers. Also stakers can't increase authorization to that
     ///         application but can decrease without waiting by calling
-    ///         `quitDisabledApplication` at any moment. Can be called only
+    ///         `forceDecreaseAuthorization` at any moment. Can be called only
     ///         by the governance. The disabled application can't be approved
     ///         again. Should be used only in case of an emergency.
     function disableApplication(address application)
