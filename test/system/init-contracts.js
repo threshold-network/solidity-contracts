@@ -35,7 +35,7 @@ async function initContracts() {
     to1e18(500000)
   )
 
-  const keepStake = await deployKeepStake()
+  const keepStake = await deployKeepStake(keepTokenStaking)
 
   const tokenStaking = await deployTokenStaking(
     tToken,
@@ -123,9 +123,9 @@ async function deployVendingMachine(
   return vendingMachine
 }
 
-async function deployKeepStake() {
+async function deployKeepStake(keepTokenStaking) {
   const KeepStake = await ethers.getContractFactory("KeepStake")
-  const keepStake = await KeepStake.deploy()
+  const keepStake = await KeepStake.deploy(keepTokenStaking.address)
 
   await keepStake.deployed()
 
