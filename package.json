@@ -13,7 +13,8 @@
     "lint:fix:sol": "solhint 'contracts/**/*.sol' --fix",
     "lint:js": "eslint . ",
     "lint:sol": "solhint 'contracts/**/*.sol'",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js"
   },
   "devDependencies": {
     "@keep-network/hardhat-helpers": "^0.2.0-pre.4",
@@ -28,10 +29,10 @@
     "chai": "^4.3.4",
     "eslint": "^7.27.0",
     "eslint-config-keep": "github:keep-network/eslint-config-keep#0c27ade",
-    "ethereum-waffle": "^3.0.0",
-    "ethers": "^5.0.0",
-    "hardhat": "^2.6.7",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.4.1",
     "hardhat-deploy": "^0.9.4",
+    "hardhat": "^2.6.8",
     "hardhat-gas-reporter": "^1.0.4",
     "hardhat-local-networks-config-plugin": "^0.0.6",
     "prettier": "^2.3.2",
