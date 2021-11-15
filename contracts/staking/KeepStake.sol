@@ -6,6 +6,12 @@ import "./ILegacyTokenStaking.sol";
 
 interface IManagedGrant {
     function grantee() external view returns (address);
+
+    function stake(
+        address stakingContract,
+        uint256 amount,
+        bytes memory extraData
+    ) external;
 }
 
 contract KeepStake {

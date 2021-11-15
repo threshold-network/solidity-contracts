@@ -19,6 +19,18 @@ interface IKeepTokenStaking {
         address[] memory misbehavedOperators
     ) external;
 
+    /// @notice Authorizes operator contract to access staked token balance of
+    /// the provided operator. Can only be executed by stake operator authorizer.
+    /// Contracts using delegated authority
+    /// cannot be authorized with `authorizeOperatorContract`.
+    /// Instead, authorize `getAuthoritySource(_operatorContract)`.
+    /// @param operator address of stake operator.
+    /// @param operatorContract address of operator contract.
+    function authorizeOperatorContract(
+        address operator,
+        address operatorContract
+    ) external;
+
     /// @notice Gets stake delegation info for the given operator.
     /// @param operator Operator address.
     /// @return amount The amount of tokens the given operator delegated.
