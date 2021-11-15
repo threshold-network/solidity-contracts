@@ -1469,25 +1469,41 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         }
     }
 
+    /// @notice Creates new checkpoints due to a change of stake amount
+    /// @param _delegator Address of the stake operator acting as delegator
+    /// @param _amount Amount of T to increment
+    /// @param increase True if the change is an increase, false if a decrease
+    function newStakeCheckpoint(
+        address _delegator,
+        uint96 _amount,
+        bool increase
+    ) internal {
+        if (_amount == 0) {
+            return;
+        }
+        writeCheckpoint(
+            _totalSupplyCheckpoints,
+            increase ? add : subtract,
+            _amount
+        );
+        address delegatee = delegates(_delegator);
+        if (delegatee != address(0)) {
+            (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
+                _checkpoints[delegatee],
+                increase ? add : subtract,
+                _amount
+            );
+            emit DelegateVotesChanged(delegatee, oldWeight, newWeight);
+        }
+    }
+
     /// @notice Creates new checkpoints due to an increment of a stakers' stake
     /// @param _delegator Address of the stake operator acting as delegator
     /// @param _amount Amount of T to increment
     function increaseStakeCheckpoint(address _delegator, uint96 _amount)
         internal
     {
-        if (_amount == 0) {
-            return;
-        }
-        writeCheckpoint(_totalSupplyCheckpoints, add, _amount);
-        address delegatee = delegates(_delegator);
-        if (delegatee != address(0)) {
-            (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
-                _checkpoints[delegatee],
-                add,
-                _amount
-            );
-            emit DelegateVotesChanged(delegatee, oldWeight, newWeight);
-        }
+        newStakeCheckpoint(_delegator, _amount, true);
     }
 
     /// @notice Creates new checkpoints due to a decrease of a stakers' stake
@@ -1496,19 +1512,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     function decreaseStakeCheckpoint(address _delegator, uint96 _amount)
         internal
     {
-        if (_amount == 0) {
-            return;
-        }
-        writeCheckpoint(_totalSupplyCheckpoints, subtract, _amount);
-        address delegatee = delegates(_delegator);
-        if (delegatee != address(0)) {
-            (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
-                _checkpoints[delegatee],
-                subtract,
-                _amount
-            );
-            emit DelegateVotesChanged(delegatee, oldWeight, newWeight);
-        }
+        newStakeCheckpoint(_delegator, _amount, false);
     }
 
     /// @notice Returns amount of Nu stake in the NuCypher staking contract for the specified operator.
