@@ -74,7 +74,7 @@ describe("KeepStake", () => {
       })
     })
 
-    context("for unknown operator", () => {
+    context("for liquid token operator", () => {
       const operator = "0xbDe54bDf60a7a5f748dA3e15fF029d2D7C4E078f"
       const owner = "0x3f78eC9999Bbf47b4eefBf1058BDE4CeDA3eaa8A"
       const beneficiary = "0x3A654A853eC8BAfc1b147B21342C1118d2DF6ffe"
@@ -92,8 +92,14 @@ describe("KeepStake", () => {
         )
       })
 
-      it("should fallback to staking contract", async () => {
+      it("should fallback to Keep staking contract", async () => {
         expect(await keepStake.resolveOwner(operator)).to.equal(owner)
+      })
+
+      it("should revert if Keep staking does not know the operator", async () => {
+        await expect(keepStake.resolveOwner(authorizer)).to.be.revertedWith(
+          "Could not resolve the owner"
+        )
       })
     })
   })
