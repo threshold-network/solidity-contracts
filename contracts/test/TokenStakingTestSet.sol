@@ -287,3 +287,11 @@ contract ExpensiveApplicationMock is ApplicationMock {
         }
     }
 }
+
+contract ManagedGrantMock {
+    address public grantee;
+
+    function setGrantee(address _grantee) external {
+        grantee = _grantee;
+    }
+}

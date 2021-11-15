@@ -111,7 +111,7 @@ describe("TokenStaking", () => {
     keepStakingMock = await KeepTokenStakingMock.deploy()
     await keepStakingMock.deployed()
     const KeepStake = await ethers.getContractFactory("KeepStake")
-    keepStake = await KeepStake.deploy()
+    keepStake = await KeepStake.deploy(keepStakingMock.address)
     await keepStake.deployed()
     const NuCypherTokenStakingMock = await ethers.getContractFactory(
       "NuCypherTokenStakingMock"
