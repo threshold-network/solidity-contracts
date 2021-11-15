@@ -362,7 +362,7 @@ used only in case of an emergency.
 
 Disables the given application. The disabled application can't slash stakers. Also 
 stakers can't increase authorization to that application but can decrease without 
-waiting by calling `requestAuthorizationDecrease` at any moment. Can be called only 
+waiting by calling `quitDisabledApplication` at any moment. Can be called only 
 by the governance. The disabled application can't be approved again. Should be used 
 only in case of an emergency.
 

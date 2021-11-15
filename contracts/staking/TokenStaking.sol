@@ -526,11 +526,8 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     function quitDisabledApplication(address operator, address application)
         external
     {
-        ApplicationInfo storage applicationStruct = applicationInfo[
-            application
-        ];
         require(
-            applicationStruct.status == ApplicationStatus.DISABLED,
+            applicationInfo[application].status == ApplicationStatus.DISABLED,
             "Application is not disabled"
         );
 
@@ -571,7 +568,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @notice Disables the given application. The disabled application can't
     ///         slash stakers. Also stakers can't increase authorization to that
     ///         application but can decrease without waiting by calling
-    ///         `requestAuthorizationDecrease` at any moment. Can be called only
+    ///         `quitDisabledApplication` at any moment. Can be called only
     ///         by the governance. The disabled application can't be approved
     ///         again. Should be used only in case of an emergency.
     function disableApplication(address application)

@@ -928,6 +928,22 @@ describe("TokenStaking", () => {
       })
     })
 
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .approveApplication(application1Mock.address)
+        ).to.be.revertedWith("Can't approve application")
+      })
+    })
+
     context("when approving new application", () => {
       let tx
 
@@ -1056,6 +1072,23 @@ describe("TokenStaking", () => {
             await tokenStaking
               .connect(panicButton)
               .pauseApplication(application1Mock.address)
+            await expect(
+              tokenStaking
+                .connect(authorizer)
+                .increaseAuthorization(
+                  operator.address,
+                  application1Mock.address,
+                  amount
+                )
+            ).to.be.revertedWith("Application is not approved")
+          })
+        })
+
+        context("when application is disabled", () => {
+          it("should revert", async () => {
+            await tokenStaking
+              .connect(deployer)
+              .disableApplication(application1Mock.address)
             await expect(
               tokenStaking
                 .connect(authorizer)
@@ -1600,6 +1633,19 @@ describe("TokenStaking", () => {
         })
       })
 
+      context("when application is disabled", () => {
+        it("should revert", async () => {
+          await tokenStaking
+            .connect(deployer)
+            .disableApplication(application1Mock.address)
+          await expect(
+            tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address)"](operator.address)
+          ).to.be.revertedWith("Application is not approved")
+        })
+      })
+
       context("when amount to decrease is zero", () => {
         it("should revert", async () => {
           await expect(
@@ -1818,6 +1864,14 @@ describe("TokenStaking", () => {
         )
     })
 
+    context("when application was not approved", () => {
+      it("should revert", async () => {
+        await expect(
+          application2Mock.approveAuthorizationDecrease(operator.address)
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
     context("when application was paused", () => {
       it("should revert", async () => {
         await tokenStaking
@@ -1826,6 +1880,17 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(panicButton)
           .pauseApplication(application1Mock.address)
+        await expect(
+          application1Mock.approveAuthorizationDecrease(operator.address)
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
         await expect(
           application1Mock.approveAuthorizationDecrease(operator.address)
         ).to.be.revertedWith("Application is not approved")
@@ -2021,6 +2086,133 @@ describe("TokenStaking", () => {
     )
   })
 
+  describe("quitDisabledApplication", () => {
+    context("when application is not approved", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(auxiliaryAccount)
+            .quitDisabledApplication(operator.address, application1Mock.address)
+        ).to.be.revertedWith("Application is not disabled")
+      })
+    })
+
+    context("when application is approved", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .quitDisabledApplication(operator.address, application1Mock.address)
+        ).to.be.revertedWith("Application is not disabled")
+      })
+    })
+
+    context("when application is paused", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .setPanicButton(application1Mock.address, panicButton.address)
+        await tokenStaking
+          .connect(panicButton)
+          .pauseApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .quitDisabledApplication(operator.address, application1Mock.address)
+        ).to.be.revertedWith("Application is not disabled")
+      })
+    })
+
+    context("when application is not authorized", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .quitDisabledApplication(operator.address, application1Mock.address)
+        ).to.be.revertedWith("Application is not authorized")
+      })
+    })
+
+    context("when application is authorized", () => {
+      const amount = initialStakerBalance
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking.connect(deployer).setAuthorizationCeiling(1)
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            operator.address,
+            application1Mock.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["requestAuthorizationDecrease(address)"](operator.address)
+
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+
+        tx = await tokenStaking
+          .connect(deployer)
+          .quitDisabledApplication(operator.address, application1Mock.address)
+      })
+
+      it("should set authorized amount to 0", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(0)
+      })
+
+      it("should allow to authorize more applications", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application2Mock.address)
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            operator.address,
+            application2Mock.address,
+            amount
+          )
+      })
+
+      it("should emit AuthorizationDecreaseApproved", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(operator.address, application1Mock.address, 0)
+      })
+    })
+  })
+
   describe("pauseApplication", () => {
     beforeEach(async () => {
       await tokenStaking
@@ -2038,6 +2230,19 @@ describe("TokenStaking", () => {
             .connect(deployer)
             .pauseApplication(application1Mock.address)
         ).to.be.revertedWith("Caller is not the panic button")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(panicButton)
+            .pauseApplication(application1Mock.address)
+        ).to.be.revertedWith("Can't pause application")
       })
     })
 
@@ -2084,6 +2289,93 @@ describe("TokenStaking", () => {
     })
   })
 
+  describe("disableApplication", () => {
+    beforeEach(async () => {
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+      await tokenStaking
+        .connect(deployer)
+        .setPanicButton(application1Mock.address, panicButton.address)
+    })
+
+    context("when caller is not the governance", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(panicButton)
+            .disableApplication(application1Mock.address)
+        ).to.be.revertedWith("Caller is not the governance")
+      })
+    })
+
+    context("when application is not approved", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .disableApplication(application2Mock.address)
+        ).to.be.revertedWith("Can't disable application")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .disableApplication(application1Mock.address)
+        ).to.be.revertedWith("Can't disable application")
+      })
+    })
+
+    const contextDisable = (preparation) => {
+      let tx
+
+      beforeEach(async () => {
+        await preparation()
+
+        tx = await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+      })
+
+      it("should disable application", async () => {
+        expect(
+          await tokenStaking.applicationInfo(application1Mock.address)
+        ).to.deep.equal([ApplicationStatus.DISABLED, panicButton.address])
+      })
+
+      it("should keep list of all applications unchanged", async () => {
+        expect(await tokenStaking.getApplicationsLength()).to.equal(1)
+        expect(await tokenStaking.applications(0)).to.equal(
+          application1Mock.address
+        )
+      })
+
+      it("should emit ApplicationStatusChanged", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.DISABLED)
+      })
+    }
+
+    context("when disable approved application", () => {
+      contextDisable(() => {})
+    })
+
+    context("when disable paused application", () => {
+      contextDisable(async () => {
+        await tokenStaking
+          .connect(panicButton)
+          .pauseApplication(application1Mock.address)
+      })
+    })
+  })
+
   describe("setPanicButton", () => {
     beforeEach(async () => {
       await tokenStaking
@@ -2107,6 +2399,19 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(deployer)
             .setPanicButton(application2Mock.address, panicButton.address)
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .setPanicButton(application1Mock.address, panicButton.address)
         ).to.be.revertedWith("Application is not approved")
       })
     })
@@ -5501,6 +5806,20 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(panicButton)
           .pauseApplication(application1Mock.address)
+        await expect(
+          application1Mock.slash(initialStakerBalance, [operator.address])
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
         await expect(
           application1Mock.slash(initialStakerBalance, [operator.address])
         ).to.be.revertedWith("Application is not approved")
