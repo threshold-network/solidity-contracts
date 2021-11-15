@@ -28,4 +28,8 @@ module.exports = {
       tags: ["local"],
     },
   },
+
+  mocha: {
+    timeout: 60000,
+  },
 }
