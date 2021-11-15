@@ -58,8 +58,7 @@ jobs:
 
   contracts-deployment-testnet:
     needs: [contracts-build-and-test]
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' # TODO: remove PR condition
-    continue-on-error: true # remove before merging to main
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -73,25 +72,20 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      # - name: Get upstream packages versions
-      #   uses: keep-network/ci/actions/upstream-builds-query@v1
-      #   id: upstream-builds-query
-      #   with:
-      #     upstream-builds: ${{ github.event.inputs.upstream_builds }}
-      #     query: keep-core-contracts-version = github.com/keep-network/keep-core/solidity-v1#version
-
-      # - name: Resolve latest contracts
-      #   run: |
-      #     yarn upgrade \
-      #       @keep-network/keep-core@${{ steps.upstream-builds-query.outputs.keep-core-contracts-version }}
+      - name: Get upstream packages versions
+        uses: keep-network/ci/actions/upstream-builds-query@v1
+        id: upstream-builds-query
+        with:
+          upstream-builds: ${{ github.event.inputs.upstream_builds }}
+          query: keep-core-contracts-version = github.com/keep-network/keep-core/solidity-v1#version
 
       - name: Resolve latest contracts
         run: |
           yarn upgrade \
-            @keep-network/keep-core@1.8.0-ropsten.13+main.6a98f2b066bc27910ab1715e7d20b7ba3c3ff21e
+            @keep-network/keep-core@${{ steps.upstream-builds-query.outputs.keep-core-contracts-version }}
 
       - name: Configure tenderly
-        # if: github.event.inputs.environment == 'ropsten' TODO: uncomment
+        if: github.event.inputs.environment == 'ropsten'
         env:
           TENDERLY_TOKEN: ${{ secrets.TENDERLY_TOKEN }}
         run: ./config_tenderly.sh
@@ -100,25 +94,20 @@ jobs:
         env:
           CHAIN_API_URL: ${{ secrets.ROPSTEN_ETH_HOSTNAME_HTTP }}
           CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.ROPSTEN_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
-        # run: yarn deploy --network ${{ github.event.inputs.environment }} TODO: uncomment, remove below file
-        run: yarn deploy --network ropsten
+        run: yarn deploy --network ${{ github.event.inputs.environment }}
 
       - name: Bump up package version
-        continue-on-error: true # remove before merging to main
         id: npm-version-bump
         uses: keep-network/npm-version-bump@v2
         with:
-          # environment: ${{ github.event.inputs.environment }}
-          environment: ropsten
+          environment: ${{ github.event.inputs.environment }}
           branch: ${{ github.ref }}
           commit: ${{ github.sha }}
 
-      - name: Publish to npm # TODO: switch off --dry-run
-        continue-on-error: true # remove before merging to main
+      - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        # run: npm publish --access=public --network=${{ github.event.inputs.environment }} --dry-run TODO: uncomment, remove below
-        run: npm publish --access=public --network=ropsten --dry-run
+        run: npm publish --access=public --network=${{ github.event.inputs.environment }}
 
       - name: Upload files needed for etherscan verification
         uses: actions/upload-artifact@v2
@@ -158,16 +147,12 @@ jobs:
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           CHAIN_API_URL: ${{ secrets.ROPSTEN_ETH_HOSTNAME_HTTP }}
-        # run: |
-        #   yarn run hardhat --network ${{ github.event.inputs.environment }} \
-        #     etherscan-verify --license MIT
         run: |
-          yarn run hardhat --network ropsten \
+          yarn run hardhat --network ${{ github.event.inputs.environment }} \
             etherscan-verify --license GPL-3.0 --force-license
 
   contracts-slither:
     runs-on: ubuntu-latest
-    continue-on-error: true # TODO: remove
     steps:
       - uses: actions/checkout@v2
 
@@ -198,4 +183,3 @@ jobs:
 
       - name: Run Slither
         run: slither .
-        # run: slither --hardhat-artifacts-directory build .
