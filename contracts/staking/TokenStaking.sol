@@ -251,7 +251,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         /* solhint-disable-next-line not-rely-on-time */
         operatorStruct.startTStakingTimestamp = block.timestamp;
 
-        increaseStakeCheckpoint(operatorStruct.owner, amount);
+        increaseStakeCheckpoint(operator, amount);
 
         emit OperatorStaked(
             StakeType.T,
@@ -287,7 +287,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             operator
         );
 
-        increaseStakeCheckpoint(operatorStruct.owner, tAmount);
+        increaseStakeCheckpoint(operator, tAmount);
 
         emit OperatorStaked(
             StakeType.KEEP,
@@ -330,8 +330,8 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         operatorStruct.owner = msg.sender;
         operatorStruct.authorizer = authorizer;
         operatorStruct.beneficiary = beneficiary;
-        
-        increaseStakeCheckpoint(operatorStruct.owner, tAmount);
+
+        increaseStakeCheckpoint(operator, tAmount);
 
         emit OperatorStaked(
             StakeType.NU,
@@ -578,7 +578,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         OperatorInfo storage operatorStruct = operators[operator];
         operatorStruct.tStake += amount;
         emit ToppedUp(operator, amount);
-        increaseStakeCheckpoint(operatorStruct.owner, amount);
+        increaseStakeCheckpoint(operator, amount);
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
@@ -597,7 +597,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         uint96 toppedUp = tAmount - operatorStruct.keepInTStake;
         emit ToppedUp(operator, toppedUp);
         operatorStruct.keepInTStake = tAmount;
-        increaseStakeCheckpoint(operatorStruct.owner, toppedUp);
+        increaseStakeCheckpoint(operator, toppedUp);
     }
 
     /// @notice Propagates information about stake top-up from the legacy NU
@@ -615,7 +615,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         uint96 toppedUp = tAmount - operatorStruct.nuInTStake;
         emit ToppedUp(operator, toppedUp);
         operatorStruct.nuInTStake = tAmount;
-        increaseStakeCheckpoint(operatorStruct.owner, toppedUp);
+        increaseStakeCheckpoint(operator, toppedUp);
     }
 
     //
@@ -650,7 +650,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
                 block.timestamp,
             "Can't unstake earlier than 24h"
         );
-        decreaseStakeCheckpoint(operatorStruct.owner, amount);
+        decreaseStakeCheckpoint(operator, amount);
         emit Unstaked(operator, amount);
         token.safeTransfer(operatorStruct.owner, amount);
     }
@@ -679,7 +679,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         );
         emit Unstaked(operator, keepInTStake);
         operatorStruct.keepInTStake = 0;
-        decreaseStakeCheckpoint(operatorStruct.owner, keepInTStake);
+        decreaseStakeCheckpoint(operator, keepInTStake);
     }
 
     /// @notice Reduces cached legacy NU stake amount by the provided amount.
@@ -714,7 +714,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             "Too much to unstake"
         );
         operatorStruct.nuInTStake -= amount;
-        decreaseStakeCheckpoint(operatorStruct.owner, amount);
+        decreaseStakeCheckpoint(operator, amount);
         emit Unstaked(operator, amount);
     }
 
@@ -742,14 +742,14 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         );
 
         uint96 unstaked = operatorStruct.tStake +
-                operatorStruct.keepInTStake +
-                operatorStruct.nuInTStake;
+            operatorStruct.keepInTStake +
+            operatorStruct.nuInTStake;
         emit Unstaked(operator, unstaked);
         uint96 amount = operatorStruct.tStake;
         operatorStruct.tStake = 0;
         operatorStruct.keepInTStake = 0;
         operatorStruct.nuInTStake = 0;
-        decreaseStakeCheckpoint(operatorStruct.owner, unstaked);
+        decreaseStakeCheckpoint(operator, unstaked);
 
         if (amount > 0) {
             token.safeTransfer(operatorStruct.owner, amount);
@@ -775,7 +775,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
 
         (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
             .getDelegationInfo(operator);
-        
+
         (uint96 realKeepInTStake, ) = keepToT(keepStakeAmount);
         uint96 oldKeepInTStake = operatorStruct.keepInTStake;
 
@@ -795,10 +795,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         emit TokensSeized(operator, slashedAmount, true);
         if (undelegatedAt != 0) {
             operatorStruct.keepInTStake = 0;
-            decreaseStakeCheckpoint(operatorStruct.owner, oldKeepInTStake);
+            decreaseStakeCheckpoint(operator, oldKeepInTStake);
         } else {
             decreaseStakeCheckpoint(
-                operatorStruct.owner,
+                operator,
                 oldKeepInTStake - operatorStruct.keepInTStake
             );
         }
@@ -848,7 +848,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             address(0)
         );
         decreaseStakeCheckpoint(
-            operatorStruct.owner,
+            operator,
             oldNuInTStake - operatorStruct.nuInTStake
         );
     }
@@ -1168,30 +1168,27 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             .authorized;
     }
 
-    /// @notice Delegate voting power from the stake associated to the 
+    /// @notice Delegate voting power from the stake associated to the
     ///         `operator` to a `delegatee` address. Caller must be the owner
     ///         of this stake.
     /// @dev Original abstract function defined in Checkpoints contract had two
-    ///      parameters, `delegator` and `delegatee`. Here we override it and 
-    ///      comply with the same signature but the semantics of the first 
+    ///      parameters, `delegator` and `delegatee`. Here we override it and
+    ///      comply with the same signature but the semantics of the first
     ///      parameter changes to the `operator` address.
-    function delegate(address operator, address delegatee) 
+    function delegate(address operator, address delegatee)
         internal
         virtual
         override
     {
         OperatorInfo storage operatorStruct = operators[operator];
         require(operatorStruct.owner == msg.sender, "Caller is not owner");
-
-        address currentDelegate = delegates(delegator);
-        uint96 delegatorBalance = operatorStruct.tStake + 
+        uint96 operatorBalance = operatorStruct.tStake +
             operatorStruct.keepInTStake +
             operatorStruct.nuInTStake;
-        _delegates[delegator] = delegatee;
-
-        emit DelegateChanged(delegator, currentDelegate, delegatee);
-
-        moveVotingPower(currentDelegate, delegatee, delegatorBalance);
+        address oldDelegatee = delegates(operator);
+        _delegates[operator] = delegatee;
+        emit DelegateChanged(operator, oldDelegatee, delegatee);
+        moveVotingPower(oldDelegatee, delegatee, operatorBalance);
     }
 
     /// @notice Adds operators to the slashing queue along with the amount.
@@ -1298,8 +1295,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         uint96 newStake = operatorStruct.tStake +
             operatorStruct.keepInTStake +
             operatorStruct.nuInTStake;
-        decreaseStakeCheckpoint(operatorStruct.owner, oldStake - newStake);
-
+        decreaseStakeCheckpoint(slashing.operator, oldStake - newStake);
     }
 
     /// @notice Synchronize authorizations (if needed) after slashing stake
@@ -1474,7 +1470,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     }
 
     /// @notice Creates new checkpoints due to an increment of a stakers' stake
-    /// @param _delegator Address of the stake owner acting as delegator
+    /// @param _delegator Address of the stake operator acting as delegator
     /// @param _amount Amount of T to increment
     function increaseStakeCheckpoint(address _delegator, uint96 _amount)
         internal
