@@ -20,6 +20,23 @@ on:
         default: "main"
 
 jobs:
+  contracts-detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      system-tests: ${{ steps.filter.outputs.system-tests }}
+    steps:
+      - uses: actions/checkout@v2
+        if: github.event_name == 'pull_request'
+
+      - uses: dorny/paths-filter@v2
+        if: github.event_name == 'pull_request'
+        id: filter
+        with:
+          filters: |
+            system-tests:
+              - './contracts/staking/**'
+              - './test/system/**'
+
   contracts-build-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -27,7 +44,7 @@ jobs:
 
       - uses: actions/setup-node@v2
         with:
-          node-version: "14"
+          node-version: "14.x"
           cache: "yarn"
 
       - name: Install dependencies
@@ -38,6 +55,29 @@ jobs:
 
       - name: Run tests
         run: yarn test
+
+  contracts-system-tests:
+    needs: contracts-detect-changes
+    if: needs.contracts-detect-changes.outputs.system-tests == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build contracts
+        run: yarn build
+
+      - name: Run system tests
+        env:
+          FORKING_URL: ${{ secrets.MAINNET_ETH_HOSTNAME_HTTP }}
+        run: yarn test:system
 
   contracts-deployment-dry-run:
     runs-on: ubuntu-latest
