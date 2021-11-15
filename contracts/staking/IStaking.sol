@@ -122,6 +122,14 @@ interface IStaking {
     ///         function. Should be used only in case of an emergency.
     function pauseApplication(address application) external;
 
+    /// @notice Disables the given application. The disabled application can't
+    ///         slash stakers. Also stakers can't increase authorization to that
+    ///         application but can decrease without waiting by calling
+    ///         `requestAuthorizationDecrease` at any moment. Can be called only
+    ///         by the governance. The disabled application can't be approved
+    ///         again. Should be used only in case of an emergency.
+    function disableApplication(address application) external;
+
     /// @notice Sets the Panic Button role for the given application to the
     ///         provided address. Can only be called by the Governance. If the
     ///         Panic Button for the given application should be disabled, the

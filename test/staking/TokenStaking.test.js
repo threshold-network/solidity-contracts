@@ -12,6 +12,12 @@ const StakeTypes = {
   KEEP: 1,
   T: 2,
 }
+const ApplicationStatus = {
+  NOT_APPROVED: 0,
+  APPROVED: 1,
+  PAUSED: 2,
+  DISABLED: 3,
+}
 
 describe("TokenStaking", () => {
   let tToken
@@ -930,7 +936,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(deployer)
             .approveApplication(application1Mock.address)
-        ).to.be.revertedWith("Application already approved")
+        ).to.be.revertedWith("Can't approve application")
       })
     })
 
@@ -946,7 +952,7 @@ describe("TokenStaking", () => {
       it("should approve application", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, false, ZERO_ADDRESS])
+        ).to.deep.equal([ApplicationStatus.APPROVED, ZERO_ADDRESS])
       })
 
       it("should add application to the list of all applications", async () => {
@@ -956,10 +962,10 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should emit ApplicationApproved", async () => {
+      it("should emit ApplicationStatusChanged", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ApplicationApproved")
-          .withArgs(application1Mock.address)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.APPROVED)
       })
     })
 
@@ -984,7 +990,7 @@ describe("TokenStaking", () => {
       it("should enable application", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, false, panicButton.address])
+        ).to.deep.equal([ApplicationStatus.APPROVED, panicButton.address])
       })
 
       it("should keep list of all applications unchanged", async () => {
@@ -994,10 +1000,10 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should emit ApplicationApproved", async () => {
+      it("should emit ApplicationStatusChanged", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ApplicationApproved")
-          .withArgs(application1Mock.address)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.APPROVED)
       })
     })
   })
@@ -1070,7 +1076,7 @@ describe("TokenStaking", () => {
                   application1Mock.address,
                   amount
                 )
-            ).to.be.revertedWith("Application is paused")
+            ).to.be.revertedWith("Application is not approved")
           })
         })
 
@@ -1602,7 +1608,7 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 amount
               )
-          ).to.be.revertedWith("Application is paused")
+          ).to.be.revertedWith("Application is not approved")
         })
       })
 
@@ -2056,7 +2062,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(panicButton)
             .pauseApplication(application1Mock.address)
-        ).to.be.revertedWith("Application already paused")
+        ).to.be.revertedWith("Can't pause application")
       })
     })
 
@@ -2072,7 +2078,7 @@ describe("TokenStaking", () => {
       it("should pause application", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, true, panicButton.address])
+        ).to.deep.equal([ApplicationStatus.PAUSED, panicButton.address])
       })
 
       it("should keep list of all applications unchanged", async () => {
@@ -2082,10 +2088,10 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should emit ApplicationPaused", async () => {
+      it("should emit ApplicationStatusChanged", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ApplicationPaused")
-          .withArgs(application1Mock.address)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.PAUSED)
       })
     })
   })
@@ -2129,7 +2135,7 @@ describe("TokenStaking", () => {
       it("should set address of panic button", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, false, panicButton.address])
+        ).to.deep.equal([ApplicationStatus.APPROVED, panicButton.address])
       })
 
       it("should emit PanicButtonSet", async () => {
@@ -5509,7 +5515,7 @@ describe("TokenStaking", () => {
           .pauseApplication(application1Mock.address)
         await expect(
           application1Mock.slash(initialStakerBalance, [operator.address])
-        ).to.be.revertedWith("Application is paused")
+        ).to.be.revertedWith("Application is not approved")
       })
     })
 

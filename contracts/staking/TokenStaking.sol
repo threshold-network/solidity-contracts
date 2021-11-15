@@ -29,6 +29,13 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     using PercentUtils for uint256;
     using SafeCast for uint256;
 
+    enum ApplicationStatus {
+        NOT_APPROVED,
+        APPROVED,
+        PAUSED,
+        DISABLED
+    }
+
     struct OperatorInfo {
         uint96 nuInTStake;
         address owner;
@@ -47,8 +54,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     }
 
     struct ApplicationInfo {
-        bool approved;
-        bool paused;
+        ApplicationStatus status;
         address panicButton;
     }
 
@@ -96,7 +102,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         uint96 amount
     );
     event MinimumStakeAmountSet(uint96 amount);
-    event ApplicationApproved(address indexed application);
+    event ApplicationStatusChanged(
+        address indexed application,
+        ApplicationStatus indexed newStatus
+    );
     event AuthorizationIncreased(
         address indexed operator,
         address indexed application,
@@ -118,7 +127,6 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         uint96 amount,
         bool indexed successfulCall
     );
-    event ApplicationPaused(address indexed application);
     event PanicButtonSet(
         address indexed application,
         address indexed panicButton
@@ -385,21 +393,17 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     {
         require(application != address(0), "Application must be specified");
         ApplicationInfo storage info = applicationInfo[application];
-        require(!info.approved || info.paused, "Application already approved");
-        info.approved = true;
-        info.paused = false;
+        require(
+            info.status == ApplicationStatus.NOT_APPROVED ||
+                info.status == ApplicationStatus.PAUSED,
+            "Can't approve application"
+        );
 
-        bool existingApplication = false;
-        for (uint256 i = 0; i < applications.length; i++) {
-            if (applications[i] == application) {
-                existingApplication = true;
-                break;
-            }
-        }
-        if (!existingApplication) {
+        if (info.status == ApplicationStatus.NOT_APPROVED) {
             applications.push(application);
         }
-        emit ApplicationApproved(application);
+        info.status = ApplicationStatus.APPROVED;
+        emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
     }
 
     /// @notice Increases the authorization of the given operator for the given
@@ -416,8 +420,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
-        require(applicationStruct.approved, "Application is not approved");
-        require(!applicationStruct.paused, "Application is paused");
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
 
         OperatorInfo storage operatorStruct = operators[operator];
         AppAuthorization storage authorization = operatorStruct.authorizations[
@@ -487,7 +493,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         returns (uint96)
     {
         ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
-        require(!applicationStruct.paused, "Application is paused");
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
 
         OperatorInfo storage operatorStruct = operators[operator];
         AppAuthorization storage authorization = operatorStruct.authorizations[
@@ -525,9 +534,35 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
-        require(!applicationStruct.paused, "Application already paused");
-        applicationStruct.paused = true;
-        emit ApplicationPaused(application);
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Can't pause application"
+        );
+        applicationStruct.status = ApplicationStatus.PAUSED;
+        emit ApplicationStatusChanged(application, ApplicationStatus.PAUSED);
+    }
+
+    /// @notice Disables the given application. The disabled application can't
+    ///         slash stakers. Also stakers can't increase authorization to that
+    ///         application but can decrease without waiting by calling
+    ///         `requestAuthorizationDecrease` at any moment. Can be called only
+    ///         by the governance. The disabled application can't be approved
+    ///         again. Should be used only in case of an emergency.
+    function disableApplication(address application)
+        external
+        override
+        onlyGovernance
+    {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED ||
+                applicationStruct.status == ApplicationStatus.PAUSED,
+            "Can't disable application"
+        );
+        applicationStruct.status = ApplicationStatus.DISABLED;
+        emit ApplicationStatusChanged(application, ApplicationStatus.DISABLED);
     }
 
     /// @notice Sets the Panic Button role for the given application to the
@@ -542,7 +577,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
-        require(applicationStruct.approved, "Application is not approved");
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
         applicationStruct.panicButton = panicButton;
         emit PanicButtonSet(application, panicButton);
     }
@@ -1073,7 +1111,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
-        require(!applicationStruct.paused, "Application is paused");
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
 
         require(amount > 0, "Amount must be greater than 0");
 
@@ -1095,6 +1136,36 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             operator,
             deauthorizingTo
         );
+    }
+
+    /// @notice Decreases of the authorization for the given operator on
+    ///         the given disabled application by the all authorized amount.
+    ///         Can be called by anyone.
+    function quitDisabledApplication(address operator, address application)
+        external
+    {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.DISABLED,
+            "Application is not disabled"
+        );
+
+        OperatorInfo storage operatorStruct = operators[operator];
+        AppAuthorization storage authorization = operatorStruct.authorizations[
+            application
+        ];
+        require(authorization.authorized > 0, "Application is not authorized");
+        authorization.authorized = 0;
+        authorization.deauthorizing = 0;
+
+        emit AuthorizationDecreaseApproved(
+            operator,
+            application,
+            0
+        );
+        cleanAuthorizedApplications(operatorStruct, 1);
     }
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
@@ -1206,8 +1277,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         );
 
         ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
-        require(applicationStruct.approved, "Application is not approved");
-        require(!applicationStruct.paused, "Application is paused");
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
 
         uint256 queueLength = slashingQueue.length;
         for (uint256 i = 0; i < _operators.length; i++) {
@@ -1463,8 +1536,11 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
                 index++;
             }
         }
-        for (index = newLength; index < length; index++) {
-            operatorStruct.authorizedApplications.pop();
+
+        address[] storage authorizedApplications = operatorStruct
+            .authorizedApplications;
+        assembly {
+            sstore(authorizedApplications.slot, newLength)
         }
     }
 
