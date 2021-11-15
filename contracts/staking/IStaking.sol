@@ -114,6 +114,12 @@ interface IStaking {
         external
         returns (uint96);
 
+    /// @notice Decreases the authorization for the given `operator` on
+    ///         the given disabled `application`, for all authorized amount.
+    ///         Can be called by anyone.
+    function forceDecreaseAuthorization(address operator, address application)
+        external;
+
     /// @notice Pauses the given application’s eligibility to slash stakes.
     ///         Besides that stakers can't change authorization to the application.
     ///         Can be called only by the Panic Button of the particular

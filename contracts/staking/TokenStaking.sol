@@ -525,6 +525,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     ///         Can be called by anyone.
     function forceDecreaseAuthorization(address operator, address application)
         external
+        override
     {
         require(
             applicationInfo[application].status == ApplicationStatus.DISABLED,
