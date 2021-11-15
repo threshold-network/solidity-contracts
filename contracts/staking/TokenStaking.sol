@@ -993,7 +993,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     ///         processes them. Receives 5% of the slashed amount.
     ///         Executes `involuntaryAuthorizationDecrease` function on each
     ///         affected application.
-    function processSlashing(uint256 count) external override {
+    function processSlashing(uint256 count) external virtual override {
         require(
             slashingQueueIndex < slashingQueue.length && count > 0,
             "Nothing to process"
@@ -1308,6 +1308,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @notice Processes one specified slashing event.
     ///         Executes `involuntaryAuthorizationDecrease` function on each
     ///         affected application.
+    //slither-disable-next-line dead-code
     function processSlashing(SlashingEvent storage slashing)
         internal
         returns (uint96 tAmountToBurn)

@@ -6856,4 +6856,134 @@ describe("TokenStaking", () => {
       }
     )
   })
+
+  describe("cleanAuthorizedApplications", () => {
+    const amount = initialStakerBalance
+    let extendedTokenStaking
+
+    beforeEach(async () => {
+      const ExtendedTokenStaking = await ethers.getContractFactory(
+        "ExtendedTokenStaking"
+      )
+      extendedTokenStaking = await ExtendedTokenStaking.deploy(
+        tToken.address,
+        keepStakingMock.address,
+        nucypherStakingMock.address,
+        keepVendingMachine.address,
+        nucypherVendingMachine.address,
+        keepStake.address
+      )
+      await extendedTokenStaking.deployed()
+    })
+
+    context("when all authorized applications with 0 authorization", () => {
+      beforeEach(async () => {
+        await extendedTokenStaking.setAuthorizedApplications(operator.address, [
+          application1Mock.address,
+          application2Mock.address,
+        ])
+        await extendedTokenStaking.cleanAuthorizedApplications(
+          operator.address,
+          2
+        )
+      })
+
+      it("should remove all applications", async () => {
+        expect(
+          await extendedTokenStaking.getAuthorizedApplications(operator.address)
+        ).to.deep.equal([])
+      })
+    })
+
+    context(
+      "when one application in the end of the array with non-zero authorization",
+      () => {
+        beforeEach(async () => {
+          await extendedTokenStaking.setAuthorizedApplications(
+            operator.address,
+            [application1Mock.address, application2Mock.address]
+          )
+          await extendedTokenStaking.setAuthorization(
+            operator.address,
+            application2Mock.address,
+            amount
+          )
+          await extendedTokenStaking.cleanAuthorizedApplications(
+            operator.address,
+            1
+          )
+        })
+
+        it("should remove only first application", async () => {
+          expect(
+            await extendedTokenStaking.getAuthorizedApplications(
+              operator.address
+            )
+          ).to.deep.equal([application2Mock.address])
+        })
+      }
+    )
+
+    context(
+      "when one application in the beggining of the array with non-zero authorization",
+      () => {
+        beforeEach(async () => {
+          await extendedTokenStaking.setAuthorizedApplications(
+            operator.address,
+            [application1Mock.address, application2Mock.address]
+          )
+          await extendedTokenStaking.setAuthorization(
+            operator.address,
+            application1Mock.address,
+            amount
+          )
+          await extendedTokenStaking.cleanAuthorizedApplications(
+            operator.address,
+            1
+          )
+        })
+
+        it("should remove only first application", async () => {
+          expect(
+            await extendedTokenStaking.getAuthorizedApplications(
+              operator.address
+            )
+          ).to.deep.equal([application1Mock.address])
+        })
+      }
+    )
+
+    context(
+      "when one application in the middle of the array with non-zero authorization",
+      () => {
+        beforeEach(async () => {
+          await extendedTokenStaking.setAuthorizedApplications(
+            operator.address,
+            [
+              application1Mock.address,
+              application2Mock.address,
+              auxiliaryAccount.address,
+            ]
+          )
+          await extendedTokenStaking.setAuthorization(
+            operator.address,
+            application2Mock.address,
+            amount
+          )
+          await extendedTokenStaking.cleanAuthorizedApplications(
+            operator.address,
+            2
+          )
+        })
+
+        it("should remove only first application", async () => {
+          expect(
+            await extendedTokenStaking.getAuthorizedApplications(
+              operator.address
+            )
+          ).to.deep.equal([application2Mock.address])
+        })
+      }
+    )
+  })
 })
