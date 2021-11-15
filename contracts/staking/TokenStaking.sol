@@ -277,10 +277,7 @@ contract TokenStaking is Ownable, IStaking {
         require(tAmount != 0, "Nothing to sync");
 
         operatorStruct.keepInTStake = tAmount;
-        operatorStruct.owner = keepStake.resolveOwner(
-            keepStakingContract,
-            operator
-        );
+        operatorStruct.owner = keepStake.resolveOwner(operator);
         operatorStruct.authorizer = keepStakingContract.authorizerOf(operator);
         operatorStruct.beneficiary = keepStakingContract.beneficiaryOf(
             operator
@@ -341,10 +338,7 @@ contract TokenStaking is Ownable, IStaking {
     function refreshKeepStakeOwner(address operator) external override {
         OperatorInfo storage operatorStruct = operators[operator];
         require(operatorStruct.owner == msg.sender, "Not old owner");
-        address newOwner = keepStake.resolveOwner(
-            keepStakingContract,
-            operator
-        );
+        address newOwner = keepStake.resolveOwner(operator);
 
         emit OwnerRefreshed(operator, operatorStruct.owner, newOwner);
         operatorStruct.owner = newOwner;
