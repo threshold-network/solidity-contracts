@@ -90,7 +90,7 @@ describeFn("System -- staking", () => {
 
   async function delegateStake() {
     const managedGrant = await ethers.getContractAt(
-      "IManagedGrant",
+      "ITestManagedGrant",
       keepManagedGrantAddress
     )
     const granteeAddress = await managedGrant.grantee()

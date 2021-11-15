@@ -77,13 +77,6 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
         );
     }
 
-    function authorizeOperatorContract(
-        address operator,
-        address operatorContract
-    ) external override {
-        // no-op
-    }
-
     function getDelegationInfo(address operator)
         external
         view
