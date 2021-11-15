@@ -345,6 +345,11 @@ authorization decrease request. Can only be called by the application that
 was previously requested to decrease the authorization for that operator.
 Returns resulting authorized amount for the application.
 
+==== `quitDisabledApplication(address operator, address application) external`
+
+Decreases of the authorization for the given operator on the given disabled 
+application by the all authorized amount. Can be called by anyone.
+
 ==== `pauseApplication(address application) external onlyPanicButtonOf(application)`
 
 Pauses the given application's eligibility to slash stakes. Besides that stakers can't

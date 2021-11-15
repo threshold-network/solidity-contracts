@@ -64,9 +64,9 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         address application;
     }
 
-    uint256 public constant SLASHING_REWARD_PERCENT = 5;
-    uint256 public constant MIN_STAKE_TIME = 24 hours;
-    uint256 public constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
+    uint256 internal constant SLASHING_REWARD_PERCENT = 5;
+    uint256 internal constant MIN_STAKE_TIME = 24 hours;
+    uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
 
     T internal immutable token;
     IKeepTokenStaking internal immutable keepStakingContract;
@@ -240,7 +240,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             operator != address(0) &&
                 beneficiary != address(0) &&
                 authorizer != address(0),
-            "Roles must be specified"
+            "Parameters must be specified"
         );
         OperatorInfo storage operatorStruct = operators[operator];
         (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
@@ -277,7 +277,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     ///         stake amount from KEEP staking contract. Can be called by
     ///         anyone.
     function stakeKeep(address operator) external override {
-        require(operator != address(0), "Operator must be specified");
+        require(operator != address(0), "Parameters must be specified");
         OperatorInfo storage operatorStruct = operators[operator];
 
         require(
@@ -320,7 +320,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             operator != address(0) &&
                 beneficiary != address(0) &&
                 authorizer != address(0),
-            "Roles must be specified"
+            "Parameters must be specified"
         );
         OperatorInfo storage operatorStruct = operators[operator];
         (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
@@ -391,7 +391,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         override
         onlyGovernance
     {
-        require(application != address(0), "Application must be specified");
+        require(application != address(0), "Parameters must be specified");
         ApplicationInfo storage info = applicationInfo[application];
         require(
             info.status == ApplicationStatus.NOT_APPROVED ||
@@ -520,6 +520,32 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         return authorization.authorized;
     }
 
+    /// @notice Decreases of the authorization for the given operator on
+    ///         the given disabled application by the all authorized amount.
+    ///         Can be called by anyone.
+    function quitDisabledApplication(address operator, address application)
+        external
+    {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.DISABLED,
+            "Application is not disabled"
+        );
+
+        OperatorInfo storage operatorStruct = operators[operator];
+        AppAuthorization storage authorization = operatorStruct.authorizations[
+            application
+        ];
+        require(authorization.authorized > 0, "Application is not authorized");
+        authorization.authorized = 0;
+        authorization.deauthorizing = 0;
+
+        emit AuthorizationDecreaseApproved(operator, application, 0);
+        cleanAuthorizedApplications(operatorStruct, 1);
+    }
+
     /// @notice Pauses the given application’s eligibility to slash stakes.
     ///         Besides that stakers can't change authorization to the application.
     ///         Can be called only by the Panic Button of the particular
@@ -612,7 +638,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         override
         onlyOwnerOrOperator(operator)
     {
-        require(amount > 0, "Amount must be greater than 0");
+        require(amount > 0, "Parameters must be specified");
         OperatorInfo storage operatorStruct = operators[operator];
         operatorStruct.tStake += amount;
         emit ToppedUp(operator, amount);
@@ -918,7 +944,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @notice Transfer some amount of T tokens as reward for notifications
     ///         of misbehaviour
     function pushNotificationReward(uint96 reward) external override {
-        require(reward > 0, "Amount must be greater than 0");
+        require(reward > 0, "Parameters must be specified");
         notifiersTreasury += reward;
         emit NotificationRewardPushed(reward);
         token.safeTransferFrom(msg.sender, address(this), reward);
@@ -1116,7 +1142,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             "Application is not approved"
         );
 
-        require(amount > 0, "Amount must be greater than 0");
+        require(amount > 0, "Parameters must be specified");
 
         AppAuthorization storage authorization = operators[operator]
             .authorizations[application];
@@ -1136,36 +1162,6 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             operator,
             deauthorizingTo
         );
-    }
-
-    /// @notice Decreases of the authorization for the given operator on
-    ///         the given disabled application by the all authorized amount.
-    ///         Can be called by anyone.
-    function quitDisabledApplication(address operator, address application)
-        external
-    {
-        ApplicationInfo storage applicationStruct = applicationInfo[
-            application
-        ];
-        require(
-            applicationStruct.status == ApplicationStatus.DISABLED,
-            "Application is not disabled"
-        );
-
-        OperatorInfo storage operatorStruct = operators[operator];
-        AppAuthorization storage authorization = operatorStruct.authorizations[
-            application
-        ];
-        require(authorization.authorized > 0, "Application is not authorized");
-        authorization.authorized = 0;
-        authorization.deauthorizing = 0;
-
-        emit AuthorizationDecreaseApproved(
-            operator,
-            application,
-            0
-        );
-        cleanAuthorizedApplications(operatorStruct, 1);
     }
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
@@ -1273,7 +1269,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     ) internal {
         require(
             amount > 0 && _operators.length > 0,
-            "Specify amount and operators"
+            "Parameters must be specified"
         );
 
         ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];

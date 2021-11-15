@@ -146,18 +146,6 @@ describe("TokenStaking", () => {
     await application2Mock.deployed()
   })
 
-  describe("setup", () => {
-    context("once deployed", () => {
-      it("should give acces to constans", async () => {
-        expect(await tokenStaking.SLASHING_REWARD_PERCENT()).to.equal(5)
-        expect(await tokenStaking.MIN_STAKE_TIME()).to.equal(24 * 60 * 60)
-        expect(await tokenStaking.GAS_LIMIT_AUTHORIZATION_DECREASE()).to.equal(
-          250000
-        )
-      })
-    })
-  })
-
   describe("setMinimumStakeAmount", () => {
     const amount = 1
 
@@ -201,7 +189,7 @@ describe("TokenStaking", () => {
               authorizer.address,
               amount
             )
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -212,7 +200,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stake(operator.address, ZERO_ADDRESS, authorizer.address, amount)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -223,7 +211,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stake(operator.address, beneficiary.address, ZERO_ADDRESS, amount)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -429,7 +417,7 @@ describe("TokenStaking", () => {
     context("when caller did not provide operator", () => {
       it("should revert", async () => {
         await expect(tokenStaking.stakeKeep(ZERO_ADDRESS)).to.be.revertedWith(
-          "Operator must be specified"
+          "Parameters must be specified"
         )
       })
     })
@@ -602,7 +590,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(ZERO_ADDRESS, beneficiary.address, authorizer.address)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -612,7 +600,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(operator.address, ZERO_ADDRESS, authorizer.address)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -622,7 +610,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(operator.address, beneficiary.address, ZERO_ADDRESS)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -923,7 +911,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.connect(deployer).approveApplication(ZERO_ADDRESS)
-        ).to.be.revertedWith("Application must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -1622,7 +1610,7 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 0
               )
-          ).to.be.revertedWith("Amount must be greater than 0")
+          ).to.be.revertedWith("Parameters must be specified")
         })
       })
 
@@ -1840,7 +1828,7 @@ describe("TokenStaking", () => {
           .pauseApplication(application1Mock.address)
         await expect(
           application1Mock.approveAuthorizationDecrease(operator.address)
-        ).to.be.revertedWith("Application is paused")
+        ).to.be.revertedWith("Application is not approved")
       })
     })
 
@@ -2193,7 +2181,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(operator).topUp(operator.address, 0)
-        ).to.be.revertedWith("Amount must be greater than 0")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -5391,7 +5379,7 @@ describe("TokenStaking", () => {
     context("when reward is zero", () => {
       it("should revert", async () => {
         await expect(tokenStaking.pushNotificationReward(0)).to.be.revertedWith(
-          "Amount must be greater than 0"
+          "Parameters must be specified"
         )
       })
     })
@@ -5482,7 +5470,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.slash(0, [operator.address])
-        ).to.be.revertedWith("Specify amount and operators")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -5490,7 +5478,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.slash(initialStakerBalance, [])
-        ).to.be.revertedWith("Specify amount and operators")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
