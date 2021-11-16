@@ -2,24 +2,20 @@ const { expect } = require("chai")
 const {
   resetFork,
   impersonateAccount,
-  to1e18,
 } = require("../helpers/contract-test-helpers")
 const { initContracts } = require("./init-contracts")
-const { keepManagedGrantAddress } = require("./constants")
-const { helpers } = require("hardhat")
+const {
+  keepGrantStake,
+  keepLiquidTokenStake,
+  keepManagedGrantStake,
+} = require("./constants")
 
 const describeFn =
   process.env.NODE_ENV === "system-test" ? describe : describe.skip
 
-describeFn("System -- staking", () => {
+describeFn("SystemTests: TokenStaking", () => {
   const startingBlock = 13619810
 
-  // Roles.
-  // eslint-disable-next-line no-unused-vars
-  let governance
-  let beneficiary
-  let operator
-  let authorizer
   let purse
 
   // Contracts
@@ -29,87 +25,92 @@ describeFn("System -- staking", () => {
   before(async () => {
     await resetFork(startingBlock)
 
-    governance = await ethers.getSigner(0)
-    beneficiary = await ethers.getSigner(1)
-    operator = await ethers.getSigner(2)
-    authorizer = await ethers.getSigner(3)
-    purse = await ethers.getSigner(4)
+    purse = await ethers.getSigner(0)
 
     const contracts = await initContracts()
     keepTokenStaking = contracts.keepTokenStaking
     tokenStaking = contracts.tokenStaking
-
-    await delegateStake()
   })
 
-  describe("test initial state", () => {
-    describe("legacy KEEP staking contract", () => {
-      it("should contain stake for operator", async () => {
-        expect(
-          await keepTokenStaking.eligibleStake(
-            operator.address,
-            tokenStaking.address
-          )
-        ).to.be.equal(to1e18(100000))
-      })
-    })
-
-    describe("T staking contract", () => {
-      it("should not contain any stakes for operator", async () => {
-        const stakes = await tokenStaking.stakes(operator.address)
-
-        expect(stakes[0]).to.be.equal(0) // tStake
-        expect(stakes[1]).to.be.equal(0) // keepInTStake
-        expect(stakes[2]).to.be.equal(0) // nuInTStake
-      })
-    })
-  })
-
-  describe("when operator stakes tokens from legacy KEEP staking contract", () => {
-    let tx
+  const describeStake = (
+    ownerAddress,
+    operatorAddress,
+    authorizerAddress,
+    expectedStake
+  ) => {
+    let owner
+    let operator
+    let authorizer
 
     before(async () => {
-      tx = await tokenStaking.stakeKeep(operator.address)
+      // impersonate and drop 1 ETH for each account
+      owner = await impersonateAccount(ownerAddress, purse, "1")
+      operator = await impersonateAccount(operatorAddress, purse, "1")
+      authorizer = await impersonateAccount(authorizerAddress, purse, "1")
     })
 
-    it("should copy delegation from the legacy KEEP staking contract to T staking contract", async () => {
-      const stakes = await tokenStaking.stakes(operator.address)
+    context("I have authorized T staking contract", () => {
+      before(async () => {
+        await keepTokenStaking
+          .connect(authorizer)
+          .authorizeOperatorContract(operatorAddress, tokenStaking.address)
+      })
 
-      // KEEP -> T ratio is 0.5 (see init-contracts.js) and the operator has
-      // a stake equal to 100k KEEP. After `stakeKeep` it should have 50k of T.
-      expect(stakes[0]).to.be.equal(to1e18(0)) // tStake
-      expect(stakes[1]).to.be.equal(to1e18(50000)) // keepInTStake
-      expect(stakes[2]).to.be.equal(0) // nuInTStake
-    })
+      context("I have not undelegated my legacy stake", () => {
+        describe("stakeKeep", () => {
+          before(async () => {
+            await tokenStaking.stakeKeep(operator.address)
+          })
 
-    it("should emit OperatorStaked event", async () => {
-      // TODO: Assert event params are correct.
-      await expect(tx).to.emit(tokenStaking, "OperatorStaked")
+          it("should copy my stake to T staking contract", async () => {
+            const stakes = await tokenStaking.stakes(operatorAddress)
+            expect(stakes[0]).to.be.equal(0) // T
+            expect(stakes[1]).to.be.equal(expectedStake) // KEEP
+            expect(stakes[2]).to.be.equal(0) // NU
+          })
+        })
+      })
+
+      context("I have undelegated my legacy stake", () => {
+        before(async () => {
+          await keepTokenStaking.connect(owner).undelegate(operator.address)
+        })
+
+        describe("stakeKeep", () => {
+          it("should revert", async () => {
+            await expect(
+              tokenStaking.stakeKeep(operator.address)
+            ).to.be.revertedWith("Operator is already in use")
+          })
+        })
+      })
     })
+  }
+
+  context("Given I am KEEP network managed grant staker", () => {
+    describeStake(
+      keepManagedGrantStake.grantee,
+      keepManagedGrantStake.operator,
+      keepManagedGrantStake.authorizer,
+      "598000000000000000000000"
+    )
   })
 
-  async function delegateStake() {
-    const managedGrant = await ethers.getContractAt(
-      "ITestManagedGrant",
-      keepManagedGrantAddress
+  context("Given I am KEEP network non-managed grant staker", () => {
+    describeStake(
+      keepGrantStake.grantee,
+      keepGrantStake.operator,
+      keepGrantStake.authorizer,
+      "416266500000000000000000"
     )
-    const granteeAddress = await managedGrant.grantee()
-    const grantee = await impersonateAccount(granteeAddress, purse, "5")
+  })
 
-    const stakeDelegationData = ethers.utils.solidityPack(
-      ["address", "address", "address"],
-      [beneficiary.address, operator.address, authorizer.address]
+  context("Given I am KEEP network liquid token staker", () => {
+    describeStake(
+      keepLiquidTokenStake.owner,
+      keepLiquidTokenStake.operator,
+      keepLiquidTokenStake.authorizer,
+      "1500000000000000000000000"
     )
-
-    await managedGrant
-      .connect(grantee)
-      .stake(keepTokenStaking.address, to1e18(100000), stakeDelegationData)
-
-    await keepTokenStaking
-      .connect(authorizer)
-      .authorizeOperatorContract(operator.address, tokenStaking.address)
-
-    // Jump beyond the stake initialization period.
-    await helpers.time.increaseTime(43200)
-  }
+  })
 })

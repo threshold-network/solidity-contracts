@@ -9,4 +9,6 @@ interface ITestKeepTokenStaking is IKeepTokenStaking {
         address operator,
         address operatorContract
     ) external;
+
+    function undelegate(address _operator) external;
 }
