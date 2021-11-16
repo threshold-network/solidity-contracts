@@ -4,6 +4,7 @@ const {
   keepTokenStakingAddress,
   nuCypherStakingEscrowAddress,
   keepRegistryAddress,
+  keepTokenGrantAddress,
 } = require("./constants.js")
 const {
   to1e18,
@@ -18,6 +19,7 @@ async function initContracts() {
   const keepTokenStaking = await resolveKeepTokenStaking()
   const nuCypherStakingEscrow = await resolveNuCypherStakingEscrow()
   const keepRegistry = await resolveKeepRegistry()
+  const keepTokenGrant = await resolveKeepTokenGrant()
 
   const tToken = await deployTToken(to1e18(1000000))
 
@@ -59,13 +61,15 @@ async function initContracts() {
     .approveOperatorContract(tokenStaking.address)
 
   return {
+    keepToken: keepToken,
+    keepTokenGrant: keepTokenGrant,
     keepTokenStaking: keepTokenStaking,
     tokenStaking: tokenStaking,
   }
 }
 
 async function resolveKeepToken() {
-  return await ethers.getContractAt("IERC20", keepTokenAddress)
+  return await ethers.getContractAt("IKeepToken", keepTokenAddress)
 }
 
 async function resolveNuCypherToken() {
@@ -88,6 +92,10 @@ async function resolveNuCypherStakingEscrow() {
 
 async function resolveKeepRegistry() {
   return await ethers.getContractAt("IKeepRegistry", keepRegistryAddress)
+}
+
+async function resolveKeepTokenGrant() {
+  return await ethers.getContractAt("IKeepTokenGrant", keepTokenGrantAddress)
 }
 
 async function deployTToken() {

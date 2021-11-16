@@ -2,10 +2,11 @@
 
 pragma solidity 0.8.9;
 
-import "../staking/KeepStake.sol";
+import "../staking/ILegacyTokenStaking.sol";
 
-interface ITestManagedGrant is IManagedGrant {
+interface IKeepTokenGrant {
     function stake(
+        uint256 id,
         address stakingContract,
         uint256 amount,
         bytes memory extraData
