@@ -21,20 +21,20 @@ async function initContracts() {
   const keepRegistry = await resolveKeepRegistry()
   const keepTokenGrant = await resolveKeepTokenGrant()
 
-  const tToken = await deployTToken(to1e18(1000000))
+  const tToken = await deployTToken(to1e18(10000000000))
 
   const keepVendingMachine = await deployVendingMachine(
     keepToken,
     tToken,
-    to1e18(1000000),
-    to1e18(500000)
+    to1e18(999848780),
+    to1e18(4500000000)
   )
 
   const nuCypherVendingMachine = await deployVendingMachine(
     nuCypherToken,
     tToken,
-    to1e18(1000000),
-    to1e18(500000)
+    to1e18(1350000000),
+    to1e18(4500000000)
   )
 
   const keepStake = await deployKeepStake(keepTokenStaking)
@@ -65,6 +65,8 @@ async function initContracts() {
     keepTokenGrant: keepTokenGrant,
     keepTokenStaking: keepTokenStaking,
     tokenStaking: tokenStaking,
+    keepVendingMachine: keepVendingMachine,
+    nuVendingMaching: nuCypherVendingMachine,
   }
 }
 

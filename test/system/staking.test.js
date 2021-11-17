@@ -23,6 +23,7 @@ describeFn("SystemTests: TokenStaking", () => {
   // Contracts
   let keepToken
   let keepTokenStaking
+  let keepVendingMachine
   let tokenStaking
 
   beforeEach(async () => {
@@ -33,6 +34,7 @@ describeFn("SystemTests: TokenStaking", () => {
     const contracts = await initContracts()
     keepToken = contracts.keepToken
     keepTokenStaking = contracts.keepTokenStaking
+    keepVendingMachine = contracts.keepVendingMachine
     tokenStaking = contracts.tokenStaking
   })
 
@@ -40,7 +42,7 @@ describeFn("SystemTests: TokenStaking", () => {
     ownerAddress,
     operatorAddress,
     authorizerAddress,
-    expectedStake
+    keepStake
   ) => {
     let owner
     let operator
@@ -67,10 +69,11 @@ describeFn("SystemTests: TokenStaking", () => {
           })
 
           it("should copy my stake to T staking contract", async () => {
+            const stakeInT = await keepVendingMachine.conversionToT(keepStake)
             const stakes = await tokenStaking.stakes(operatorAddress)
-            expect(stakes[0]).to.be.equal(0) // [T]
-            expect(stakes[1]).to.be.equal(expectedStake) // [KEEP]
-            expect(stakes[2]).to.be.equal(0) // [NU]
+            expect(stakes[0]).to.be.equal(0)
+            expect(stakes[1]).to.be.equal(stakeInT.tAmount)
+            expect(stakes[2]).to.be.equal(0)
           })
         })
       })
@@ -97,7 +100,7 @@ describeFn("SystemTests: TokenStaking", () => {
     authorizerAddress,
     beneficiaryAddress,
     topUpLegacyStakeFn,
-    expectedStake
+    keepStake
   ) => {
     let owner
     let operator
@@ -131,10 +134,11 @@ describeFn("SystemTests: TokenStaking", () => {
           })
 
           it("should top-up my stake in T staking contract", async () => {
+            const stakeInT = await keepVendingMachine.conversionToT(keepStake)
             const stakes = await tokenStaking.stakes(operatorAddress)
-            expect(stakes[0]).to.be.equal(0) // [T]
-            expect(stakes[1]).to.be.equal(expectedStake) // [KEEP]
-            expect(stakes[2]).to.be.equal(0) // [NU]
+            expect(stakes[0]).to.be.equal(0)
+            expect(stakes[1]).to.be.equal(stakeInT.tAmount)
+            expect(stakes[2]).to.be.equal(0)
           })
         })
       })
@@ -146,18 +150,12 @@ describeFn("SystemTests: TokenStaking", () => {
     const operatorAddress = keepLiquidTokenStake.operator
     const authorizerAddress = keepLiquidTokenStake.authorizer
     const beneficiaryAddress = keepLiquidTokenStake.beneficiary
+    const keepStaked = keepLiquidTokenStake.keepStaked
 
-    const expectedInitialStake = to1e18("1500000") // [T]
+    describeStake(ownerAddress, operatorAddress, authorizerAddress, keepStaked)
 
-    describeStake(
-      ownerAddress,
-      operatorAddress,
-      authorizerAddress,
-      expectedInitialStake
-    )
-
-    const topUpAmountKeep = to1e18("1000") // [KEEP]
-    const expectedStakeAfterTopUp = to1e18("1500500") // [T]
+    const topUpAmountKeep = to1e18("1000")
+    const keepStakeAfterTopUp = keepStaked.add(topUpAmountKeep)
 
     const topUpLegacyStakeFn = async (
       owner,
@@ -191,7 +189,7 @@ describeFn("SystemTests: TokenStaking", () => {
       authorizerAddress,
       beneficiaryAddress,
       topUpLegacyStakeFn,
-      expectedStakeAfterTopUp
+      keepStakeAfterTopUp
     )
   })
 
@@ -201,18 +199,12 @@ describeFn("SystemTests: TokenStaking", () => {
     const authorizerAddress = keepManagedGrantStake.authorizer
     const beneficiaryAddress = keepManagedGrantStake.beneficiary
     const managedGrantAddress = keepManagedGrantStake.managedGrant
+    const keepStaked = keepManagedGrantStake.keepStaked
 
-    const expectedInitialStake = to1e18("598000")
+    describeStake(ownerAddress, operatorAddress, authorizerAddress, keepStaked)
 
-    describeStake(
-      ownerAddress,
-      operatorAddress,
-      authorizerAddress,
-      expectedInitialStake
-    )
-
-    const topUpAmountKeep = to1e18("100") // [KEEP]
-    const expectedStakeAfterTopUp = to1e18("598050") // [T]
+    const topUpAmountKeep = to1e18("100")
+    const keepStakeAfterTopUp = keepStaked.add(topUpAmountKeep)
 
     const topUpLegacyStakeFn = async (
       owner,
@@ -246,7 +238,7 @@ describeFn("SystemTests: TokenStaking", () => {
       authorizerAddress,
       beneficiaryAddress,
       topUpLegacyStakeFn,
-      expectedStakeAfterTopUp
+      keepStakeAfterTopUp
     )
   })
 
@@ -255,19 +247,13 @@ describeFn("SystemTests: TokenStaking", () => {
     const operatorAddress = keepGrantStake.operator
     const authorizerAddress = keepGrantStake.authorizer
     const beneficiaryAddress = keepGrantStake.beneficiary
+    const keepStaked = keepGrantStake.keepStaked
     const grantID = keepGrantStake.grantID
 
-    const expectedInitialStake = "416266500000000000000000"
-
-    describeStake(
-      ownerAddress,
-      operatorAddress,
-      authorizerAddress,
-      expectedInitialStake
-    )
+    describeStake(ownerAddress, operatorAddress, authorizerAddress, keepStaked)
 
     const topUpAmountKeep = "100000000000000000" // [KEEP]
-    const expectedStakeAfterTopUp = "416266550000000000000000" // [T]
+    const keepStakeAfterTopUp = keepStaked.add(topUpAmountKeep)
 
     const topUpLegacyStakeFn = async (
       owner,
@@ -301,7 +287,7 @@ describeFn("SystemTests: TokenStaking", () => {
       authorizerAddress,
       beneficiaryAddress,
       topUpLegacyStakeFn,
-      expectedStakeAfterTopUp
+      keepStakeAfterTopUp
     )
   })
 })
