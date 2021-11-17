@@ -291,7 +291,62 @@ contract ExpensiveApplicationMock is ApplicationMock {
 contract ManagedGrantMock {
     address public grantee;
 
+    //slither-disable-next-line missing-zero-check
     function setGrantee(address _grantee) external {
         grantee = _grantee;
+    }
+}
+
+contract ExtendedTokenStaking is TokenStaking {
+    constructor(
+        T _token,
+        IKeepTokenStaking _keepStakingContract,
+        INuCypherStakingEscrow _nucypherStakingContract,
+        VendingMachine _keepVendingMachine,
+        VendingMachine _nucypherVendingMachine,
+        KeepStake _keepStake
+    )
+        TokenStaking(
+            _token,
+            _keepStakingContract,
+            _nucypherStakingContract,
+            _keepVendingMachine,
+            _nucypherVendingMachine,
+            _keepStake
+        )
+    {}
+
+    function cleanAuthorizedApplications(
+        address operator,
+        uint256 numberToDelete
+    ) external {
+        OperatorInfo storage operatorStruct = operators[operator];
+        cleanAuthorizedApplications(operatorStruct, numberToDelete);
+    }
+
+    function setAuthorization(
+        address operator,
+        address application,
+        uint96 amount
+    ) external {
+        operators[operator].authorizations[application].authorized = amount;
+    }
+
+    function setAuthorizedApplications(
+        address operator,
+        address[] memory _applications
+    ) external {
+        operators[operator].authorizedApplications = _applications;
+    }
+
+    // to decrease size of test contract
+    function processSlashing(uint256 count) external override {}
+
+    function getAuthorizedApplications(address operator)
+        external
+        view
+        returns (address[] memory)
+    {
+        return operators[operator].authorizedApplications;
     }
 }
