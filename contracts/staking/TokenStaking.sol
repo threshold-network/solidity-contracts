@@ -1532,10 +1532,8 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             }
         }
 
-        address[] storage authorizedApplications = operatorStruct
-            .authorizedApplications;
-        assembly {
-            sstore(authorizedApplications.slot, newLength)
+        for (index = newLength; index < length; index++) {
+            operatorStruct.authorizedApplications.pop();
         }
     }
 

@@ -2154,7 +2154,7 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when application is not authorized", () => {
+    context("when application was not authorized and got disabled", () => {
       it("should revert", async () => {
         await tokenStaking
           .connect(deployer)
@@ -2173,7 +2173,7 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when application is authorized", () => {
+    context("when application was authorized and got disabled", () => {
       const amount = initialStakerBalance
       let tx
 
@@ -6976,7 +6976,7 @@ describe("TokenStaking", () => {
           )
         })
 
-        it("should remove only first application", async () => {
+        it("should remove first and last applications", async () => {
           expect(
             await extendedTokenStaking.getAuthorizedApplications(
               operator.address
