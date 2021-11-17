@@ -2,6 +2,7 @@ const { expect } = require("chai")
 const {
   ZERO_ADDRESS,
   lastBlockTime,
+  mineBlock,
   to1e18,
   to1ePrecision,
 } = require("../helpers/contract-test-helpers")
@@ -65,6 +66,7 @@ describe("TokenStaking", () => {
   let operator
   let authorizer
   let beneficiary
+  let delegatee
 
   let otherStaker
   let auxiliaryAccount
@@ -79,6 +81,7 @@ describe("TokenStaking", () => {
       beneficiary,
       otherStaker,
       auxiliaryAccount,
+      delegatee,
     ] = await ethers.getSigners()
 
     const T = await ethers.getContractFactory("T")
@@ -372,6 +375,47 @@ describe("TokenStaking", () => {
             amount
           )
       })
+
+      it("should create a new checkpoint for staked total supply", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          amount
+        )
+      })
+      it("shouldn't create a new checkpoint for any stake role", async () => {
+        expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+      })
+
+      context("after vote delegation", () => {
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(staker)
+            .delegateVoting(operator.address, delegatee.address)
+        })
+
+        it("checkpoint for staked total supply should remain constant", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            amount
+          )
+        })
+
+        it("should create a new checkpoint for staker's delegatee", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            amount
+          )
+        })
+
+        it("shouldn't create a new checkpoint for any stake role", async () => {
+          expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+        })
+      })
     })
   })
 
@@ -503,6 +547,43 @@ describe("TokenStaking", () => {
               authorizer.address,
               tAmount
             )
+        })
+
+        it("should create a new checkpoint for staked total supply", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            tAmount
+          )
+        })
+        it("shouldn't create a new checkpoint for stake owner", async () => {
+          expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+        })
+
+        context("after vote delegation", () => {
+          beforeEach(async () => {
+            tx = await tokenStaking
+              .connect(staker)
+              .delegateVoting(operator.address, delegatee.address)
+          })
+
+          it("should create a new checkpoint for staker's delegatee", async () => {
+            expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+              tAmount
+            )
+          })
+
+          it("checkpoint for staked total supply should remain constant", async () => {
+            const lastBlock = await mineBlock()
+            expect(
+              await tokenStaking.getPastTotalSupply(lastBlock - 1)
+            ).to.equal(tAmount)
+          })
+
+          it("shouldn't create new checkpoint for any staker role", async () => {
+            expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+            expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+            expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+          })
         })
       })
     })
@@ -661,6 +742,43 @@ describe("TokenStaking", () => {
             tAmount
           )
       })
+
+      it("should create a new checkpoint for staked total supply", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          tAmount
+        )
+      })
+      it("shouldn't create a new checkpoint for stake owner", async () => {
+        expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+      })
+
+      context("after vote delegation", () => {
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(staker)
+            .delegateVoting(operator.address, delegatee.address)
+        })
+
+        it("should create a new checkpoint for staker's delegatee", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            tAmount
+          )
+        })
+
+        it("checkpoint for staked total supply should remain constant", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            tAmount
+          )
+        })
+
+        it("shouldn't create new checkpoint for any staker role", async () => {
+          expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+        })
+      })
     })
   })
 
@@ -669,7 +787,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.connect(operator).refreshKeepStakeOwner(operator.address)
-        ).to.be.revertedWith("Not old owner")
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
@@ -690,7 +808,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(authorizer)
             .refreshKeepStakeOwner(operator.address)
-        ).to.be.revertedWith("Not old owner")
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
@@ -2117,6 +2235,9 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stake(operator.address, staker.address, staker.address, amount)
         blockTimestamp = await lastBlockTime()
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(deployer).transfer(operator.address, topUpAmount)
         await tToken
           .connect(operator)
@@ -2173,6 +2294,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, topUpAmount)
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedAmount
+        )
       })
     })
 
@@ -2238,6 +2372,9 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(operator.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(deployer).transfer(staker.address, topUpAmount)
         await tToken.connect(staker).approve(tokenStaking.address, topUpAmount)
         tx = await tokenStaking
@@ -2281,6 +2418,19 @@ describe("TokenStaking", () => {
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, topUpAmount)
       })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedAmount
+        )
+      })
     })
 
     context("when operator has NuCypher stake", () => {
@@ -2295,6 +2445,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, staker.address, staker.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(deployer).transfer(operator.address, topUpAmount)
         await tToken
           .connect(operator)
@@ -2339,6 +2492,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, topUpAmount)
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedAmount
+        )
       })
     })
   })
@@ -2471,6 +2637,9 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(operator.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await keepStakingMock.setAmount(operator.address, newKeepAmount)
         tx = await tokenStaking.connect(operator).topUpKeep(operator.address)
       })
@@ -2519,6 +2688,19 @@ describe("TokenStaking", () => {
             operator.address,
             newKeepInTAmount.sub(initialKeepInTAmount)
           )
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          newKeepInTAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          newKeepInTAmount
+        )
       })
     })
 
@@ -2765,6 +2947,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, staker.address, staker.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await nucypherStakingMock.setStaker(staker.address, newNuAmount)
         tx = await tokenStaking.connect(staker).topUpNu(operator.address)
       })
@@ -2813,6 +2998,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, newNuInTAmount.sub(initialNuInTAmount))
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          newNuInTAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          newNuInTAmount
+        )
       })
     })
 
@@ -3275,7 +3473,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
-
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(staker).approve(tokenStaking.address, amount)
         await tokenStaking.connect(staker).topUp(operator.address, amount)
 
@@ -3298,6 +3498,19 @@ describe("TokenStaking", () => {
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(0)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          nuInTAmount
+        )
+      })
+
+      it("should decrease the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          nuInTAmount
+        )
       })
 
       it("should transfer tokens to the staker address", async () => {
@@ -3439,6 +3652,9 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(operator.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
 
         await tToken.connect(staker).approve(tokenStaking.address, tAmount)
         await tokenStaking.connect(staker).topUp(operator.address, tAmount)
@@ -3495,6 +3711,17 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
           .withArgs(operator.address, keepInTAmount)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
+      })
+
+      it("should decrease the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          tAmount
+        )
       })
     })
   })
@@ -3629,7 +3856,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
-
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(staker).approve(tokenStaking.address, tAmount)
         await tokenStaking.connect(staker).topUp(operator.address, tAmount)
 
@@ -3646,7 +3875,7 @@ describe("TokenStaking", () => {
           .unstakeNu(operator.address, amountToUnstake)
       })
 
-      it("should ypdate Nu staked amount", async () => {
+      it("should update Nu staked amount", async () => {
         expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
           staker.address,
           beneficiary.address,
@@ -3690,6 +3919,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
           .withArgs(operator.address, expectedUnstaked)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedNuInTAmount.add(tAmount)
+        )
+      })
+
+      it("should decrease the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedNuInTAmount.add(tAmount)
+        )
       })
     })
 
@@ -5736,6 +5978,9 @@ describe("TokenStaking", () => {
           .stake(operator.address, staker.address, staker.address, tAmount)
         await tokenStaking
           .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
+        await tokenStaking
+          .connect(staker)
           .increaseAuthorization(
             operator.address,
             application1Mock.address,
@@ -5816,6 +6061,12 @@ describe("TokenStaking", () => {
             zeroBigNumber,
             zeroBigNumber,
           ])
+        })
+
+        it("should decrease the delegatee voting power", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            expectedAmount
+          )
         })
 
         it("should update index of queue", async () => {

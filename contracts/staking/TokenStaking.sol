@@ -2,13 +2,15 @@
 
 pragma solidity 0.8.9;
 
+import "./IApplication.sol";
 import "./IStaking.sol";
 import "./ILegacyTokenStaking.sol";
 import "./IApplication.sol";
 import "./KeepStake.sol";
+import "../governance/Checkpoints.sol";
 import "../token/T.sol";
-import "../vending/VendingMachine.sol";
 import "../utils/PercentUtils.sol";
+import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -22,7 +24,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 ///         that run on the Threshold Network. Note that legacy NU/KEEP staking
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
-contract TokenStaking is Ownable, IStaking {
+contract TokenStaking is Ownable, IStaking, Checkpoints {
     using SafeERC20 for T;
     using PercentUtils for uint256;
     using SafeCast for uint256;
@@ -249,6 +251,8 @@ contract TokenStaking is Ownable, IStaking {
         /* solhint-disable-next-line not-rely-on-time */
         operatorStruct.startTStakingTimestamp = block.timestamp;
 
+        increaseStakeCheckpoint(operator, amount);
+
         emit OperatorStaked(
             StakeType.T,
             msg.sender,
@@ -282,6 +286,9 @@ contract TokenStaking is Ownable, IStaking {
         operatorStruct.beneficiary = keepStakingContract.beneficiaryOf(
             operator
         );
+
+        increaseStakeCheckpoint(operator, tAmount);
+
         emit OperatorStaked(
             StakeType.KEEP,
             operatorStruct.owner,
@@ -324,6 +331,8 @@ contract TokenStaking is Ownable, IStaking {
         operatorStruct.authorizer = authorizer;
         operatorStruct.beneficiary = beneficiary;
 
+        increaseStakeCheckpoint(operator, tAmount);
+
         emit OperatorStaked(
             StakeType.NU,
             msg.sender,
@@ -337,7 +346,7 @@ contract TokenStaking is Ownable, IStaking {
     /// @notice Refresh Keep stake owner. Can be called only by the old owner.
     function refreshKeepStakeOwner(address operator) external override {
         OperatorInfo storage operatorStruct = operators[operator];
-        require(operatorStruct.owner == msg.sender, "Not old owner");
+        require(operatorStruct.owner == msg.sender, "Caller is not owner");
         address newOwner = keepStake.resolveOwner(operator);
 
         emit OwnerRefreshed(operator, operatorStruct.owner, newOwner);
@@ -569,6 +578,7 @@ contract TokenStaking is Ownable, IStaking {
         OperatorInfo storage operatorStruct = operators[operator];
         operatorStruct.tStake += amount;
         emit ToppedUp(operator, amount);
+        increaseStakeCheckpoint(operator, amount);
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
@@ -584,8 +594,10 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmount = getKeepAmountInT(operator);
         require(tAmount > operatorStruct.keepInTStake, "Nothing to top-up");
 
-        emit ToppedUp(operator, tAmount - operatorStruct.keepInTStake);
+        uint96 toppedUp = tAmount - operatorStruct.keepInTStake;
+        emit ToppedUp(operator, toppedUp);
         operatorStruct.keepInTStake = tAmount;
+        increaseStakeCheckpoint(operator, toppedUp);
     }
 
     /// @notice Propagates information about stake top-up from the legacy NU
@@ -600,8 +612,10 @@ contract TokenStaking is Ownable, IStaking {
         uint96 tAmount = getNuAmountInT(operatorStruct.owner, operator);
         require(tAmount > operatorStruct.nuInTStake, "Nothing to top-up");
 
-        emit ToppedUp(operator, tAmount - operatorStruct.nuInTStake);
+        uint96 toppedUp = tAmount - operatorStruct.nuInTStake;
+        emit ToppedUp(operator, toppedUp);
         operatorStruct.nuInTStake = tAmount;
+        increaseStakeCheckpoint(operator, toppedUp);
     }
 
     //
@@ -636,6 +650,7 @@ contract TokenStaking is Ownable, IStaking {
                 block.timestamp,
             "Can't unstake earlier than 24h"
         );
+        decreaseStakeCheckpoint(operator, amount);
         emit Unstaked(operator, amount);
         token.safeTransfer(operatorStruct.owner, amount);
     }
@@ -656,13 +671,15 @@ contract TokenStaking is Ownable, IStaking {
         onlyOwnerOrOperator(operator)
     {
         OperatorInfo storage operatorStruct = operators[operator];
-        require(operatorStruct.keepInTStake != 0, "Nothing to unstake");
+        uint96 keepInTStake = operatorStruct.keepInTStake;
+        require(keepInTStake != 0, "Nothing to unstake");
         require(
             getMinStaked(operator, StakeType.KEEP) == 0,
             "Keep stake still authorized"
         );
-        emit Unstaked(operator, operatorStruct.keepInTStake);
+        emit Unstaked(operator, keepInTStake);
         operatorStruct.keepInTStake = 0;
+        decreaseStakeCheckpoint(operator, keepInTStake);
     }
 
     /// @notice Reduces cached legacy NU stake amount by the provided amount.
@@ -697,7 +714,7 @@ contract TokenStaking is Ownable, IStaking {
             "Too much to unstake"
         );
         operatorStruct.nuInTStake -= amount;
-
+        decreaseStakeCheckpoint(operator, amount);
         emit Unstaked(operator, amount);
     }
 
@@ -724,16 +741,16 @@ contract TokenStaking is Ownable, IStaking {
             "Can't unstake earlier than 24h"
         );
 
-        emit Unstaked(
-            operator,
-            operatorStruct.tStake +
-                operatorStruct.keepInTStake +
-                operatorStruct.nuInTStake
-        );
+        uint96 unstaked = operatorStruct.tStake +
+            operatorStruct.keepInTStake +
+            operatorStruct.nuInTStake;
+        emit Unstaked(operator, unstaked);
         uint96 amount = operatorStruct.tStake;
         operatorStruct.tStake = 0;
         operatorStruct.keepInTStake = 0;
         operatorStruct.nuInTStake = 0;
+        decreaseStakeCheckpoint(operator, unstaked);
+
         if (amount > 0) {
             token.safeTransfer(operatorStruct.owner, amount);
         }
@@ -758,13 +775,15 @@ contract TokenStaking is Ownable, IStaking {
 
         (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
             .getDelegationInfo(operator);
-        (uint96 tAmount, ) = keepToT(keepStakeAmount);
+
+        (uint96 realKeepInTStake, ) = keepToT(keepStakeAmount);
+        uint96 oldKeepInTStake = operatorStruct.keepInTStake;
 
         require(
-            operatorStruct.keepInTStake > tAmount || undelegatedAt != 0,
+            oldKeepInTStake > realKeepInTStake || undelegatedAt != 0,
             "There is no discrepancy"
         );
-        operatorStruct.keepInTStake = tAmount;
+        operatorStruct.keepInTStake = realKeepInTStake;
         seizeKeep(
             operatorStruct,
             operator,
@@ -772,11 +791,16 @@ contract TokenStaking is Ownable, IStaking {
             stakeDiscrepancyRewardMultiplier
         );
 
-        uint96 slashedAmount = tAmount - operatorStruct.keepInTStake;
+        uint96 slashedAmount = realKeepInTStake - operatorStruct.keepInTStake;
         emit TokensSeized(operator, slashedAmount, true);
         if (undelegatedAt != 0) {
             operatorStruct.keepInTStake = 0;
         }
+
+        decreaseStakeCheckpoint(
+            operator,
+            oldKeepInTStake - operatorStruct.keepInTStake
+        );
 
         authorizationDecrease(
             operator,
@@ -803,23 +827,28 @@ contract TokenStaking is Ownable, IStaking {
         uint256 nuStakeAmount = nucypherStakingContract.getAllTokens(
             operatorStruct.owner
         );
-        (uint96 tAmount, ) = nuToT(nuStakeAmount);
+        (uint96 realNuInTStake, ) = nuToT(nuStakeAmount);
+        uint96 oldNuInTStake = operatorStruct.nuInTStake;
+        require(oldNuInTStake > realNuInTStake, "There is no discrepancy");
 
-        require(operatorStruct.nuInTStake > tAmount, "There is no discrepancy");
-        operatorStruct.nuInTStake = tAmount;
+        operatorStruct.nuInTStake = realNuInTStake;
         seizeNu(
             operatorStruct,
             stakeDiscrepancyPenalty,
             stakeDiscrepancyRewardMultiplier
         );
 
-        uint96 slashedAmount = tAmount - operatorStruct.nuInTStake;
+        uint96 slashedAmount = realNuInTStake - operatorStruct.nuInTStake;
         emit TokensSeized(operator, slashedAmount, true);
         authorizationDecrease(
             operator,
             operatorStruct,
             slashedAmount,
             address(0)
+        );
+        decreaseStakeCheckpoint(
+            operator,
+            oldNuInTStake - operatorStruct.nuInTStake
         );
     }
 
@@ -929,6 +958,13 @@ contract TokenStaking is Ownable, IStaking {
         if (tProcessorReward > 0) {
             token.safeTransfer(msg.sender, tProcessorReward);
         }
+    }
+
+    /// @notice Delegate voting power from the stake associated to the
+    ///         `operator` to a `delegatee` address. Caller must be the owner
+    ///         of this stake.
+    function delegateVoting(address operator, address delegatee) external {
+        delegate(operator, delegatee);
     }
 
     //
@@ -1131,6 +1167,29 @@ contract TokenStaking is Ownable, IStaking {
             .authorized;
     }
 
+    /// @notice Delegate voting power from the stake associated to the
+    ///         `operator` to a `delegatee` address. Caller must be the owner
+    ///         of this stake.
+    /// @dev Original abstract function defined in Checkpoints contract had two
+    ///      parameters, `delegator` and `delegatee`. Here we override it and
+    ///      comply with the same signature but the semantics of the first
+    ///      parameter changes to the `operator` address.
+    function delegate(address operator, address delegatee)
+        internal
+        virtual
+        override
+    {
+        OperatorInfo storage operatorStruct = operators[operator];
+        require(operatorStruct.owner == msg.sender, "Caller is not owner");
+        uint96 operatorBalance = operatorStruct.tStake +
+            operatorStruct.keepInTStake +
+            operatorStruct.nuInTStake;
+        address oldDelegatee = delegates(operator);
+        _delegates[operator] = delegatee;
+        emit DelegateChanged(operator, oldDelegatee, delegatee);
+        moveVotingPower(oldDelegatee, delegatee, operatorBalance);
+    }
+
     /// @notice Adds operators to the slashing queue along with the amount.
     ///         The notifier will receive reward per each operator from
     ///         notifiers treasury. Can only be called by application
@@ -1189,7 +1248,9 @@ contract TokenStaking is Ownable, IStaking {
     {
         OperatorInfo storage operatorStruct = operators[slashing.operator];
         uint96 tAmountToSlash = slashing.amount;
-
+        uint96 oldStake = operatorStruct.tStake +
+            operatorStruct.keepInTStake +
+            operatorStruct.nuInTStake;
         // slash T
         if (operatorStruct.tStake > 0) {
             if (tAmountToSlash <= operatorStruct.tStake) {
@@ -1230,6 +1291,10 @@ contract TokenStaking is Ownable, IStaking {
             slashedAmount,
             slashing.application
         );
+        uint96 newStake = operatorStruct.tStake +
+            operatorStruct.keepInTStake +
+            operatorStruct.nuInTStake;
+        decreaseStakeCheckpoint(slashing.operator, oldStake - newStake);
     }
 
     /// @notice Synchronize authorizations (if needed) after slashing stake
@@ -1297,6 +1362,7 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Convert amount from T to Keep and call `seize` in Keep staking contract.
     ///         Returns remainder of slashing amount in T
+    /// @dev Note this internal function doesn't update stake checkpoints
     function seizeKeep(
         OperatorInfo storage operatorStruct,
         address operator,
@@ -1335,6 +1401,7 @@ contract TokenStaking is Ownable, IStaking {
 
     /// @notice Convert amount from T to NU and call `slashStaker` in NuCypher staking contract.
     ///         Returns remainder of slashing amount in T
+    /// @dev Note this internal function doesn't update the stake checkpoints
     function seizeNu(
         OperatorInfo storage operatorStruct,
         uint96 tAmountToSlash,
@@ -1399,6 +1466,52 @@ contract TokenStaking is Ownable, IStaking {
         for (index = newLength; index < length; index++) {
             operatorStruct.authorizedApplications.pop();
         }
+    }
+
+    /// @notice Creates new checkpoints due to a change of stake amount
+    /// @param _delegator Address of the stake operator acting as delegator
+    /// @param _amount Amount of T to increment
+    /// @param increase True if the change is an increase, false if a decrease
+    function newStakeCheckpoint(
+        address _delegator,
+        uint96 _amount,
+        bool increase
+    ) internal {
+        if (_amount == 0) {
+            return;
+        }
+        writeCheckpoint(
+            _totalSupplyCheckpoints,
+            increase ? add : subtract,
+            _amount
+        );
+        address delegatee = delegates(_delegator);
+        if (delegatee != address(0)) {
+            (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
+                _checkpoints[delegatee],
+                increase ? add : subtract,
+                _amount
+            );
+            emit DelegateVotesChanged(delegatee, oldWeight, newWeight);
+        }
+    }
+
+    /// @notice Creates new checkpoints due to an increment of a stakers' stake
+    /// @param _delegator Address of the stake operator acting as delegator
+    /// @param _amount Amount of T to increment
+    function increaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
+        newStakeCheckpoint(_delegator, _amount, true);
+    }
+
+    /// @notice Creates new checkpoints due to a decrease of a stakers' stake
+    /// @param _delegator Address of the stake owner acting as delegator
+    /// @param _amount Amount of T to decrease
+    function decreaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
+        newStakeCheckpoint(_delegator, _amount, false);
     }
 
     /// @notice Returns amount of Nu stake in the NuCypher staking contract for the specified operator.
