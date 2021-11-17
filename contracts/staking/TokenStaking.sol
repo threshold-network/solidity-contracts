@@ -795,13 +795,12 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         emit TokensSeized(operator, slashedAmount, true);
         if (undelegatedAt != 0) {
             operatorStruct.keepInTStake = 0;
-            decreaseStakeCheckpoint(operator, oldKeepInTStake);
-        } else {
-            decreaseStakeCheckpoint(
-                operator,
-                oldKeepInTStake - operatorStruct.keepInTStake
-            );
         }
+
+        decreaseStakeCheckpoint(
+            operator,
+            oldKeepInTStake - operatorStruct.keepInTStake
+        );
 
         authorizationDecrease(
             operator,
@@ -961,6 +960,13 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         }
     }
 
+    /// @notice Delegate voting power from the stake associated to the
+    ///         `operator` to a `delegatee` address. Caller must be the owner
+    ///         of this stake.
+    function delegateVoting(address operator, address delegatee) external {
+        delegate(operator, delegatee);
+    }
+
     //
     //
     // Auxiliary functions
@@ -1049,13 +1055,6 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @notice Returns length of slashing queue
     function getSlashingQueueLength() external view override returns (uint256) {
         return slashingQueue.length;
-    }
-
-    /// @notice Delegate voting power from the stake associated to the
-    ///         `operator` to a `delegatee` address. Caller must be the owner
-    ///         of this stake.
-    function delegateVoting(address operator, address delegatee) public {
-        delegate(operator, delegatee);
     }
 
     /// @notice Requests decrease of the authorization for the given operator on
