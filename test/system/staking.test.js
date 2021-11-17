@@ -220,6 +220,109 @@ describeFn("SystemTests: TokenStaking", () => {
     })
   }
 
+  const describeSlashing = (operatorAddress, authorizerAddress, keepStake) => {
+    let operator
+    let authorizer
+
+    beforeEach(async () => {
+      // impersonate and drop 1 ETH for each account
+      operator = await impersonateAccount(operatorAddress, purse, "1")
+      authorizer = await impersonateAccount(authorizerAddress, purse, "1")
+    })
+
+    context("when I copied my stake to T staking contract", () => {
+      beforeEach(async () => {
+        await keepTokenStaking
+          .connect(authorizer)
+          .authorizeOperatorContract(operatorAddress, tokenStaking.address)
+        await tokenStaking.stakeKeep(operator.address)
+      })
+
+      context("when I authorized application", () => {
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(governance)
+            .approveApplication(mockApplication.address)
+          await tokenStaking
+            .connect(authorizer)
+            .increaseAuthorization(
+              operatorAddress,
+              mockApplication.address,
+              keepStake
+            )
+        })
+
+        context("when I got slashed by the application", () => {
+          const slashAmount = to1e18(9121) // amount in [T]
+
+          beforeEach(async () => {
+            await mockApplication.slash(slashAmount, [operatorAddress])
+            await tokenStaking.processSlashing(1)
+          })
+
+          describe("processSlashing", () => {
+            it("should slash my KEEP stake", async () => {
+              const slashAmountInKeep =
+                await keepVendingMachine.conversionFromT(slashAmount)
+              const expectedStakeInKeep = keepStake.sub(
+                slashAmountInKeep.wrappedAmount
+              )
+              const actualStakeInKeep = await keepTokenStaking.eligibleStake(
+                operatorAddress,
+                tokenStaking.address
+              )
+
+              expect(actualStakeInKeep).to.equal(expectedStakeInKeep)
+            })
+          })
+
+          describe("notifyKeepStakeDiscrepancy", () => {
+            it("should revert", async () => {
+              await expect(
+                tokenStaking.notifyKeepStakeDiscrepancy(operatorAddress)
+              ).to.be.revertedWith("There is no discrepancy")
+            })
+          })
+        })
+
+        context("when the application seized my stake", () => {
+          const seizeAmount = to1e18(4413) // amount in [T]
+
+          beforeEach(async () => {
+            await mockApplication.seize(seizeAmount, 100, purse.address, [
+              operatorAddress,
+            ])
+            await tokenStaking.processSlashing(1)
+          })
+
+          describe("processSlashing", () => {
+            it("should seize my KEEP stake", async () => {
+              const seizeAmountInKeep =
+                await keepVendingMachine.conversionFromT(seizeAmount)
+              const expectedStakeInKeep = keepStake.sub(
+                seizeAmountInKeep.wrappedAmount
+              )
+              const actualStakeInKeep = await keepTokenStaking.eligibleStake(
+                operatorAddress,
+                tokenStaking.address
+              )
+
+              expect(actualStakeInKeep).to.equal(expectedStakeInKeep)
+            })
+          })
+
+          describe("notifyKeepStakeDiscrepancy", () => {
+            it("should revert", async () => {
+              await expect(
+                tokenStaking.notifyKeepStakeDiscrepancy(operatorAddress)
+              ).to.be.revertedWith("There is no discrepancy")
+            })
+          })
+        })
+      })
+    })
+  }
+
   context("Given I am KEEP network liquid token staker", () => {
     const ownerAddress = keepLiquidTokenStake.owner
     const operatorAddress = keepLiquidTokenStake.operator
@@ -231,7 +334,6 @@ describeFn("SystemTests: TokenStaking", () => {
 
     const topUpAmountKeep = to1e18("1000")
     const keepStakeAfterTopUp = keepStaked.add(topUpAmountKeep)
-
     const topUpLegacyStakeFn = async (
       owner,
       operator,
@@ -273,6 +375,8 @@ describeFn("SystemTests: TokenStaking", () => {
       authorizerAddress,
       keepStaked
     )
+
+    describeSlashing(operatorAddress, authorizerAddress, keepStaked)
   })
 
   context("Given I am KEEP network managed grant staker", () => {
@@ -287,7 +391,6 @@ describeFn("SystemTests: TokenStaking", () => {
 
     const topUpAmountKeep = to1e18("100")
     const keepStakeAfterTopUp = keepStaked.add(topUpAmountKeep)
-
     const topUpLegacyStakeFn = async (
       owner,
       operator,
@@ -329,6 +432,8 @@ describeFn("SystemTests: TokenStaking", () => {
       authorizerAddress,
       keepStaked
     )
+
+    describeSlashing(operatorAddress, authorizerAddress, keepStaked)
   })
 
   context("Given I am KEEP network non-managed grant staker", () => {
@@ -343,7 +448,6 @@ describeFn("SystemTests: TokenStaking", () => {
 
     const topUpAmountKeep = "100000000000000000" // [KEEP]
     const keepStakeAfterTopUp = keepStaked.add(topUpAmountKeep)
-
     const topUpLegacyStakeFn = async (
       owner,
       operator,
@@ -385,5 +489,7 @@ describeFn("SystemTests: TokenStaking", () => {
       authorizerAddress,
       keepStaked
     )
+
+    describeSlashing(operatorAddress, authorizerAddress, keepStaked)
   })
 })
