@@ -18,6 +18,7 @@ const describeFn =
 describeFn("SystemTests: TokenStaking", () => {
   const startingBlock = 13619810
 
+  let governance
   let purse
 
   // Contracts
@@ -25,17 +26,23 @@ describeFn("SystemTests: TokenStaking", () => {
   let keepTokenStaking
   let keepVendingMachine
   let tokenStaking
+  let mockApplication
 
   beforeEach(async () => {
     await resetFork(startingBlock)
 
-    purse = await ethers.getSigner(0)
+    governance = await ethers.getSigner(0)
+    purse = await ethers.getSigner(1)
 
     const contracts = await initContracts()
     keepToken = contracts.keepToken
     keepTokenStaking = contracts.keepTokenStaking
     keepVendingMachine = contracts.keepVendingMachine
     tokenStaking = contracts.tokenStaking
+
+    const ApplicationMock = await ethers.getContractFactory("ApplicationMock")
+    mockApplication = await ApplicationMock.deploy(tokenStaking.address)
+    await mockApplication.deployed()
   })
 
   const describeStake = (
@@ -145,6 +152,74 @@ describeFn("SystemTests: TokenStaking", () => {
     })
   }
 
+  const describeUndelegation = (
+    ownerAddress,
+    operatorAddress,
+    authorizerAddress,
+    keepStake
+  ) => {
+    let owner
+    let operator
+    let authorizer
+
+    beforeEach(async () => {
+      // impersonate and drop 1 ETH for each account
+      owner = await impersonateAccount(ownerAddress, purse, "1")
+      operator = await impersonateAccount(operatorAddress, purse, "1")
+      authorizer = await impersonateAccount(authorizerAddress, purse, "1")
+    })
+
+    context("when I copied my stake to T staking contract", () => {
+      beforeEach(async () => {
+        await keepTokenStaking
+          .connect(authorizer)
+          .authorizeOperatorContract(operatorAddress, tokenStaking.address)
+        await tokenStaking.stakeKeep(operator.address)
+      })
+
+      context("when I authorized and deauthorized application", () => {
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(governance)
+            .approveApplication(mockApplication.address)
+          await tokenStaking
+            .connect(authorizer)
+            .increaseAuthorization(
+              operatorAddress,
+              mockApplication.address,
+              keepStake
+            )
+          await tokenStaking
+            .connect(authorizer)
+            ["requestAuthorizationDecrease(address)"](operatorAddress)
+          await mockApplication.approveAuthorizationDecrease(operatorAddress)
+        })
+
+        describe("unstakeKeep", () => {
+          it("should release my KEEP stake", async () => {
+            await tokenStaking.connect(owner).unstakeKeep(operator.address)
+            const stakes = await tokenStaking.stakes(operatorAddress)
+            expect(stakes[0]).to.be.equal(0)
+            expect(stakes[1]).to.be.equal(0)
+            expect(stakes[2]).to.be.equal(0)
+          })
+
+          it("should let me undelegate my KEEP stake", async () => {
+            await keepTokenStaking.connect(owner).undelegate(operatorAddress)
+            // We can't test recover because KEEP stake is locked by tBTC
+            // deposits but we can ensure neither T staking contract nor the
+            // authorized application locked the stake.
+            const locks = await keepTokenStaking.getLocks(operatorAddress)
+            for (let i = 0; i < locks.creators.length; i++) {
+              expect(locks.creators[i]).not.to.be.equal(tokenStaking.address)
+              expect(locks.creators[i]).not.to.be.equal(mockApplication.address)
+            }
+          })
+        })
+      })
+    })
+  }
+
   context("Given I am KEEP network liquid token staker", () => {
     const ownerAddress = keepLiquidTokenStake.owner
     const operatorAddress = keepLiquidTokenStake.operator
@@ -190,6 +265,13 @@ describeFn("SystemTests: TokenStaking", () => {
       beneficiaryAddress,
       topUpLegacyStakeFn,
       keepStakeAfterTopUp
+    )
+
+    describeUndelegation(
+      ownerAddress,
+      operatorAddress,
+      authorizerAddress,
+      keepStaked
     )
   })
 
@@ -240,6 +322,13 @@ describeFn("SystemTests: TokenStaking", () => {
       topUpLegacyStakeFn,
       keepStakeAfterTopUp
     )
+
+    describeUndelegation(
+      ownerAddress,
+      operatorAddress,
+      authorizerAddress,
+      keepStaked
+    )
   })
 
   context("Given I am KEEP network non-managed grant staker", () => {
@@ -288,6 +377,13 @@ describeFn("SystemTests: TokenStaking", () => {
       beneficiaryAddress,
       topUpLegacyStakeFn,
       keepStakeAfterTopUp
+    )
+
+    describeUndelegation(
+      ownerAddress,
+      operatorAddress,
+      authorizerAddress,
+      keepStaked
     )
   })
 })
