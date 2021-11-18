@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
-import { BigNumber } from "ethers"
+import { from1e18, to1e18 } from "../test/helpers/contract-test-helpers"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments } = hre
@@ -15,19 +15,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // related to distribution of T to the VendingMachine for KEEP holders.
   // In the future we'll also have a separate instance of the VendingMachine
   // (for NU holders), to which we'll send the other 45% of T (4.5B T).
+
+  const T_TO_TRANSFER = to1e18("4500000000") // 4.5B T
+
   await execute(
     "T",
     { from: deployer },
     "transfer",
     VendingMachine.address,
-    BigNumber.from(10).pow(26).mul(45)
+    T_TO_TRANSFER
   )
 
-  console.log(
-    "transfered",
-    BigNumber.from(10).pow(26).mul(45).toString(),
-    "T to the VendingMachine"
-  )
+  console.log(`transfered ${from1e18(T_TO_TRANSFER)} T to the VendingMachine`)
 
   // TODO: distribute 4.5B T to the VendingMachine for NU holders.
 }

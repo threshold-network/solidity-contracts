@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment, HardhatNetworkConfig } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
-import { BigNumber } from "ethers"
+import { from1e18, to1e18 } from "../test/helpers/contract-test-helpers"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments, helpers } = hre
@@ -9,6 +9,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { execute, read } = deployments
 
   const KeepToken = await deployments.getOrNull("KeepToken")
+
+  const KEEP_SUPPLY = to1e18("1000000000") // 1B KEEP
 
   if (KeepToken && helpers.address.isValid(KeepToken.address)) {
     log(`using external KeepToken at ${KeepToken.address}`)
@@ -34,12 +36,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       { from: deployer },
       "mint",
       deployer,
-      BigNumber.from(10).pow(27)
+      KEEP_SUPPLY
     )
 
     const keepTotalSupply = await read("KeepToken", "totalSupply")
 
-    log("minted", keepTotalSupply.toString(), "KEEP")
+    log(`minted ${from1e18(keepTotalSupply)} KEEP`)
   }
 }
 
