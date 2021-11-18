@@ -2,6 +2,7 @@ const { expect } = require("chai")
 const {
   ZERO_ADDRESS,
   lastBlockTime,
+  mineBlock,
   to1e18,
   to1ePrecision,
 } = require("../helpers/contract-test-helpers")
@@ -10,6 +11,12 @@ const StakeTypes = {
   NU: 0,
   KEEP: 1,
   T: 2,
+}
+const ApplicationStatus = {
+  NOT_APPROVED: 0,
+  APPROVED: 1,
+  PAUSED: 2,
+  DISABLED: 3,
 }
 
 describe("TokenStaking", () => {
@@ -65,6 +72,7 @@ describe("TokenStaking", () => {
   let operator
   let authorizer
   let beneficiary
+  let delegatee
 
   let otherStaker
   let auxiliaryAccount
@@ -79,6 +87,7 @@ describe("TokenStaking", () => {
       beneficiary,
       otherStaker,
       auxiliaryAccount,
+      delegatee,
     ] = await ethers.getSigners()
 
     const T = await ethers.getContractFactory("T")
@@ -137,18 +146,6 @@ describe("TokenStaking", () => {
     await application2Mock.deployed()
   })
 
-  describe("setup", () => {
-    context("once deployed", () => {
-      it("should give acces to constans", async () => {
-        expect(await tokenStaking.SLASHING_REWARD_PERCENT()).to.equal(5)
-        expect(await tokenStaking.MIN_STAKE_TIME()).to.equal(24 * 60 * 60)
-        expect(await tokenStaking.GAS_LIMIT_AUTHORIZATION_DECREASE()).to.equal(
-          250000
-        )
-      })
-    })
-  })
-
   describe("setMinimumStakeAmount", () => {
     const amount = 1
 
@@ -192,7 +189,7 @@ describe("TokenStaking", () => {
               authorizer.address,
               amount
             )
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -203,7 +200,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stake(operator.address, ZERO_ADDRESS, authorizer.address, amount)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -214,7 +211,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stake(operator.address, beneficiary.address, ZERO_ADDRESS, amount)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -336,15 +333,21 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should set value of stakes", async () => {
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           amount,
           zeroBigNumber,
           zeroBigNumber,
         ])
+        expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
+      })
+
+      it("should start T staking timestamp", async () => {
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(blockTimestamp)
-        expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
       })
 
       it("should transfer tokens to the staking contract", async () => {
@@ -372,6 +375,47 @@ describe("TokenStaking", () => {
             amount
           )
       })
+
+      it("should create a new checkpoint for staked total supply", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          amount
+        )
+      })
+      it("shouldn't create a new checkpoint for any stake role", async () => {
+        expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+        expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+      })
+
+      context("after vote delegation", () => {
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(staker)
+            .delegateVoting(operator.address, delegatee.address)
+        })
+
+        it("checkpoint for staked total supply should remain constant", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            amount
+          )
+        })
+
+        it("should create a new checkpoint for staker's delegatee", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            amount
+          )
+        })
+
+        it("shouldn't create a new checkpoint for any stake role", async () => {
+          expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+        })
+      })
     })
   })
 
@@ -379,7 +423,7 @@ describe("TokenStaking", () => {
     context("when caller did not provide operator", () => {
       it("should revert", async () => {
         await expect(tokenStaking.stakeKeep(ZERO_ADDRESS)).to.be.revertedWith(
-          "Operator must be specified"
+          "Parameters must be specified"
         )
       })
     })
@@ -460,15 +504,21 @@ describe("TokenStaking", () => {
             beneficiary.address,
             authorizer.address,
           ])
+        })
+
+        it("should set value of stakes", async () => {
           expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
             zeroBigNumber,
             tAmount,
             zeroBigNumber,
           ])
+          expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
+        })
+
+        it("should not start T staking timestamp", async () => {
           expect(
             await tokenStaking.getStartTStakingTimestamp(operator.address)
           ).to.equal(0)
-          expect(await tokenStaking.stakedNu(operator.address)).to.equal(0)
         })
 
         it("should increase available amount to authorize", async () => {
@@ -504,6 +554,43 @@ describe("TokenStaking", () => {
               tAmount
             )
         })
+
+        it("should create a new checkpoint for staked total supply", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            tAmount
+          )
+        })
+        it("shouldn't create a new checkpoint for stake owner", async () => {
+          expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+        })
+
+        context("after vote delegation", () => {
+          beforeEach(async () => {
+            tx = await tokenStaking
+              .connect(staker)
+              .delegateVoting(operator.address, delegatee.address)
+          })
+
+          it("should create a new checkpoint for staker's delegatee", async () => {
+            expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+              tAmount
+            )
+          })
+
+          it("checkpoint for staked total supply should remain constant", async () => {
+            const lastBlock = await mineBlock()
+            expect(
+              await tokenStaking.getPastTotalSupply(lastBlock - 1)
+            ).to.equal(tAmount)
+          })
+
+          it("shouldn't create new checkpoint for any staker role", async () => {
+            expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+            expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+            expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+          })
+        })
       })
     })
   })
@@ -515,7 +602,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(ZERO_ADDRESS, beneficiary.address, authorizer.address)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -525,7 +612,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(operator.address, ZERO_ADDRESS, authorizer.address)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -535,7 +622,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(staker)
             .stakeNu(operator.address, beneficiary.address, ZERO_ADDRESS)
-        ).to.be.revertedWith("Roles must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -621,17 +708,23 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should set value of stakes", async () => {
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           tAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(0)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
+      })
+
+      it("should not start T staking timestamp", async () => {
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(0)
       })
 
       it("should do callback to NuCypher staking contract", async () => {
@@ -661,6 +754,43 @@ describe("TokenStaking", () => {
             tAmount
           )
       })
+
+      it("should create a new checkpoint for staked total supply", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          tAmount
+        )
+      })
+      it("shouldn't create a new checkpoint for stake owner", async () => {
+        expect(await tokenStaking.getVotes(staker.address)).to.equal(0)
+      })
+
+      context("after vote delegation", () => {
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(staker)
+            .delegateVoting(operator.address, delegatee.address)
+        })
+
+        it("should create a new checkpoint for staker's delegatee", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            tAmount
+          )
+        })
+
+        it("checkpoint for staked total supply should remain constant", async () => {
+          const lastBlock = await mineBlock()
+          expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+            tAmount
+          )
+        })
+
+        it("shouldn't create new checkpoint for any staker role", async () => {
+          expect(await tokenStaking.getVotes(operator.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(beneficiary.address)).to.equal(0)
+          expect(await tokenStaking.getVotes(authorizer.address)).to.equal(0)
+        })
+      })
     })
   })
 
@@ -669,7 +799,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.connect(operator).refreshKeepStakeOwner(operator.address)
-        ).to.be.revertedWith("Not old owner")
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
@@ -687,10 +817,8 @@ describe("TokenStaking", () => {
             initialStakerBalance
           )
         await expect(
-          tokenStaking
-            .connect(authorizer)
-            .refreshKeepStakeOwner(operator.address)
-        ).to.be.revertedWith("Not old owner")
+          tokenStaking.connect(operator).refreshKeepStakeOwner(operator.address)
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
@@ -799,7 +927,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.connect(deployer).approveApplication(ZERO_ADDRESS)
-        ).to.be.revertedWith("Application must be specified")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -812,7 +940,23 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(deployer)
             .approveApplication(application1Mock.address)
-        ).to.be.revertedWith("Application already approved")
+        ).to.be.revertedWith("Can't approve application")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .approveApplication(application1Mock.address)
+        ).to.be.revertedWith("Can't approve application")
       })
     })
 
@@ -828,7 +972,7 @@ describe("TokenStaking", () => {
       it("should approve application", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, false, ZERO_ADDRESS])
+        ).to.deep.equal([ApplicationStatus.APPROVED, ZERO_ADDRESS])
       })
 
       it("should add application to the list of all applications", async () => {
@@ -838,10 +982,10 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should emit ApplicationApproved", async () => {
+      it("should emit ApplicationStatusChanged", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ApplicationApproved")
-          .withArgs(application1Mock.address)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.APPROVED)
       })
     })
 
@@ -866,7 +1010,7 @@ describe("TokenStaking", () => {
       it("should enable application", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, false, panicButton.address])
+        ).to.deep.equal([ApplicationStatus.APPROVED, panicButton.address])
       })
 
       it("should keep list of all applications unchanged", async () => {
@@ -876,10 +1020,10 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should emit ApplicationApproved", async () => {
+      it("should emit ApplicationStatusChanged", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ApplicationApproved")
-          .withArgs(application1Mock.address)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.APPROVED)
       })
     })
   })
@@ -952,7 +1096,24 @@ describe("TokenStaking", () => {
                   application1Mock.address,
                   amount
                 )
-            ).to.be.revertedWith("Application is paused")
+            ).to.be.revertedWith("Application is not approved")
+          })
+        })
+
+        context("when application is disabled", () => {
+          it("should revert", async () => {
+            await tokenStaking
+              .connect(deployer)
+              .disableApplication(application1Mock.address)
+            await expect(
+              tokenStaking
+                .connect(authorizer)
+                .increaseAuthorization(
+                  operator.address,
+                  application1Mock.address,
+                  amount
+                )
+            ).to.be.revertedWith("Application is not approved")
           })
         })
 
@@ -1484,7 +1645,20 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 amount
               )
-          ).to.be.revertedWith("Application is paused")
+          ).to.be.revertedWith("Application is not approved")
+        })
+      })
+
+      context("when application is disabled", () => {
+        it("should revert", async () => {
+          await tokenStaking
+            .connect(deployer)
+            .disableApplication(application1Mock.address)
+          await expect(
+            tokenStaking
+              .connect(authorizer)
+              ["requestAuthorizationDecrease(address)"](operator.address)
+          ).to.be.revertedWith("Application is not approved")
         })
       })
 
@@ -1498,7 +1672,7 @@ describe("TokenStaking", () => {
                 application1Mock.address,
                 0
               )
-          ).to.be.revertedWith("Amount must be greater than 0")
+          ).to.be.revertedWith("Parameters must be specified")
         })
       })
 
@@ -1706,6 +1880,14 @@ describe("TokenStaking", () => {
         )
     })
 
+    context("when application was not approved", () => {
+      it("should revert", async () => {
+        await expect(
+          application2Mock.approveAuthorizationDecrease(operator.address)
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
     context("when application was paused", () => {
       it("should revert", async () => {
         await tokenStaking
@@ -1716,7 +1898,18 @@ describe("TokenStaking", () => {
           .pauseApplication(application1Mock.address)
         await expect(
           application1Mock.approveAuthorizationDecrease(operator.address)
-        ).to.be.revertedWith("Application is paused")
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          application1Mock.approveAuthorizationDecrease(operator.address)
+        ).to.be.revertedWith("Application is not approved")
       })
     })
 
@@ -1909,6 +2102,148 @@ describe("TokenStaking", () => {
     )
   })
 
+  describe("forceDecreaseAuthorization", () => {
+    context("when application is not approved", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(auxiliaryAccount)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
+        ).to.be.revertedWith("Application is not disabled")
+      })
+    })
+
+    context("when application is approved", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
+        ).to.be.revertedWith("Application is not disabled")
+      })
+    })
+
+    context("when application is paused", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .setPanicButton(application1Mock.address, panicButton.address)
+        await tokenStaking
+          .connect(panicButton)
+          .pauseApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
+        ).to.be.revertedWith("Application is not disabled")
+      })
+    })
+
+    context("when application was not authorized and got disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .forceDecreaseAuthorization(
+              operator.address,
+              application1Mock.address
+            )
+        ).to.be.revertedWith("Application is not authorized")
+      })
+    })
+
+    context("when application was authorized and got disabled", () => {
+      const amount = initialStakerBalance
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking.connect(deployer).setAuthorizationCeiling(1)
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            operator.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            operator.address,
+            application1Mock.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["requestAuthorizationDecrease(address)"](operator.address)
+
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+
+        tx = await tokenStaking
+          .connect(deployer)
+          .forceDecreaseAuthorization(
+            operator.address,
+            application1Mock.address
+          )
+      })
+
+      it("should set authorized amount to 0", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            operator.address,
+            application1Mock.address
+          )
+        ).to.equal(0)
+      })
+
+      it("should allow to authorize more applications", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application2Mock.address)
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            operator.address,
+            application2Mock.address,
+            amount
+          )
+      })
+
+      it("should emit AuthorizationDecreaseApproved", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(operator.address, application1Mock.address, 0)
+      })
+    })
+  })
+
   describe("pauseApplication", () => {
     beforeEach(async () => {
       await tokenStaking
@@ -1929,6 +2264,19 @@ describe("TokenStaking", () => {
       })
     })
 
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(panicButton)
+            .pauseApplication(application1Mock.address)
+        ).to.be.revertedWith("Can't pause application")
+      })
+    })
+
     context("when application was paused", () => {
       it("should revert", async () => {
         await tokenStaking
@@ -1938,7 +2286,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(panicButton)
             .pauseApplication(application1Mock.address)
-        ).to.be.revertedWith("Application already paused")
+        ).to.be.revertedWith("Can't pause application")
       })
     })
 
@@ -1954,7 +2302,7 @@ describe("TokenStaking", () => {
       it("should pause application", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, true, panicButton.address])
+        ).to.deep.equal([ApplicationStatus.PAUSED, panicButton.address])
       })
 
       it("should keep list of all applications unchanged", async () => {
@@ -1964,10 +2312,97 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should emit ApplicationPaused", async () => {
+      it("should emit ApplicationStatusChanged", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ApplicationPaused")
-          .withArgs(application1Mock.address)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.PAUSED)
+      })
+    })
+  })
+
+  describe("disableApplication", () => {
+    beforeEach(async () => {
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+      await tokenStaking
+        .connect(deployer)
+        .setPanicButton(application1Mock.address, panicButton.address)
+    })
+
+    context("when caller is not the governance", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(panicButton)
+            .disableApplication(application1Mock.address)
+        ).to.be.revertedWith("Caller is not the governance")
+      })
+    })
+
+    context("when application is not approved", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .disableApplication(application2Mock.address)
+        ).to.be.revertedWith("Can't disable application")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .disableApplication(application1Mock.address)
+        ).to.be.revertedWith("Can't disable application")
+      })
+    })
+
+    const contextDisable = (preparation) => {
+      let tx
+
+      beforeEach(async () => {
+        await preparation()
+
+        tx = await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+      })
+
+      it("should disable application", async () => {
+        expect(
+          await tokenStaking.applicationInfo(application1Mock.address)
+        ).to.deep.equal([ApplicationStatus.DISABLED, panicButton.address])
+      })
+
+      it("should keep list of all applications unchanged", async () => {
+        expect(await tokenStaking.getApplicationsLength()).to.equal(1)
+        expect(await tokenStaking.applications(0)).to.equal(
+          application1Mock.address
+        )
+      })
+
+      it("should emit ApplicationStatusChanged", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ApplicationStatusChanged")
+          .withArgs(application1Mock.address, ApplicationStatus.DISABLED)
+      })
+    }
+
+    context("when disable approved application", () => {
+      contextDisable(() => {})
+    })
+
+    context("when disable paused application", () => {
+      contextDisable(async () => {
+        await tokenStaking
+          .connect(panicButton)
+          .pauseApplication(application1Mock.address)
       })
     })
   })
@@ -1999,6 +2434,19 @@ describe("TokenStaking", () => {
       })
     })
 
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .setPanicButton(application1Mock.address, panicButton.address)
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
     context("when set panic button address for approved application", () => {
       let tx
 
@@ -2011,7 +2459,7 @@ describe("TokenStaking", () => {
       it("should set address of panic button", async () => {
         expect(
           await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([true, false, panicButton.address])
+        ).to.deep.equal([ApplicationStatus.APPROVED, panicButton.address])
       })
 
       it("should emit PanicButtonSet", async () => {
@@ -2069,7 +2517,7 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking.connect(operator).topUp(operator.address, 0)
-        ).to.be.revertedWith("Amount must be greater than 0")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -2117,6 +2565,9 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stake(operator.address, staker.address, staker.address, amount)
         blockTimestamp = await lastBlockTime()
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(deployer).transfer(operator.address, topUpAmount)
         await tToken
           .connect(operator)
@@ -2127,15 +2578,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           expectedAmount,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2173,6 +2627,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, topUpAmount)
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedAmount
+        )
       })
     })
 
@@ -2238,6 +2705,9 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(operator.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(deployer).transfer(staker.address, topUpAmount)
         await tToken.connect(staker).approve(tokenStaking.address, topUpAmount)
         tx = await tokenStaking
@@ -2246,15 +2716,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           topUpAmount,
           keepInTAmount,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2280,6 +2753,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, topUpAmount)
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedAmount
+        )
       })
     })
 
@@ -2295,6 +2781,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, staker.address, staker.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(deployer).transfer(operator.address, topUpAmount)
         await tToken
           .connect(operator)
@@ -2305,15 +2794,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           topUpAmount,
           zeroBigNumber,
           nuInTAmount,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2339,6 +2831,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, topUpAmount)
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedAmount
+        )
       })
     })
   })
@@ -2471,20 +2976,26 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(operator.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await keepStakingMock.setAmount(operator.address, newKeepAmount)
         tx = await tokenStaking.connect(operator).topUpKeep(operator.address)
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           newKeepInTAmount,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2519,6 +3030,19 @@ describe("TokenStaking", () => {
             operator.address,
             newKeepInTAmount.sub(initialKeepInTAmount)
           )
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          newKeepInTAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          newKeepInTAmount
+        )
       })
     })
 
@@ -2597,15 +3121,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           keepInTAmount,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2660,15 +3187,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           keepInTAmount,
           nuInTAmount,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -2765,27 +3295,33 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, staker.address, staker.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await nucypherStakingMock.setStaker(staker.address, newNuAmount)
         tx = await tokenStaking.connect(staker).topUpNu(operator.address)
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           newNuInTAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(0)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           newNuAmount
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(0)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -2813,6 +3349,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(operator.address, newNuInTAmount.sub(initialNuInTAmount))
+      })
+
+      it("should increase the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          newNuInTAmount
+        )
+      })
+
+      it("should increase the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          newNuInTAmount
+        )
       })
     })
 
@@ -2868,22 +3417,25 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          staker.address,
-          staker.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
           nuInTAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(blockTimestamp)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          staker.address,
+          staker.address,
+        ])
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(blockTimestamp)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -2939,22 +3491,25 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           keepInTAmount,
           nuInTAmount,
         ])
-        expect(
-          await tokenStaking.getStartTStakingTimestamp(operator.address)
-        ).to.equal(0)
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
+        expect(
+          await tokenStaking.getStartTStakingTimestamp(operator.address)
+        ).to.equal(0)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -3155,15 +3710,18 @@ describe("TokenStaking", () => {
         })
 
         it("should update T staked amount", async () => {
-          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
           expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
             minAmount,
             zeroBigNumber,
             nuInTAmount,
+          ])
+        })
+
+        it("should not update roles and start T staking timestamp", async () => {
+          expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
           ])
           expect(
             await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3235,15 +3793,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3275,7 +3836,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
-
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(staker).approve(tokenStaking.address, amount)
         await tokenStaking.connect(staker).topUp(operator.address, amount)
 
@@ -3285,19 +3848,35 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           nuInTAmount,
         ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(0)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          nuInTAmount
+        )
+      })
+
+      it("should decrease the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          nuInTAmount
+        )
       })
 
       it("should transfer tokens to the staker address", async () => {
@@ -3439,6 +4018,9 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(operator.address)
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
 
         await tToken.connect(staker).approve(tokenStaking.address, tAmount)
         await tokenStaking.connect(staker).topUp(operator.address, tAmount)
@@ -3455,15 +4037,18 @@ describe("TokenStaking", () => {
       })
 
       it("should set Keep staked amount to zero", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -3495,6 +4080,17 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
           .withArgs(operator.address, keepInTAmount)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
+      })
+
+      it("should decrease the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          tAmount
+        )
       })
     })
   })
@@ -3629,7 +4225,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .stakeNu(operator.address, beneficiary.address, authorizer.address)
-
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
         await tToken.connect(staker).approve(tokenStaking.address, tAmount)
         await tokenStaking.connect(staker).topUp(operator.address, tAmount)
 
@@ -3646,12 +4244,7 @@ describe("TokenStaking", () => {
           .unstakeNu(operator.address, amountToUnstake)
       })
 
-      it("should ypdate Nu staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
+      it("should update Nu staked amount", async () => {
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           tAmount,
           zeroBigNumber,
@@ -3660,6 +4253,14 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.stakedNu(operator.address)).to.equal(
           expectedNuAmount
         )
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
+        ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
         ).to.equal(0)
@@ -3690,6 +4291,19 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
           .withArgs(operator.address, expectedUnstaked)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+          expectedNuInTAmount.add(tAmount)
+        )
+      })
+
+      it("should decrease the total voting power", async () => {
+        const lastBlock = await mineBlock()
+        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
+          expectedNuInTAmount.add(tAmount)
+        )
       })
     })
 
@@ -3845,15 +4459,18 @@ describe("TokenStaking", () => {
       })
 
       it("should update staked amount", async () => {
-        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
         expect(await tokenStaking.stakes(operator.address)).to.deep.equal([
           zeroBigNumber,
           zeroBigNumber,
           zeroBigNumber,
+        ])
+      })
+
+      it("should not update roles and start T staking timestamp", async () => {
+        expect(await tokenStaking.rolesOf(operator.address)).to.deep.equal([
+          staker.address,
+          beneficiary.address,
+          authorizer.address,
         ])
         expect(
           await tokenStaking.getStartTStakingTimestamp(operator.address)
@@ -5143,7 +5760,7 @@ describe("TokenStaking", () => {
     context("when reward is zero", () => {
       it("should revert", async () => {
         await expect(tokenStaking.pushNotificationReward(0)).to.be.revertedWith(
-          "Amount must be greater than 0"
+          "Parameters must be specified"
         )
       })
     })
@@ -5234,7 +5851,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.slash(0, [operator.address])
-        ).to.be.revertedWith("Specify amount and operators")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -5242,7 +5859,7 @@ describe("TokenStaking", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.slash(initialStakerBalance, [])
-        ).to.be.revertedWith("Specify amount and operators")
+        ).to.be.revertedWith("Parameters must be specified")
       })
     })
 
@@ -5267,7 +5884,21 @@ describe("TokenStaking", () => {
           .pauseApplication(application1Mock.address)
         await expect(
           application1Mock.slash(initialStakerBalance, [operator.address])
-        ).to.be.revertedWith("Application is paused")
+        ).to.be.revertedWith("Application is not approved")
+      })
+    })
+
+    context("when application is disabled", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .disableApplication(application1Mock.address)
+        await expect(
+          application1Mock.slash(initialStakerBalance, [operator.address])
+        ).to.be.revertedWith("Application is not approved")
       })
     })
 
@@ -5736,6 +6367,9 @@ describe("TokenStaking", () => {
           .stake(operator.address, staker.address, staker.address, tAmount)
         await tokenStaking
           .connect(staker)
+          .delegateVoting(operator.address, delegatee.address)
+        await tokenStaking
+          .connect(staker)
           .increaseAuthorization(
             operator.address,
             application1Mock.address,
@@ -5816,6 +6450,12 @@ describe("TokenStaking", () => {
             zeroBigNumber,
             zeroBigNumber,
           ])
+        })
+
+        it("should decrease the delegatee voting power", async () => {
+          expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
+            expectedAmount
+          )
         })
 
         it("should update index of queue", async () => {
@@ -6212,6 +6852,136 @@ describe("TokenStaking", () => {
                 authorized
               )
           ).to.be.revertedWith("Too many applications")
+        })
+      }
+    )
+  })
+
+  describe("cleanAuthorizedApplications", () => {
+    const amount = initialStakerBalance
+    let extendedTokenStaking
+
+    beforeEach(async () => {
+      const ExtendedTokenStaking = await ethers.getContractFactory(
+        "ExtendedTokenStaking"
+      )
+      extendedTokenStaking = await ExtendedTokenStaking.deploy(
+        tToken.address,
+        keepStakingMock.address,
+        nucypherStakingMock.address,
+        keepVendingMachine.address,
+        nucypherVendingMachine.address,
+        keepStake.address
+      )
+      await extendedTokenStaking.deployed()
+    })
+
+    context("when all authorized applications with 0 authorization", () => {
+      beforeEach(async () => {
+        await extendedTokenStaking.setAuthorizedApplications(operator.address, [
+          application1Mock.address,
+          application2Mock.address,
+        ])
+        await extendedTokenStaking.cleanAuthorizedApplications(
+          operator.address,
+          2
+        )
+      })
+
+      it("should remove all applications", async () => {
+        expect(
+          await extendedTokenStaking.getAuthorizedApplications(operator.address)
+        ).to.deep.equal([])
+      })
+    })
+
+    context(
+      "when one application in the end of the array with non-zero authorization",
+      () => {
+        beforeEach(async () => {
+          await extendedTokenStaking.setAuthorizedApplications(
+            operator.address,
+            [application1Mock.address, application2Mock.address]
+          )
+          await extendedTokenStaking.setAuthorization(
+            operator.address,
+            application2Mock.address,
+            amount
+          )
+          await extendedTokenStaking.cleanAuthorizedApplications(
+            operator.address,
+            1
+          )
+        })
+
+        it("should remove only first application", async () => {
+          expect(
+            await extendedTokenStaking.getAuthorizedApplications(
+              operator.address
+            )
+          ).to.deep.equal([application2Mock.address])
+        })
+      }
+    )
+
+    context(
+      "when one application in the beggining of the array with non-zero authorization",
+      () => {
+        beforeEach(async () => {
+          await extendedTokenStaking.setAuthorizedApplications(
+            operator.address,
+            [application1Mock.address, application2Mock.address]
+          )
+          await extendedTokenStaking.setAuthorization(
+            operator.address,
+            application1Mock.address,
+            amount
+          )
+          await extendedTokenStaking.cleanAuthorizedApplications(
+            operator.address,
+            1
+          )
+        })
+
+        it("should remove only first application", async () => {
+          expect(
+            await extendedTokenStaking.getAuthorizedApplications(
+              operator.address
+            )
+          ).to.deep.equal([application1Mock.address])
+        })
+      }
+    )
+
+    context(
+      "when one application in the middle of the array with non-zero authorization",
+      () => {
+        beforeEach(async () => {
+          await extendedTokenStaking.setAuthorizedApplications(
+            operator.address,
+            [
+              application1Mock.address,
+              application2Mock.address,
+              auxiliaryAccount.address,
+            ]
+          )
+          await extendedTokenStaking.setAuthorization(
+            operator.address,
+            application2Mock.address,
+            amount
+          )
+          await extendedTokenStaking.cleanAuthorizedApplications(
+            operator.address,
+            2
+          )
+        })
+
+        it("should remove first and last applications", async () => {
+          expect(
+            await extendedTokenStaking.getAuthorizedApplications(
+              operator.address
+            )
+          ).to.deep.equal([application2Mock.address])
         })
       }
     )

@@ -345,6 +345,11 @@ authorization decrease request. Can only be called by the application that
 was previously requested to decrease the authorization for that operator.
 Returns resulting authorized amount for the application.
 
+==== `forceDecreaseAuthorization(address operator, address application) external`
+
+Decreases the authorization for the given `operator` on the given disabled 
+`application`, for all authorized amount. Can be called by anyone.
+
 ==== `pauseApplication(address application) external onlyPanicButtonOf(application)`
 
 Pauses the given application's eligibility to slash stakes. Besides that stakers can't
@@ -352,6 +357,14 @@ change authorization to the application. Can be called only by a panic button of
 particular application. The paused application can not slash stakes until it is 
 approved again by the governance using `approveApplication` function. Should be 
 used only in case of an emergency.
+
+==== `disableApplication(address application) external onlyGovernance`
+
+Disables the given application. The disabled application can't slash stakers. Also 
+stakers can't increase authorization to that application but can decrease without 
+waiting by calling `forceDecreaseAuthorization` at any moment. Can be called only 
+by the governance. The disabled application can't be approved again. Should be used 
+only in case of an emergency.
 
 ==== `setPanicButton(address application, address panicButton) external onlyGovernance`
 
