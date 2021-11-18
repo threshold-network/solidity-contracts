@@ -1,0 +1,84 @@
+:toc: macro
+
+= RFC 2: Vending Machine contracts
+
+:icons: font
+:numbered:
+toc::[]
+
+== Introduction
+
+The Vending Machine contracts implement a special update protocol to enable
+legacy token holders (NU/KEEP) to wrap their tokens and obtain T tokens 
+according to a fixed, pre-defined ratio. The contracts are completely autonomous
+and will work indefinitely, enabling NU and KEEP token holders to join the 
+T network without needing to buy or sell any assets. Logistically, anyone
+holding NU or KEEP can wrap those assets in order to receive T. They can also 
+unwrap T in order to go back to the underlying asset. 
+
+There is a separate instance of this contract deployed for KEEP holders and a 
+separate instance of this contract deployed for NU holders.
+
+== Public API
+
+=== Wrapping and unwrapping
+
+=== `wrap(uint256 amount) external` 
+
+Wraps up to the the given `amount` of a legacy token (KEEP/NU) and releases T
+tokens proportionally to the amount being wrapped, according to the wrap ratio. 
+The token holder needs to have at least the given amount of the wrapped token 
+(KEEP/NU) previously approved to the Vending Machine before calling this 
+function. Note that, since the Vending Machine guarantees exact conversion, 
+there may be a small unspent remainder on the token holder balance.
+
+Emits a `Wrapped(address indexed recipient, uint256 wrappedTokenAmount,
+uint256 tTokenAmount)' event.
+
+=== `unwrap(uint256 amount) external`
+
+Unwraps up to the given `amount` of T back to the Vending Machine's legacy token
+(KEEP/NU), according to the wrap ratio. It can only be called by a token holder
+who previously wrapped their tokens in this vending machine contract. The token 
+holder can't unwrap more tokens than they originally wrapped. The token holder
+needs to have at least the given amount of T tokens approved to transfer to the
+Vending Machine before calling this function. Note that, since the Vending
+Machine guarantees exact conversion, there may be a small unspent remainder on
+the token holder balance.
+
+Emits an `Unwrapped(address indexed recipient, uint256 tTokenAmount,
+uint256 wrappedTokenAmount)` event.
+
+=== Conversion rate utilities
+
+==== `conversionToT(uint256 amount) public view returns (uint256 tAmount, uint256 wrappedRemainder)`
+
+Returns the T token amount that's obtained from `amount` wrapped tokens 
+(KEEP/NU), and the `wrappedRemainder` that can't be converted.
+
+==== `conversionFromT(uint256 amount) public view returns (uint256 wrappedAmount, uint256 tRemainder)`
+
+Returns the amount of wrapped tokens (KEEP/NU) that's obtained from unwrapping 
+`amount` T tokens, and the `tRemainder` that can't be converted.
+
+=== Vending Machine parameters
+
+TODO
+
+== Contract addresses
+
+=== Ethereum Mainnet
+
+* NU<>T Vending Machine address: TBD
+* KEEP<>T Vending Machine address: TBD
+* T token address: TBD
+* NU token address: `0x4fE83213D56308330EC302a8BD641f1d0113A4Cc`
+* KEEP token address: `0x85Eee30c52B0b379b046Fb0F85F4f3Dc3009aFEC`
+
+=== Ropsten Testnet
+
+* NU<>T Vending Machine address: TBD
+* KEEP<>T Vending Machine address: TBD
+* T token address: TBD
+* NU token address: TBD
+* KEEP token address: TBD
