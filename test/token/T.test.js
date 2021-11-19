@@ -264,7 +264,7 @@ describe("T token", () => {
 
       const domainSeparator = await t.DOMAIN_SEPARATOR()
       const delegationTypehash = await t.DELEGATION_TYPEHASH()
-      const nonce = await t.nonces(delegator.address)
+      const nonce = await t.nonce(delegator.address)
 
       const delegationDigest = ethers.utils.keccak256(
         ethers.utils.solidityPack(
