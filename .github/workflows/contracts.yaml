@@ -111,17 +111,25 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Get upstream packages versions
-        uses: keep-network/ci/actions/upstream-builds-query@v1
-        id: upstream-builds-query
-        with:
-          upstream-builds: ${{ github.event.inputs.upstream_builds }}
-          query: keep-core-contracts-version = github.com/keep-network/keep-core/solidity-v1#version
+      # Querying for version of `keep-core` package from `upstream_builds` input
+      # temporarily commented out as it's not working for some reason. Until
+      # we fix it we will specify the package version explicitly.
+      # NOTE: this change is not intended for merge to `main`!
+      
+      # - name: Get upstream packages versions
+      #   uses: keep-network/ci/actions/upstream-builds-query@v1
+      #   id: upstream-builds-query
+      #   with:
+      #     upstream-builds: ${{ github.event.inputs.upstream_builds }}
+      #     query: keep-core-contracts-version = github.com/keep-network/keep-core/solidity-v1#version
 
       - name: Resolve latest contracts
+        # run: |
+        #   yarn upgrade \
+        #     @keep-network/keep-core@${{ steps.upstream-builds-query.outputs.keep-core-contracts-version }}
         run: |
           yarn upgrade \
-            @keep-network/keep-core@${{ steps.upstream-builds-query.outputs.keep-core-contracts-version }}
+            @keep-network/keep-core@1.8.0-ropsten.13+main.6a98f2b066bc27910ab1715e7d20b7ba3c3ff21e
 
       - name: Configure tenderly
         if: github.event.inputs.environment == 'ropsten'
