@@ -65,7 +65,28 @@ Returns the amount of wrapped tokens (KEEP/NU) that's obtained from unwrapping
 
 TODO
 
-== Contract addresses
+== Security considerations
+
+=== Token total supplies
+
+The logic of the vending machine contracts assumes that the total supply of the
+underlying legacy tokens is fixed
+
+=== Contract ownership
+
+The vending machine contracts are not ownable.
+
+=== Upgradeability
+
+The vending machine contracts are not upgradeable.
+
+=== Audits
+
+* CertiK (October 2021)
+* ChainSecurity (November 2021): https://chainsecurity.com/security-audit/threshold-network/
+
+
+== Deployments and contract addresses
 
 === Ethereum Mainnet
 
