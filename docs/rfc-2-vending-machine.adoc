@@ -13,8 +13,8 @@ legacy token holders (NU/KEEP) to wrap their tokens and obtain T tokens
 according to a fixed, pre-defined ratio. The contracts are completely autonomous
 and will work indefinitely, enabling NU and KEEP token holders to join the 
 T network without needing to buy or sell any assets. Logistically, anyone
-holding NU or KEEP can wrap those assets in order to receive T. They can also 
-unwrap T in order to go back to the underlying asset. 
+holding NU or KEEP can wrap those assets in order to upgrade to T. They can also 
+unwrap T in order to downgrade back to the underlying asset. 
 
 There is a separate instance of this contract deployed for KEEP holders and a 
 separate instance of this contract deployed for NU holders.
@@ -54,12 +54,12 @@ uint256 wrappedTokenAmount)` event.
 ==== `conversionToT(uint256 amount) public view returns (uint256 tAmount, uint256 wrappedRemainder)`
 
 Returns the T token amount that's obtained from `amount` wrapped tokens 
-(KEEP/NU), and the `wrappedRemainder` that can't be converted.
+(KEEP/NU), and the `wrappedRemainder` that can't be upgraded.
 
 ==== `conversionFromT(uint256 amount) public view returns (uint256 wrappedAmount, uint256 tRemainder)`
 
 Returns the amount of wrapped tokens (KEEP/NU) that's obtained from unwrapping 
-`amount` T tokens, and the `tRemainder` that can't be converted.
+`amount` T tokens, and the `tRemainder` that can't be downgraded.
 
 === Vending Machine parameters
 
