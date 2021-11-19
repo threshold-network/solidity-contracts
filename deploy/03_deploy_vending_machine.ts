@@ -17,11 +17,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // between another instance of the VendingMachine (which will be wrapping NU
   // token) and a DAO treasury.
 
-  const T_ALLOCATION = tTotalSupply.mul(45).div(100)
+  const T_ALLOCATION_KEEP = tTotalSupply.mul(45).div(100)
 
-  const vendingMachine = await deployments.deploy("VendingMachine", {
+  const vendingMachine = await deployments.deploy("VendingMachineKeep", {
+    contract: "VendingMachine",
     from: deployer,
-    args: [KeepToken.address, T.address, keepTotalSupply, T_ALLOCATION],
+    args: [KeepToken.address, T.address, keepTotalSupply, T_ALLOCATION_KEEP],
     log: true,
   })
 

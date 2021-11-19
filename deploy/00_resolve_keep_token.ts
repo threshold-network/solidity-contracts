@@ -39,9 +39,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       KEEP_SUPPLY
     )
 
-    const keepTotalSupply = await read("KeepToken", "totalSupply")
-
-    log(`minted ${from1e18(keepTotalSupply)} KEEP`)
+    log(`minted ${from1e18(await read("KeepToken", "totalSupply"))} KEEP`)
   }
 }
 

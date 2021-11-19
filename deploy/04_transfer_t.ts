@@ -7,7 +7,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts()
   const { execute, read } = deployments
 
-  const VendingMachine = await deployments.get("VendingMachine")
+  const VendingMachineKeep = await deployments.get("VendingMachineKeep")
 
   // There will be 10B T minted on the production environment. The 45% of this
   // amount will go to the KEEP holders, 45% will go to NU holders and 10% will
@@ -22,13 +22,15 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "T",
     { from: deployer },
     "transfer",
-    VendingMachine.address,
+    VendingMachineKeep.address,
     T_TO_TRANSFER
   )
 
-  console.log(`transfered ${from1e18(T_TO_TRANSFER)} T to the VendingMachine`)
+  console.log(
+    `transfered ${from1e18(T_TO_TRANSFER)} T to the VendingMachine for KEEP`
+  )
 
-  // TODO: distribute 4.5B T to the VendingMachine for NU holders.
+  // TODO: distribute 4.5B T to the VendingMachineNu for NU holders.
 }
 
 export default func
