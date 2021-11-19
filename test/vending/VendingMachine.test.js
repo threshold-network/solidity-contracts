@@ -1,5 +1,7 @@
 const { expect } = require("chai")
-const { to1e18, to1ePrecision } = require("../helpers/contract-test-helpers")
+
+const { helpers } = require("hardhat")
+const { to1e18, to1ePrecision } = helpers.number
 
 describe("VendingMachine", () => {
   let wrappedToken

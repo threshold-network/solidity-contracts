@@ -1,10 +1,9 @@
 const { expect } = require("chai")
 const { defaultAbiCoder } = require("@ethersproject/abi")
-const {
-  mineBlock,
-  to1e18,
-  ZERO_ADDRESS,
-} = require("../helpers/contract-test-helpers")
+
+const { mineBlocks } = helpers.time
+const { to1e18 } = helpers.number
+const { AddressZero } = ethers.constants
 
 const ProposalStates = {
   Pending: 0,
@@ -102,7 +101,7 @@ describe("StakerGovernor", () => {
     const expectedTotalStake = whaleBalance.add(firstStake)
     const expectedThreshold = expectedTotalStake.mul(25).div(10000)
     const mockDescription = "Mock Proposal"
-    const mockProposal = [[ZERO_ADDRESS], [42], [0xfabada]]
+    const mockProposal = [[AddressZero], [42], [0xfabada]]
     const mockProposalWithDescription = [...mockProposal, mockDescription]
 
     beforeEach(async () => {
@@ -112,7 +111,7 @@ describe("StakerGovernor", () => {
       await tToken.connect(staker).approve(tStaking.address, firstStake)
       await tStaking.connect(staker).deposit(firstStake)
 
-      lastBlock = (await mineBlock()) - 1
+      lastBlock = (await mineBlocks(1)) - 1
     })
 
     context("only whale has enough stake to propose", () => {
@@ -138,7 +137,7 @@ describe("StakerGovernor", () => {
       beforeEach(async () => {
         await tToken.connect(staker).approve(tStaking.address, topUpAmount)
         await tStaking.connect(staker).deposit(topUpAmount)
-        lastBlock = (await mineBlock()) - 1
+        lastBlock = (await mineBlocks(1)) - 1
       })
 
       it("proposal threshold is as expected", async () => {

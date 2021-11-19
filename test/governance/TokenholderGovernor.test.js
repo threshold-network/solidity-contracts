@@ -1,10 +1,8 @@
 const { expect } = require("chai")
 const { defaultAbiCoder } = require("@ethersproject/abi")
-const {
-  mineBlock,
-  to1e18,
-  ZERO_ADDRESS,
-} = require("../helpers/contract-test-helpers")
+const { mineBlocks } = helpers.time
+const { to1e18 } = helpers.number
+const { AddressZero } = ethers.constants
 
 const ProposalStates = {
   Pending: 0,
@@ -44,7 +42,7 @@ describe("TokenholderGovernor", () => {
 
   // Mock proposal
   const mockDescription = "Mock Proposal"
-  const mockProposal = [[ZERO_ADDRESS], [42], [0xbebecafe]]
+  const mockProposal = [[AddressZero], [42], [0xbebecafe]]
   const mockProposalWithDescription = [...mockProposal, mockDescription]
   const descriptionHash = ethers.utils.id(mockDescription)
   const mockProposalWithHash = [...mockProposal, descriptionHash]
@@ -82,7 +80,7 @@ describe("TokenholderGovernor", () => {
     )
     await tGov.deployed()
 
-    lastBlock = (await mineBlock()) - 1
+    lastBlock = (await mineBlocks(1)) - 1
 
     // ethers.js can't resolve overloaded functions so we need to specify the
     // fully qualified signature of the function to call it. This is the case of
@@ -185,7 +183,7 @@ describe("TokenholderGovernor", () => {
       await tToken.connect(staker).approve(tStaking.address, stakerBalance)
       await tStaking.connect(staker).deposit(stakerBalance)
 
-      lastBlock = (await mineBlock()) - 1
+      lastBlock = (await mineBlocks(1)) - 1
     })
 
     context("only stakerWhale has enough stake to propose", () => {
@@ -212,7 +210,7 @@ describe("TokenholderGovernor", () => {
           await tToken
             .connect(holderWhale)
             .transfer(staker.address, extraTokens)
-          lastBlock = (await mineBlock()) - 1
+          lastBlock = (await mineBlocks(1)) - 1
         })
 
         it("proposal threshold remains as expected", async () => {

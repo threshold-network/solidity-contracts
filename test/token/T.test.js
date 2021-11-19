@@ -1,13 +1,12 @@
 const { expect } = require("chai")
 
-const {
-  to1e18,
-  lastBlockNumber,
-  lastBlockTime,
-  mineBlock,
-  ZERO_ADDRESS,
-  MAX_UINT96,
-} = require("../helpers/contract-test-helpers")
+const { MAX_UINT96 } = require("../helpers/contract-test-helpers")
+
+const { helpers } = require("hardhat")
+const { to1e18 } = helpers.number
+const { lastBlockNumber, lastBlockTime, mineBlocks } = helpers.time
+
+const ZERO_ADDRESS = ethers.constants.AddressZero
 
 describe("T token", () => {
   const initialBalance = to1e18(1000000)
@@ -719,7 +718,7 @@ describe("T token", () => {
 
     context("when minted just once", () => {
       it("should keep track of historic supply", async () => {
-        const lastBlock = await mineBlock()
+        const lastBlock = await mineBlocks(1)
         expect(await t.getPastTotalSupply(lastBlock - 1)).to.equal(
           initialBalance
         )
