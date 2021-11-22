@@ -143,82 +143,82 @@ jobs:
           branch: ${{ github.ref }}
           commit: ${{ github.sha }}
 
-      - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access=public --network=${{ github.event.inputs.environment }}
+      # - name: Publish to npm
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   run: npm publish --access=public --network=${{ github.event.inputs.environment }}
 
-      - name: Upload files needed for etherscan verification
-        uses: actions/upload-artifact@v2
-        with:
-          name: Artifacts for etherscan verifcation
-          path: |
-            ./deployments
-            ./package.json
-            ./yarn.lock
+      # - name: Upload files needed for etherscan verification
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: Artifacts for etherscan verifcation
+      #     path: |
+      #       ./deployments
+      #       ./package.json
+      #       ./yarn.lock
 
-  contracts-etherscan-verification:
-    needs: [contracts-deployment-testnet]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  # contracts-etherscan-verification:
+  #   needs: [contracts-deployment-testnet]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Download files needed for etherscan verification
-        uses: actions/download-artifact@v2
-        with:
-          name: Artifacts for etherscan verifcation
+  #     - name: Download files needed for etherscan verification
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: Artifacts for etherscan verifcation
 
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "14.x"
-          cache: "yarn"
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "14.x"
+  #         cache: "yarn"
 
-      - name: Install needed dependencies
-        run: yarn install --frozen-lockfile
+  #     - name: Install needed dependencies
+  #       run: yarn install --frozen-lockfile
 
-      # If we don't remove the `keep-core` contracts from `node-modules`, the
-      # `etherscan-verify` plugins tries to verify them, which is not desired.
-      - name: Prepare for verification on Etherscan
-        run: |
-          rm -rf ./node_modules/@keep-network/keep-core
+  #     # If we don't remove the `keep-core` contracts from `node-modules`, the
+  #     # `etherscan-verify` plugins tries to verify them, which is not desired.
+  #     - name: Prepare for verification on Etherscan
+  #       run: |
+  #         rm -rf ./node_modules/@keep-network/keep-core
 
-      - name: Verify contracts on Etherscan
-        env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-          CHAIN_API_URL: ${{ secrets.ROPSTEN_ETH_HOSTNAME_HTTP }}
-        run: |
-          yarn run hardhat --network ${{ github.event.inputs.environment }} \
-            etherscan-verify --license GPL-3.0 --force-license
+  #     - name: Verify contracts on Etherscan
+  #       env:
+  #         ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+  #         CHAIN_API_URL: ${{ secrets.ROPSTEN_ETH_HOSTNAME_HTTP }}
+  #       run: |
+  #         yarn run hardhat --network ${{ github.event.inputs.environment }} \
+  #           etherscan-verify --license GPL-3.0 --force-license
 
-  contracts-slither:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  # contracts-slither:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "14"
-          cache: "yarn"
+  #     - uses: actions/setup-node@v2
+  #       with:
+  #         node-version: "14"
+  #         cache: "yarn"
 
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.8.5
+  #     - uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.8.5
 
-      - name: Install Solidity
-        env:
-          SOLC_VERSION: 0.8.6 # according to solidity.version in hardhat.config.js
-        run: |
-          pip3 install solc-select
-          solc-select install $SOLC_VERSION
-          solc-select use $SOLC_VERSION
+  #     - name: Install Solidity
+  #       env:
+  #         SOLC_VERSION: 0.8.6 # according to solidity.version in hardhat.config.js
+  #       run: |
+  #         pip3 install solc-select
+  #         solc-select install $SOLC_VERSION
+  #         solc-select use $SOLC_VERSION
 
-      - name: Install Slither
-        env:
-          SLITHER_VERSION: 0.8.0
-        run: pip3 install slither-analyzer==$SLITHER_VERSION
+  #     - name: Install Slither
+  #       env:
+  #         SLITHER_VERSION: 0.8.0
+  #       run: pip3 install slither-analyzer==$SLITHER_VERSION
 
-      - name: Install dependencies
-        run: yarn install
+  #     - name: Install dependencies
+  #       run: yarn install
 
-      - name: Run Slither
-        run: slither .
+  #     - name: Run Slither
+  #       run: slither .
