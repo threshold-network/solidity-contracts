@@ -29,10 +29,13 @@ contract TokenholderGovernor is
         TimelockController _timelock
     )
         Governor("TokenholderGovernor")
-        AbstractGovernorQuorumFraction(INITIAL_QUORUM_NUMERATOR, INITIAL_PROPOSAL_THRESHOLD_NUMERATOR)
+        GovernorParameters(
+            INITIAL_QUORUM_NUMERATOR,
+            INITIAL_PROPOSAL_THRESHOLD_NUMERATOR
+        )
         TokenholderGovernorVotes(_token, _staking)
         GovernorTimelockControl(_timelock)
-    { }
+    {}
 
     function propose(
         address[] memory targets,
@@ -59,7 +62,7 @@ contract TokenholderGovernor is
     function quorum(uint256 blockNumber)
         public
         view
-        override(IGovernor, AbstractGovernorQuorumFraction)
+        override(IGovernor, GovernorParameters)
         returns (uint256)
     {
         return super.quorum(blockNumber);

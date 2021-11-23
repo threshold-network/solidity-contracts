@@ -4,12 +4,13 @@ pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/governance/Governor.sol";
 
-/// @title AbstractGovernorQuorumFraction
-/// @notice Abstract contract to handle fraction quorums
+/// @title GovernorParameters
+/// @notice Abstract contract to handle governance parameters
 /// @dev Based on `GovernorVotesQuorumFraction`, but without being opinionated
-///      on what's the source of voting power. See OpenZeppelin's GovernorVotes
-///      and GovernorVotesQuorumFraction for reference.
-abstract contract AbstractGovernorQuorumFraction is Governor {
+///      on what's the source of voting power, and extended to handle proposal
+///      thresholds too. See OpenZeppelin's GovernorVotesQuorumFraction and
+///      GovernorVotes for reference.
+abstract contract GovernorParameters is Governor {
     uint256 public constant FRACTION_DENOMINATOR = 10000;
     uint256 public quorumNumerator;
     uint256 public proposalThresholdNumerator;

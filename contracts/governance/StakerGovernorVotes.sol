@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.9;
 
-import "./AbstractGovernorQuorumFraction.sol";
+import "./GovernorParameters.sol";
 import "./IVotingHistory.sol";
 
 /// @title StakerGovernorVotes
 /// @notice Staker DAO voting power extraction from staked T positions,
 //          including legacy stakes (NU/KEEP).
-abstract contract StakerGovernorVotes is AbstractGovernorQuorumFraction {
+abstract contract StakerGovernorVotes is GovernorParameters {
     IVotesHistory public immutable staking;
 
     constructor(IVotesHistory tStakingAddress) {

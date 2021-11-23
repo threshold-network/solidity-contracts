@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 contract TestTokenholderGovernorVotes is TokenholderGovernorVotes {
     constructor(T _tToken, IVotesHistory _tStaking)
         Governor("TestTokenholderGovernor")
-        AbstractGovernorQuorumFraction(125)
+        GovernorParameters(125, 75)
         TokenholderGovernorVotes(_tToken, _tStaking)
     {}
 
