@@ -11,15 +11,22 @@ import "@openzeppelin/contracts/governance/Governor.sol";
 ///      and GovernorVotesQuorumFraction for reference.
 abstract contract AbstractGovernorQuorumFraction is Governor {
     uint256 public constant FRACTION_DENOMINATOR = 10000;
-    uint256 private _quorumNumerator;
+    uint256 public quorumNumerator;
+    uint256 public proposalThresholdNumerator;
 
     event QuorumNumeratorUpdated(
         uint256 oldQuorumNumerator,
         uint256 newQuorumNumerator
     );
 
-    constructor(uint256 quorumNumeratorValue) {
+    event ProposalThresholdNumeratorUpdated(
+        uint256 oldThresholdNumerator,
+        uint256 newThresholdNumerator
+    );
+
+    constructor(uint256 quorumNumeratorValue, uint256 proposalNumeratorValue) {
         _updateQuorumNumerator(quorumNumeratorValue);
+        _updateProposalThresholdNumerator(proposalNumeratorValue);
     }
 
     function updateQuorumNumerator(uint256 newQuorumNumerator)
@@ -30,8 +37,12 @@ abstract contract AbstractGovernorQuorumFraction is Governor {
         _updateQuorumNumerator(newQuorumNumerator);
     }
 
-    function quorumNumerator() public view virtual returns (uint256) {
-        return _quorumNumerator;
+    function updateProposalThresholdNumerator(uint256 newNumerator)
+        external
+        virtual
+        onlyGovernance
+    {
+        _updateProposalThresholdNumerator(newNumerator);
     }
 
     /// @notice Compute the required amount of voting power to reach quorum
@@ -44,20 +55,46 @@ abstract contract AbstractGovernorQuorumFraction is Governor {
         returns (uint256)
     {
         return
-            (_getPastTotalSupply(blockNumber) * quorumNumerator()) /
+            (_getPastTotalSupply(blockNumber) * quorumNumerator) /
             FRACTION_DENOMINATOR;
     }
 
-    function _updateQuorumNumerator(uint256 newQuorumNumerator) internal {
+    /// @notice Compute the required amount of voting power to create a proposal
+    /// @dev
+    function proposalThreshold() public view virtual returns (uint256) {
+        return
+            (_getPastTotalSupply(block.number - 1) *
+                proposalThresholdNumerator) / FRACTION_DENOMINATOR;
+    }
+
+    function _updateQuorumNumerator(uint256 newQuorumNumerator)
+        internal
+        virtual
+    {
         require(
             newQuorumNumerator <= FRACTION_DENOMINATOR,
-            "quorumNumerator > denominator"
+            "quorumNumerator > Denominator"
         );
 
-        uint256 oldQuorumNumerator = _quorumNumerator;
-        _quorumNumerator = newQuorumNumerator;
+        uint256 oldQuorumNumerator = quorumNumerator;
+        quorumNumerator = newQuorumNumerator;
 
         emit QuorumNumeratorUpdated(oldQuorumNumerator, newQuorumNumerator);
+    }
+
+    function _updateProposalThresholdNumerator(uint256 proposalNumerator)
+        internal
+        virtual
+    {
+        require(
+            proposalNumerator <= FRACTION_DENOMINATOR,
+            "proposalNumerator > Denominator"
+        );
+
+        uint256 oldNumerator = proposalThresholdNumerator;
+        proposalThresholdNumerator = proposalNumerator;
+
+        emit ProposalThresholdNumeratorUpdated(oldNumerator, proposalNumerator);
     }
 
     /// @notice Compute the past total voting power at a particular block
