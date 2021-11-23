@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
+import "./AbstractGovernorQuorumFraction.sol";
 import "./IVotingHistory.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
+import "../token/T.sol";
 
 /// @title TokenholderGovernorVotes
-/// @notice Tokenholder DAO voting power extraction
-/// @dev Extension of {GovernorVotesQuorumFraction} for voting power extraction
-///      from both liquid and staked T token positions. See OpenZeppelin's
-///      GovernorVotes and GovernorVotesQuorumFraction for reference.
-abstract contract TokenholderGovernorVotes is GovernorVotesQuorumFraction {
+/// @notice Tokenholder DAO voting power extraction from both liquid and staked
+///         T token positions, including legacy stakes (NU/KEEP).
+abstract contract TokenholderGovernorVotes is AbstractGovernorQuorumFraction {
+    T public immutable token;
     IVotesHistory public immutable staking;
 
-    constructor(IVotesHistory tStakingAddress) {
+    constructor(T tokenAddress, IVotesHistory tStakingAddress) {
+        token = tokenAddress;
         staking = tStakingAddress;
     }
 
@@ -41,34 +42,6 @@ abstract contract TokenholderGovernorVotes is GovernorVotesQuorumFraction {
         return liquidVotes + stakedVotes;
     }
 
-    /// @notice Compute the required amount of voting power to reach quorum
-    /// @param blockNumber The block number to get the quorum at
-    function quorum(uint256 blockNumber)
-        public
-        view
-        virtual
-        override
-        returns (uint256)
-    {
-        return
-            (_getPastTotalSupply(blockNumber) * quorumNumerator()) /
-            quorumDenominator();
-    }
-
-    function fractionDenominator() public view virtual returns (uint256) {
-        return 10000;
-    }
-
-    function quorumDenominator()
-        public
-        view
-        virtual
-        override
-        returns (uint256)
-    {
-        return fractionDenominator();
-    }
-
     /// @notice Compute the total voting power for Tokenholder DAO. Note how it
     ///         only uses the token total supply as source, as native T tokens
     ///         that are staked continue existing, but as deposits in the
@@ -80,6 +53,8 @@ abstract contract TokenholderGovernorVotes is GovernorVotesQuorumFraction {
     function _getPastTotalSupply(uint256 blockNumber)
         internal
         view
+        virtual
+        override
         returns (uint256)
     {
         return token.getPastTotalSupply(blockNumber);

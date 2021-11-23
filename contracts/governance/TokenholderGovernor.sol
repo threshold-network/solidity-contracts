@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
 import "./TokenholderGovernorVotes.sol";
+import "../token/T.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
@@ -30,14 +31,13 @@ contract TokenholderGovernor is
     );
 
     constructor(
-        ERC20Votes _token,
+        T _token,
         IVotesHistory _staking,
         TimelockController _timelock
     )
         Governor("TokenholderGovernor")
-        GovernorVotes(_token)
-        GovernorVotesQuorumFraction(INITIAL_QUORUM_NUMERATOR)
-        TokenholderGovernorVotes(_staking)
+        AbstractGovernorQuorumFraction(INITIAL_QUORUM_NUMERATOR)
+        TokenholderGovernorVotes(_token, _staking)
         GovernorTimelockControl(_timelock)
     {
         _updateProposalThresholdNumerator(INITIAL_PROPOSAL_THRESHOLD_NUMERATOR);
@@ -76,13 +76,13 @@ contract TokenholderGovernor is
     function proposalThreshold() public view returns (uint256) {
         return
             (_getPastTotalSupply(block.number - 1) *
-                proposalThresholdNumerator) / fractionDenominator();
+                proposalThresholdNumerator) / FRACTION_DENOMINATOR;
     }
 
     function quorum(uint256 blockNumber)
         public
         view
-        override(IGovernor, TokenholderGovernorVotes)
+        override(IGovernor, AbstractGovernorQuorumFraction)
         returns (uint256)
     {
         return super.quorum(blockNumber);
@@ -128,7 +128,7 @@ contract TokenholderGovernor is
         virtual
     {
         require(
-            newNumerator <= fractionDenominator(),
+            newNumerator <= FRACTION_DENOMINATOR,
             "Numerator over Denominator"
         );
 

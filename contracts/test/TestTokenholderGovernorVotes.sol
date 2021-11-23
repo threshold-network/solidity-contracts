@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-pragma solidity 0.8.4;
+pragma solidity 0.8.9;
 
 import "../governance/TokenholderGovernorVotes.sol";
+import "../token/T.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
 contract TestTokenholderGovernorVotes is TokenholderGovernorVotes {
-    constructor(ERC20Votes _tToken, IVotesHistory _tStaking)
+    constructor(T _tToken, IVotesHistory _tStaking)
         Governor("TestTokenholderGovernor")
-        GovernorVotes(_tToken)
-        GovernorVotesQuorumFraction(125)
-        TokenholderGovernorVotes(_tStaking)
+        AbstractGovernorQuorumFraction(125)
+        TokenholderGovernorVotes(_tToken, _tStaking)
     {}
 
     function getPastTotalSupply(uint256 blockNumber)

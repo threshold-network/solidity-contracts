@@ -32,7 +32,7 @@ describe("TokenholderGovernorVotes", () => {
   describe("setup", () => {
     context("static parameters", () => {
       it("quorum denominator is 10000", async () => {
-        expect(await tVotes.quorumDenominator()).to.equal(10000)
+        expect(await tVotes.FRACTION_DENOMINATOR()).to.equal(10000)
       })
 
       it("quorum numerator is 125", async () => {
