@@ -16,7 +16,6 @@ contract TokenholderGovernor is
     TokenholderGovernorVotes,
     GovernorTimelockControl
 {
-    uint256 private constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
     uint256 private constant INITIAL_QUORUM_NUMERATOR = 150; // Defined in basis points, i.e., 1.5%
     uint256 private constant INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25; // Defined in basis points, i.e., 0.25%
 
@@ -93,14 +92,6 @@ contract TokenholderGovernor is
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
-    }
-
-    function votingDelay() public pure override returns (uint256) {
-        return (2 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
-    }
-
-    function votingPeriod() public pure override returns (uint256) {
-        return (10 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
     }
 
     function _execute(

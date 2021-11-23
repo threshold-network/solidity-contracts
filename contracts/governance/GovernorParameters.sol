@@ -12,6 +12,8 @@ import "@openzeppelin/contracts/governance/Governor.sol";
 ///      GovernorVotes for reference.
 abstract contract GovernorParameters is Governor {
     uint256 public constant FRACTION_DENOMINATOR = 10000;
+    uint256 private constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
+
     uint256 public quorumNumerator;
     uint256 public proposalThresholdNumerator;
 
@@ -66,6 +68,14 @@ abstract contract GovernorParameters is Governor {
         return
             (_getPastTotalSupply(block.number - 1) *
                 proposalThresholdNumerator) / FRACTION_DENOMINATOR;
+    }
+
+    function votingDelay() public pure override returns (uint256) {
+        return (2 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    }
+
+    function votingPeriod() public pure override returns (uint256) {
+        return (10 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
     }
 
     function _updateQuorumNumerator(uint256 newQuorumNumerator)

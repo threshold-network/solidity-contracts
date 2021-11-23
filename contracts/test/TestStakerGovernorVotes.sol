@@ -27,10 +27,6 @@ contract TestStakerGovernorVotes is StakerGovernorVotes {
         returns (bool)
     {}
 
-    function votingDelay() public view virtual override returns (uint256) {}
-
-    function votingPeriod() public view virtual override returns (uint256) {}
-
     // solhint-disable-next-line func-name-mixedcase
     function COUNTING_MODE()
         public
