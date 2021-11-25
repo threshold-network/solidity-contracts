@@ -25,7 +25,8 @@ contract TokenholderGovernor is
     constructor(
         T _token,
         IVotesHistory _staking,
-        TimelockController _timelock
+        TimelockController _timelock,
+        address vetoer
     )
         Governor("TokenholderGovernor")
         GovernorParameters(
@@ -34,7 +35,10 @@ contract TokenholderGovernor is
         )
         TokenholderGovernorVotes(_token, _staking)
         GovernorTimelockControl(_timelock)
-    {}
+    {
+        _setupRole(VETO_POWER, vetoer);
+        _setupRole(DEFAULT_ADMIN_ROLE, address(_timelock));
+    }
 
     function propose(
         address[] memory targets,

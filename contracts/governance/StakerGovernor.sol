@@ -22,7 +22,11 @@ contract StakerGovernor is
     bytes32 public constant VETO_POWER =
         keccak256("Power to veto proposals in Threshold's Staker DAO");
 
-    constructor(IVotesHistory _staking, TimelockController _timelock)
+    constructor(
+        IVotesHistory _staking,
+        TimelockController _timelock,
+        address vetoer
+    )
         Governor("StakerGovernor")
         GovernorParameters(
             INITIAL_QUORUM_NUMERATOR,
@@ -30,7 +34,10 @@ contract StakerGovernor is
         )
         StakerGovernorVotes(_staking)
         GovernorTimelockControl(_timelock)
-    {}
+    {
+        _setupRole(VETO_POWER, vetoer);
+        _setupRole(DEFAULT_ADMIN_ROLE, address(_timelock));
+    }
 
     function propose(
         address[] memory targets,
