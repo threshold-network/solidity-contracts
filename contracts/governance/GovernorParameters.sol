@@ -64,7 +64,13 @@ abstract contract GovernorParameters is Governor {
 
     /// @notice Compute the required amount of voting power to create a proposal
     /// @dev
-    function proposalThreshold() public view virtual returns (uint256) {
+    function proposalThreshold()
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
         return
             (_getPastTotalSupply(block.number - 1) *
                 proposalThresholdNumerator) / FRACTION_DENOMINATOR;

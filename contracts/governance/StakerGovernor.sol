@@ -70,6 +70,15 @@ contract StakerGovernor is
         return super.quorum(blockNumber);
     }
 
+    function proposalThreshold()
+        public
+        view
+        override(Governor, GovernorParameters)
+        returns (uint256)
+    {
+        return super.proposalThreshold();
+    }
+
     function getVotes(address account, uint256 blockNumber)
         public
         view
