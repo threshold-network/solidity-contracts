@@ -8,14 +8,17 @@ import "@openzeppelin/contracts/governance/Governor.sol";
 /// @notice Abstract contract to handle governance parameters
 /// @dev Based on `GovernorVotesQuorumFraction`, but without being opinionated
 ///      on what's the source of voting power, and extended to handle proposal
-///      thresholds too. See OpenZeppelin's GovernorVotesQuorumFraction and
-///      GovernorVotes for reference.
+///      thresholds too. See OpenZeppelin's GovernorVotesQuorumFraction,
+///      GovernorVotes and GovernorSettings for reference.
 abstract contract GovernorParameters is Governor {
     uint256 public constant FRACTION_DENOMINATOR = 10000;
-    uint256 private constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
+    uint256 internal constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
 
     uint256 public quorumNumerator;
     uint256 public proposalThresholdNumerator;
+
+    uint256 private _votingDelay;
+    uint256 private _votingPeriod;
 
     event QuorumNumeratorUpdated(
         uint256 oldQuorumNumerator,
@@ -27,9 +30,19 @@ abstract contract GovernorParameters is Governor {
         uint256 newThresholdNumerator
     );
 
-    constructor(uint256 quorumNumeratorValue, uint256 proposalNumeratorValue) {
+    event VotingDelaySet(uint256 oldVotingDelay, uint256 newVotingDelay);
+    event VotingPeriodSet(uint256 oldVotingPeriod, uint256 newVotingPeriod);
+
+    constructor(
+        uint256 quorumNumeratorValue,
+        uint256 proposalNumeratorValue,
+        uint256 initialVotingDelay,
+        uint256 initialVotingPeriod
+    ) {
         _updateQuorumNumerator(quorumNumeratorValue);
         _updateProposalThresholdNumerator(proposalNumeratorValue);
+        _setVotingDelay(initialVotingDelay);
+        _setVotingPeriod(initialVotingPeriod);
     }
 
     function updateQuorumNumerator(uint256 newQuorumNumerator)
@@ -46,6 +59,26 @@ abstract contract GovernorParameters is Governor {
         onlyGovernance
     {
         _updateProposalThresholdNumerator(newNumerator);
+    }
+
+    /// @notice Update the voting delay. This operation can only be performed
+    ///         through a governance proposal. Emits a `VotingDelaySet` event.
+    function setVotingDelay(uint256 newVotingDelay)
+        public
+        virtual
+        onlyGovernance
+    {
+        _setVotingDelay(newVotingDelay);
+    }
+
+    /// @notice Update the voting period. This operation can only be performed
+    ///         through a governance proposal. Emits a `VotingPeriodSet` event.
+    function setVotingPeriod(uint256 newVotingPeriod)
+        public
+        virtual
+        onlyGovernance
+    {
+        _setVotingPeriod(newVotingPeriod);
     }
 
     /// @notice Compute the required amount of voting power to reach quorum
@@ -76,12 +109,12 @@ abstract contract GovernorParameters is Governor {
                 proposalThresholdNumerator) / FRACTION_DENOMINATOR;
     }
 
-    function votingDelay() public pure override returns (uint256) {
-        return (2 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    function votingDelay() public view virtual override returns (uint256) {
+        return _votingDelay;
     }
 
-    function votingPeriod() public pure override returns (uint256) {
-        return (10 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    function votingPeriod() public view virtual override returns (uint256) {
+        return _votingPeriod;
     }
 
     function _updateQuorumNumerator(uint256 newQuorumNumerator)
@@ -112,6 +145,18 @@ abstract contract GovernorParameters is Governor {
         proposalThresholdNumerator = proposalNumerator;
 
         emit ProposalThresholdNumeratorUpdated(oldNumerator, proposalNumerator);
+    }
+
+    function _setVotingDelay(uint256 newVotingDelay) internal virtual {
+        emit VotingDelaySet(_votingDelay, newVotingDelay);
+        _votingDelay = newVotingDelay;
+    }
+
+    function _setVotingPeriod(uint256 newVotingPeriod) internal virtual {
+        // voting period must be at least one block long
+        require(newVotingPeriod > 0, "Voting period too low");
+        emit VotingPeriodSet(_votingPeriod, newVotingPeriod);
+        _votingPeriod = newVotingPeriod;
     }
 
     /// @notice Compute the past total voting power at a particular block

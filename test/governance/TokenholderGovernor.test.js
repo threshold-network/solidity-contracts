@@ -12,6 +12,9 @@ const ProposalStates = {
   Canceled: 2,
 }
 
+const secondsInADay = ethers.BigNumber.from(60 * 60 * 24)
+const averageBlockTime = 13
+
 describe("TokenholderGovernor", () => {
   let tToken
   let staker
@@ -80,7 +83,7 @@ describe("TokenholderGovernor", () => {
     lastBlock = (await mineBlock()) - 1
   })
 
-  describe("static parameters", () => {
+  describe("default parameters", () => {
     it("quorum denominator is 10000", async () => {
       expect(await tGov.FRACTION_DENOMINATOR()).to.equal(10000)
     })
@@ -93,7 +96,17 @@ describe("TokenholderGovernor", () => {
       expect(await tGov.proposalThresholdNumerator()).to.equal(25)
     })
 
-    // TODO: delays and proposal numerator
+    it("voting delay is 2 days", async () => {
+      expect(await tGov.votingDelay()).to.equal(
+        secondsInADay.mul(2).div(averageBlockTime)
+      )
+    })
+
+    it("voting period is 10 days", async () => {
+      expect(await tGov.votingPeriod()).to.equal(
+        secondsInADay.mul(10).div(averageBlockTime)
+      )
+    })
   })
 
   describe("when all tokens are liquid", () => {

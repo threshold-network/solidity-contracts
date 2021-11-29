@@ -7,7 +7,7 @@ import "../governance/StakerGovernorVotes.sol";
 contract TestStakerGovernorVotes is StakerGovernorVotes {
     constructor(IVotesHistory _tStaking)
         Governor("TestStakerGovernor")
-        GovernorParameters(125, 75)
+        GovernorParameters(125, 75, 12, 34)
         StakerGovernorVotes(_tStaking)
     {}
 

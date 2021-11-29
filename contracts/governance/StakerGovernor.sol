@@ -18,6 +18,10 @@ contract StakerGovernor is
 {
     uint256 private constant INITIAL_QUORUM_NUMERATOR = 150; // Defined in basis points, i.e., 1.5%
     uint256 private constant INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25; // Defined in basis points, i.e., 0.25%
+    uint256 private constant INITIAL_VOTING_DELAY =
+        2 days / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    uint256 private constant INITIAL_VOTING_PERIOD =
+        10 days / AVERAGE_BLOCK_TIME_IN_SECONDS;
 
     bytes32 public constant VETO_POWER =
         keccak256("Power to veto proposals in Threshold's Staker DAO");
@@ -30,7 +34,9 @@ contract StakerGovernor is
         Governor("StakerGovernor")
         GovernorParameters(
             INITIAL_QUORUM_NUMERATOR,
-            INITIAL_PROPOSAL_THRESHOLD_NUMERATOR
+            INITIAL_PROPOSAL_THRESHOLD_NUMERATOR,
+            INITIAL_VOTING_DELAY,
+            INITIAL_VOTING_PERIOD
         )
         StakerGovernorVotes(_staking)
         GovernorTimelockControl(_timelock)
