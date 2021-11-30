@@ -82,7 +82,7 @@ The vending machine contracts are not upgradeable.
 
 === Audits
 
-* CertiK (October 2021)
+* CertiK (October 2021): https://www.certik.com/projects/threshold-network
 * ChainSecurity (November 2021): https://chainsecurity.com/security-audit/threshold-network/
 
 
