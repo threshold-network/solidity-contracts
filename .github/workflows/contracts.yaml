@@ -146,7 +146,8 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access=public --network=${{ github.event.inputs.environment }}
+        # We're using the workkflow only for purpose of testing PR#34. We don't want to publish the NPM package, hence `--dry-run`. 
+        run: npm publish --access=public --network=${{ github.event.inputs.environment }} --dry-run
 
       - name: Upload files needed for etherscan verification
         uses: actions/upload-artifact@v2
