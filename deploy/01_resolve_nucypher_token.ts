@@ -20,7 +20,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   } else {
     log(`deploying NuCypherToken stub`)
 
-    const NU_SUPPLY = to1e18("1000000000") // 1B NU
+    // To make a testnet deployment that is closer to the real setting we want
+    // to mint 1.34B NU tokens. The NuCyppher team deployed the token with a
+    // 3.8B supply, but most of it is on escrow in the `StakingEscrow` contract.
+    // The actual issued supply to date is around 1.34B, and it will still be
+    // around that number when the merge happens.
+    const NU_SUPPLY = to1e18("1340000000") // 1.34B NU
     await deployments.deploy("NuCypherToken", {
       contract: "TestToken",
       from: deployer,
