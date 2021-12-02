@@ -44,12 +44,21 @@ describe("StakerGovernor", () => {
     await tToken.mint(staker.address, initialStakerBalance)
     await tToken.mint(whale.address, whaleBalance)
 
+    const TokenholderGovStub = await ethers.getContractFactory(
+      "TestTokenholderGovernorStub"
+    )
+    tokenholderGov = await TokenholderGovStub.deploy()
+
     const TestGovernor = await ethers.getContractFactory("TestStakerGovernor")
-    tGov = await TestGovernor.deploy(tStaking.address, vetoer.address)
+    tGov = await TestGovernor.deploy(
+      tStaking.address,
+      tokenholderGov.address,
+      vetoer.address
+    )
     await tGov.deployed()
   })
 
-  describe("default parameters", () => {
+  describe("initial parameters", () => {
     it("quorum denominator is 10000", async () => {
       expect(await tGov.FRACTION_DENOMINATOR()).to.equal(10000)
     })
@@ -72,6 +81,11 @@ describe("StakerGovernor", () => {
       expect(await tGov.votingPeriod()).to.equal(
         secondsInADay.mul(10).div(averageBlockTime)
       )
+    })
+
+    it("executor is Tokenholder DAO's timelock", async () => {
+      const timelock = await tokenholderGov.timelock()
+      expect(await tGov.executor()).to.equal(timelock)
     })
   })
 

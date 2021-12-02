@@ -7,10 +7,28 @@ import "../governance/StakerGovernor.sol";
 import "../governance/TokenholderGovernor.sol";
 import "../token/T.sol";
 
+contract TestTokenholderGovernorStub {
+    string public name = "TokenholderGovernor";
+    address public timelock = address(0x42);
+}
+
 contract TestStakerGovernor is StakerGovernor {
-    constructor(IVotesHistory _tStaking, address _vetoer)
-        StakerGovernor(_tStaking, TimelockController(payable(0)), _vetoer)
+    constructor(
+        IVotesHistory tStaking,
+        TokenholderGovernor tokenholderGov,
+        address vetoer
+    )
+        StakerGovernor(
+            tStaking,
+            TimelockController(payable(0)),
+            tokenholderGov,
+            vetoer
+        )
     {}
+
+    function executor() external view returns (address) {
+        return _executor();
+    }
 }
 
 contract TestTokenholderGovernor is TokenholderGovernor {

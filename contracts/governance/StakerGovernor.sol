@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./StakerGovernorVotes.sol";
+import "./TokenholderGovernor.sol";
 import "../token/T.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
@@ -27,9 +28,12 @@ contract StakerGovernor is
     bytes32 public constant VETO_POWER =
         keccak256("Power to veto proposals in Threshold's Staker DAO");
 
+    address internal immutable manager;
+
     constructor(
         IVotesHistory _staking,
         TimelockController _timelock,
+        TokenholderGovernor tokenholderGovernor,
         address vetoer
     )
         Governor("StakerGovernor")
@@ -42,8 +46,15 @@ contract StakerGovernor is
         StakerGovernorVotes(_staking)
         GovernorTimelockControl(_timelock)
     {
+        require(
+            keccak256(bytes(tokenholderGovernor.name())) ==
+                keccak256(bytes("TokenholderGovernor")),
+            "Incorrect TokenholderGovernor"
+        );
+        manager = tokenholderGovernor.timelock();
+        require(manager != address(0), "No timelock founds");
         _setupRole(VETO_POWER, vetoer);
-        _setupRole(DEFAULT_ADMIN_ROLE, address(_timelock));
+        _setupRole(DEFAULT_ADMIN_ROLE, manager);
     }
 
     function propose(
@@ -132,13 +143,18 @@ contract StakerGovernor is
         return super._cancel(targets, values, calldatas, descriptionHash);
     }
 
-    // TODO: Override so the Tokenholder DAO is the executor
+    /// @notice Returns the address of the entity that acts as governance for
+    ///         this contract.
+    /// @dev By default, Governor assumes this is either the Governor contract
+    ///      itself, or a timelock if there's one configured. We override this
+    ///      here for the StakerGovernor contract so it's the Tokenholder DAO's
+    ///      Timelock, which we obtain at constructor time.
     function _executor()
         internal
         view
         override(Governor, GovernorTimelockControl)
         returns (address)
     {
-        return super._executor();
+        return manager;
     }
 }
