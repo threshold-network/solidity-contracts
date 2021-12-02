@@ -12,7 +12,6 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 
 contract TokenholderGovernor is
     AccessControl,
-    Governor,
     GovernorCountingSimple,
     TokenholderGovernorVotes,
     GovernorTimelockControl

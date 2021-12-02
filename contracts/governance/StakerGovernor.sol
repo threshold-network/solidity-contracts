@@ -13,7 +13,6 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 
 contract StakerGovernor is
     AccessControl,
-    Governor,
     GovernorCountingSimple,
     StakerGovernorVotes,
     GovernorTimelockControl
