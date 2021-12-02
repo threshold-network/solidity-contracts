@@ -23,6 +23,8 @@ describe("TokenholderGovernor", () => {
   let holderWhale
   let vetoer
 
+  let proposalThresholdFunction
+
   // Initial scenario has a total of 100,000 tokens
   // - 2 stakers, whose total amount is 60,000 tokens and it's initially liquid
   // - 2 holders, whose total amount of 40,000 tokens
@@ -81,6 +83,13 @@ describe("TokenholderGovernor", () => {
     await tGov.deployed()
 
     lastBlock = (await mineBlock()) - 1
+
+    // ethers.js can't resolve overloaded functions so we need to specify the
+    // fully qualified signature of the function to call it. This is the case of
+    // the `proposalThreshold()` function, as there's also a
+    // `proposalThreshold(uint256)`.
+    // See https://github.com/ethers-io/ethers.js/issues/1160
+    proposalThresholdFunction = tGov["proposalThreshold()"]
   })
 
   describe("default parameters", () => {
@@ -112,7 +121,7 @@ describe("TokenholderGovernor", () => {
   describe("when all tokens are liquid", () => {
     context("...but nobody delegated their vote...", () => {
       it("proposal threshold is as expected", async () => {
-        expect(await tGov.proposalThreshold()).to.equal(expectedThreshold)
+        expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
       })
       it("nobody can make a proposal", async () => {
         await expect(
@@ -141,7 +150,7 @@ describe("TokenholderGovernor", () => {
 
       context("some of them can create proposals", () => {
         it("proposal threshold remains as expected", async () => {
-          expect(await tGov.proposalThreshold()).to.equal(expectedThreshold)
+          expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
         })
         it("small fish can't make a proposal", async () => {
           await expect(
@@ -181,7 +190,7 @@ describe("TokenholderGovernor", () => {
 
     context("only stakerWhale has enough stake to propose", () => {
       it("proposal threshold is as expected", async () => {
-        expect(await tGov.proposalThreshold()).to.equal(expectedThreshold)
+        expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
       })
 
       it("stakerWhale can make a proposal", async () => {
@@ -207,7 +216,7 @@ describe("TokenholderGovernor", () => {
         })
 
         it("proposal threshold remains as expected", async () => {
-          expect(await tGov.proposalThreshold()).to.equal(expectedThreshold)
+          expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
         })
 
         it("stakerWhale still can make a proposal", async () => {

@@ -21,6 +21,8 @@ describe("StakerGovernor", () => {
   let whale
   let vetoer
 
+  let proposalThresholdFunction
+
   // Initial scenario is 2 stakers, whose total amount is 30,000 tokens.
   const initialStakerBalance = to1e18(75)
   const whaleBalance = to1e18(30000 - 75)
@@ -56,6 +58,13 @@ describe("StakerGovernor", () => {
       vetoer.address
     )
     await tGov.deployed()
+
+    // ethers.js can't resolve overloaded functions so we need to specify the
+    // fully qualified signature of the function to call it. This is the case of
+    // the `proposalThreshold()` function, as there's also a
+    // `proposalThreshold(uint256)`.
+    // See https://github.com/ethers-io/ethers.js/issues/1160
+    proposalThresholdFunction = tGov["proposalThreshold()"]
   })
 
   describe("initial parameters", () => {
@@ -108,7 +117,7 @@ describe("StakerGovernor", () => {
 
     context("only whale has enough stake to propose", () => {
       it("proposal threshold is as expected", async () => {
-        expect(await tGov.proposalThreshold()).to.equal(expectedThreshold)
+        expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
       })
 
       it("whale can make a proposal", async () => {
@@ -133,7 +142,7 @@ describe("StakerGovernor", () => {
       })
 
       it("proposal threshold is as expected", async () => {
-        expect(await tGov.proposalThreshold()).to.equal(newExpectedThreshold)
+        expect(await proposalThresholdFunction()).to.equal(newExpectedThreshold)
       })
 
       it("whale still can make a proposal", async () => {

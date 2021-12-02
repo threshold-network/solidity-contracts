@@ -96,7 +96,10 @@ abstract contract GovernorParameters is Governor {
     }
 
     /// @notice Compute the required amount of voting power to create a proposal
-    /// @dev
+    ///         at the last block height
+    /// @dev This function is implemented to comply with Governor API but we
+    ///      we will actually use `proposalThreshold(uint256 blockNumber)`,
+    ///      as in our DAOs the threshold amount changes according to supply.
     function proposalThreshold()
         public
         view
@@ -104,9 +107,19 @@ abstract contract GovernorParameters is Governor {
         override
         returns (uint256)
     {
+        return proposalThreshold(block.number - 1);
+    }
+
+    /// @notice Compute the required amount of voting power to create a proposal
+    /// @param blockNumber The block number to get the proposal threshold at
+    function proposalThreshold(uint256 blockNumber)
+        public
+        view
+        returns (uint256)
+    {
         return
-            (_getPastTotalSupply(block.number - 1) *
-                proposalThresholdNumerator) / FRACTION_DENOMINATOR;
+            (_getPastTotalSupply(blockNumber) * proposalThresholdNumerator) /
+            FRACTION_DENOMINATOR;
     }
 
     function votingDelay() public view virtual override returns (uint256) {

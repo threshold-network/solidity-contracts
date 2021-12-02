@@ -63,8 +63,9 @@ contract StakerGovernor is
         bytes[] memory calldatas,
         string memory description
     ) public override(Governor, IGovernor) returns (uint256) {
+        uint256 atLastBlock = block.number - 1;
         require(
-            getVotes(msg.sender, block.number - 1) >= proposalThreshold(),
+            getVotes(msg.sender, atLastBlock) >= proposalThreshold(atLastBlock),
             "Proposal below threshold"
         );
         return super.propose(targets, values, calldatas, description);
