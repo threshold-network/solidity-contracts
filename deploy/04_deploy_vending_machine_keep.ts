@@ -16,7 +16,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // minted T tokens. The remaining T tokens will be in the future distributed
   // between another instance of the VendingMachine (which will be wrapping NU
   // token) and a DAO treasury.
-
   const T_ALLOCATION_KEEP = tTotalSupply.mul(45).div(100)
 
   const vendingMachine = await deployments.deploy("VendingMachineKeep", {
@@ -28,7 +27,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   if (hre.network.tags.tenderly) {
     await hre.tenderly.verify({
-      name: "VendingMachine",
+      name: "VendingMachineKeep",
       address: vendingMachine.address,
     })
   }
@@ -36,5 +35,5 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
 export default func
 
-func.tags = ["VendingMachine"]
+func.tags = ["VendingMachineKeep"]
 func.dependencies = ["T", "KeepToken"]

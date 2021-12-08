@@ -15,7 +15,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   await execute("T", { from: deployer }, "mint", deployer, T_SUPPLY)
 
-  log(`minted ${from1e18(await read("T", "totalSupply"))} KEEP`)
+  log(`minted ${from1e18(await read("T", "totalSupply"))} T`)
 }
 
 export default func
