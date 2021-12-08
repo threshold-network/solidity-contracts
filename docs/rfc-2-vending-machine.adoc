@@ -98,8 +98,8 @@ The vending machine contracts are not upgradeable.
 
 === Ropsten Testnet
 
-* NU<>T Vending Machine address: TBD
-* KEEP<>T Vending Machine address: TBD
-* T token address: TBD
-* NU token address: TBD
-* KEEP token address: TBD
+* NU<>T Vending Machine address: `0x254439Dd2B841E19161bD050D4805029196E29C4`
+* KEEP<>T Vending Machine address: `0x8086213B97284149CD02748A0Bba1c4fa06e5Bf7`
+* T token address: `0xf0CDE285E536f96caeEFd86Baba88572009A90f7`
+* NU token address: `0x83f0af61478bC76Edae0dDC819cE36540289D92f`
+* KEEP token address: `0x29DDc999E81E585D500BcA2FD2A8bcA677680e72`
