@@ -33,7 +33,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     )
 
     console.log(
-      `transfered ${from1e18(
+      `transferred ${from1e18(
         T_TO_TRANSFER
       )} T to the VendingMachine for ${tokenSymbol}`
     )
