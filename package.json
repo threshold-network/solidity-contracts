@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@keep-network/keep-core": "^1.8.0-dev.4",
-    "@openzeppelin/contracts": "^4.3",
+    "@openzeppelin/contracts": "^4.4",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
   }
 }
