@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.9;
 
+import "./IVotesHistory.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -15,7 +16,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 ///      {delegateBySig}. Voting power can be publicly queried through
 ///      {getVotes} and {getPastVotes}.
 ///      NOTE: Extracted from OpenZeppelin ERCVotes.sol.
-abstract contract Checkpoints {
+abstract contract Checkpoints is IVotesHistory{
     struct Checkpoint {
         uint32 fromBlock;
         uint96 votes;

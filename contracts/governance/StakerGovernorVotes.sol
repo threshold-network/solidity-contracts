@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./GovernorParameters.sol";
-import "./IVotingHistory.sol";
+import "./IVotesHistory.sol";
 
 /// @title StakerGovernorVotes
 /// @notice Staker DAO voting power extraction from staked T positions,

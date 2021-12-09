@@ -6,10 +6,10 @@ interface IVotesHistory {
     function getPastVotes(address account, uint256 blockNumber)
         external
         view
-        returns (uint256);
+        returns (uint96);
 
     function getPastTotalSupply(uint256 blockNumber)
         external
         view
-        returns (uint256);
+        returns (uint96);
 }

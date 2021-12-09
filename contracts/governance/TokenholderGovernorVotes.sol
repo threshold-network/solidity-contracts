@@ -3,17 +3,16 @@
 pragma solidity 0.8.9;
 
 import "./GovernorParameters.sol";
-import "./IVotingHistory.sol";
-import "../token/T.sol";
+import "./IVotesHistory.sol";
 
 /// @title TokenholderGovernorVotes
 /// @notice Tokenholder DAO voting power extraction from both liquid and staked
 ///         T token positions, including legacy stakes (NU/KEEP).
 abstract contract TokenholderGovernorVotes is GovernorParameters {
-    T public immutable token;
+    IVotesHistory public immutable token;
     IVotesHistory public immutable staking;
 
-    constructor(T tokenAddress, IVotesHistory tStakingAddress) {
+    constructor(IVotesHistory tokenAddress, IVotesHistory tStakingAddress) {
         token = tokenAddress;
         staking = tStakingAddress;
     }
