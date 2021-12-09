@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 ///      {delegateBySig}. Voting power can be publicly queried through
 ///      {getVotes} and {getPastVotes}.
 ///      NOTE: Extracted from OpenZeppelin ERCVotes.sol.
-abstract contract Checkpoints is IVotesHistory{
+abstract contract Checkpoints is IVotesHistory {
     struct Checkpoint {
         uint32 fromBlock;
         uint96 votes;

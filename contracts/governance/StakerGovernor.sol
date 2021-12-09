@@ -56,6 +56,15 @@ contract StakerGovernor is
         _setupRole(DEFAULT_ADMIN_ROLE, manager);
     }
 
+    function cancel(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    ) external onlyRole(VETO_POWER) returns (uint256) {
+        return _cancel(targets, values, calldatas, descriptionHash);
+    }
+
     function propose(
         address[] memory targets,
         uint256[] memory values,
@@ -68,15 +77,6 @@ contract StakerGovernor is
             "Proposal below threshold"
         );
         return super.propose(targets, values, calldatas, description);
-    }
-
-    function cancel(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        bytes32 descriptionHash
-    ) external onlyRole(VETO_POWER) returns (uint256) {
-        return _cancel(targets, values, calldatas, descriptionHash);
     }
 
     function quorum(uint256 blockNumber)
