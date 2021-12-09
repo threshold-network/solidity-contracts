@@ -22,6 +22,7 @@ abstract contract Checkpoints is IVotesHistory{
         uint96 votes;
     }
 
+    // slither-disable-next-line uninitialized-state
     mapping(address => address) internal _delegates;
     mapping(address => uint128[]) internal _checkpoints;
     uint128[] internal _totalSupplyCheckpoints;

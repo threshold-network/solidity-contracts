@@ -75,7 +75,7 @@ contract StakerGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    ) public onlyRole(VETO_POWER) returns (uint256) {
+    ) external onlyRole(VETO_POWER) returns (uint256) {
         return _cancel(targets, values, calldatas, descriptionHash);
     }
 

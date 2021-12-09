@@ -64,7 +64,7 @@ abstract contract GovernorParameters is Governor {
     /// @notice Update the voting delay. This operation can only be performed
     ///         through a governance proposal. Emits a `VotingDelaySet` event.
     function setVotingDelay(uint256 newVotingDelay)
-        public
+        external
         virtual
         onlyGovernance
     {
@@ -74,7 +74,7 @@ abstract contract GovernorParameters is Governor {
     /// @notice Update the voting period. This operation can only be performed
     ///         through a governance proposal. Emits a `VotingPeriodSet` event.
     function setVotingPeriod(uint256 newVotingPeriod)
-        public
+        external
         virtual
         onlyGovernance
     {
@@ -174,6 +174,7 @@ abstract contract GovernorParameters is Governor {
 
     /// @notice Compute the past total voting power at a particular block
     /// @param blockNumber The block number to get the vote power at
+    // slither-disable-next-line dead-code
     function _getPastTotalSupply(uint256 blockNumber)
         internal
         view
