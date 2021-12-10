@@ -129,7 +129,9 @@ describe("TokenStaking", () => {
     await nucypherStakingMock.deployed()
 
     const TokenStaking = await ethers.getContractFactory("TokenStaking")
-    tokenStaking = await TokenStaking.deploy(
+    tokenStaking = await TokenStaking.deploy()
+    await tokenStaking.deployed()
+    await tokenStaking.initialize(
       tToken.address,
       keepStakingMock.address,
       nucypherStakingMock.address,
@@ -137,7 +139,6 @@ describe("TokenStaking", () => {
       nucypherVendingMachine.address,
       keepStake.address
     )
-    await tokenStaking.deployed()
 
     const ApplicationMock = await ethers.getContractFactory("ApplicationMock")
     application1Mock = await ApplicationMock.deploy(tokenStaking.address)
@@ -159,7 +160,6 @@ describe("TokenStaking", () => {
 
     context("when caller is the governance", () => {
       let tx
-
       beforeEach(async () => {
         tx = await tokenStaking.connect(deployer).setMinimumStakeAmount(amount)
       })
@@ -6865,7 +6865,9 @@ describe("TokenStaking", () => {
       const ExtendedTokenStaking = await ethers.getContractFactory(
         "ExtendedTokenStaking"
       )
-      extendedTokenStaking = await ExtendedTokenStaking.deploy(
+      extendedTokenStaking = await ExtendedTokenStaking.deploy()
+      await extendedTokenStaking.deployed()
+      await extendedTokenStaking.initialize(
         tToken.address,
         keepStakingMock.address,
         nucypherStakingMock.address,
@@ -6873,7 +6875,6 @@ describe("TokenStaking", () => {
         nucypherVendingMachine.address,
         keepStake.address
       )
-      await extendedTokenStaking.deployed()
     })
 
     context("when all authorized applications with 0 authorization", () => {

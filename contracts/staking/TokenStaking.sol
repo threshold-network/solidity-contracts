@@ -3,19 +3,19 @@
 pragma solidity 0.8.9;
 
 import "./IApplication.sol";
-import "./IStaking.sol";
 import "./ILegacyTokenStaking.sol";
-import "./IApplication.sol";
+import "./IStaking.sol";
 import "./KeepStake.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
 import "../utils/PercentUtils.sol";
 import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
 ///         Apart from the basic usage of enabling T stakes, it also acts as a
@@ -24,7 +24,12 @@ import "@openzeppelin/contracts/utils/Address.sol";
 ///         that run on the Threshold Network. Note that legacy NU/KEEP staking
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
-contract TokenStaking is Ownable, IStaking, Checkpoints {
+contract TokenStaking is
+    Initializable,
+    OwnableUpgradeable,
+    IStaking,
+    Checkpoints
+{
     using SafeERC20 for T;
     using PercentUtils for uint256;
     using SafeCast for uint256;
@@ -68,15 +73,15 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
     uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
 
-    T internal immutable token;
-    IKeepTokenStaking internal immutable keepStakingContract;
-    KeepStake internal immutable keepStake;
-    INuCypherStakingEscrow internal immutable nucypherStakingContract;
+    T internal token;
+    IKeepTokenStaking internal keepStakingContract;
+    KeepStake internal keepStake;
+    INuCypherStakingEscrow internal nucypherStakingContract;
 
-    uint256 internal immutable keepFloatingPointDivisor;
-    uint256 internal immutable keepRatio;
-    uint256 internal immutable nucypherFloatingPointDivisor;
-    uint256 internal immutable nucypherRatio;
+    uint256 internal keepFloatingPointDivisor;
+    uint256 internal keepRatio;
+    uint256 internal nucypherFloatingPointDivisor;
+    uint256 internal nucypherRatio;
 
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
@@ -185,20 +190,22 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         _;
     }
 
+    // constructor() {}
+
     /// @param _token Address of T token contract
     /// @param _keepStakingContract Address of Keep staking contract
     /// @param _nucypherStakingContract Address of NuCypher staking contract
     /// @param _keepVendingMachine Address of Keep vending machine
     /// @param _nucypherVendingMachine Address of NuCypher vending machine
     /// @param _keepStake Address of Keep contract with grant owners
-    constructor(
+    function initialize(
         T _token,
         IKeepTokenStaking _keepStakingContract,
         INuCypherStakingEscrow _nucypherStakingContract,
         VendingMachine _keepVendingMachine,
         VendingMachine _nucypherVendingMachine,
         KeepStake _keepStake
-    ) {
+    ) public initializer {
         // calls to check contracts are working
         require(
             _token.totalSupply() > 0 &&
