@@ -209,18 +209,20 @@ contract ApplicationMock is IApplication {
         tokenStaking = _tokenStaking;
     }
 
-    function authorizationIncreased(address operator, uint96 amount)
-        external
-        override
-    {
-        operators[operator].authorized = amount;
+    function authorizationIncreased(
+        address operator,
+        uint96,
+        uint96 toAmount
+    ) external override {
+        operators[operator].authorized = toAmount;
     }
 
-    function authorizationDecreaseRequested(address operator, uint96 amount)
-        external
-        override
-    {
-        operators[operator].deauthorizingTo = amount;
+    function authorizationDecreaseRequested(
+        address operator,
+        uint96,
+        uint96 toAmount
+    ) external override {
+        operators[operator].deauthorizingTo = toAmount;
     }
 
     function approveAuthorizationDecrease(address operator) external {
@@ -243,31 +245,31 @@ contract ApplicationMock is IApplication {
         tokenStaking.seize(amount, rewardMultiplier, notifier, _operators);
     }
 
-    function involuntaryAuthorizationDecrease(address operator, uint96 amount)
-        public
-        virtual
-        override
-    {
+    function involuntaryAuthorizationDecrease(
+        address operator,
+        uint96,
+        uint96 toAmount
+    ) public virtual override {
         OperatorStruct storage operatorStruct = operators[operator];
-        require(amount != operatorStruct.authorized, "Nothing to decrease");
-        uint96 decrease = operatorStruct.authorized - amount;
+        require(toAmount != operatorStruct.authorized, "Nothing to decrease");
+        uint96 decrease = operatorStruct.authorized - toAmount;
         if (operatorStruct.deauthorizingTo > decrease) {
             operatorStruct.deauthorizingTo -= decrease;
         } else {
             operatorStruct.deauthorizingTo = 0;
         }
-        operatorStruct.authorized = amount;
+        operatorStruct.authorized = toAmount;
     }
 }
 
 contract BrokenApplicationMock is ApplicationMock {
     constructor(TokenStaking _tokenStaking) ApplicationMock(_tokenStaking) {}
 
-    function involuntaryAuthorizationDecrease(address, uint96)
-        public
-        pure
-        override
-    {
+    function involuntaryAuthorizationDecrease(
+        address,
+        uint96,
+        uint96
+    ) public pure override {
         revert("Broken application");
     }
 }
@@ -277,11 +279,12 @@ contract ExpensiveApplicationMock is ApplicationMock {
 
     constructor(TokenStaking _tokenStaking) ApplicationMock(_tokenStaking) {}
 
-    function involuntaryAuthorizationDecrease(address operator, uint96 amount)
-        public
-        override
-    {
-        super.involuntaryAuthorizationDecrease(operator, amount);
+    function involuntaryAuthorizationDecrease(
+        address operator,
+        uint96 fromAmount,
+        uint96 toAmount
+    ) public override {
+        super.involuntaryAuthorizationDecrease(operator, fromAmount, toAmount);
         for (uint256 i = 0; i < 12; i++) {
             dummy.push(i);
         }
