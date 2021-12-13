@@ -7,6 +7,8 @@ import "hardhat-gas-reporter"
 import "hardhat-deploy"
 import "@tenderly/hardhat-tenderly"
 
+require("hardhat-contract-sizer")
+
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
@@ -15,7 +17,7 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 100,
+            runs: 1,
           },
         },
       },
