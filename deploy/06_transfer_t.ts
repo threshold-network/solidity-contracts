@@ -10,7 +10,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const VendingMachineKeep = await deployments.get("VendingMachineKeep")
   const VendingMachineNuCypher = await deployments.get("VendingMachineNuCypher")
 
-  const vendinMachines = [
+  const vendingMachines = [
     { tokenSymbol: "KEEP", vendingMachineAddress: VendingMachineKeep.address },
     {
       tokenSymbol: "NU",
@@ -23,7 +23,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // be sent to the DAO treasury.
   const T_TO_TRANSFER = to1e18("4500000000") // 4.5B T
 
-  for (const { tokenSymbol, vendingMachineAddress } of vendinMachines) {
+  for (const { tokenSymbol, vendingMachineAddress } of vendingMachines) {
     await execute(
       "T",
       { from: deployer },
