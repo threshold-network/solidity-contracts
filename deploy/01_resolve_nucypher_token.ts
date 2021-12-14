@@ -15,7 +15,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     NuCypherToken &&
     helpers.address.isValid(NuCypherToken.address)
   ) {
-    log(`using external NuCypherToken at ${NuCypherToken.address}`)
+    log(`using existing NuCypherToken at ${NuCypherToken.address}`)
+
+    // Save deployment artifact of external contract to include it in the package.
     await deployments.save("NuCypherToken", NuCypherToken)
   } else {
     log(`deploying NuCypherToken stub`)
@@ -26,6 +28,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     // The actual issued supply to date is around 1.34B, and it will still be
     // around that number when the merge happens.
     const NU_SUPPLY = to1e18("1340000000") // 1.34B NU
+
     await deployments.deploy("NuCypherToken", {
       contract: "TestToken",
       from: deployer,
