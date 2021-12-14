@@ -146,7 +146,7 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access=public --network=${{ github.event.inputs.environment }}
+        run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }}
 
       - name: Upload files needed for etherscan verification
         uses: actions/upload-artifact@v2
