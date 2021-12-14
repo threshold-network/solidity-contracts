@@ -4,7 +4,7 @@ import { DeployFunction } from "hardhat-deploy/types"
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments, helpers } = hre
   const { deployer } = await getNamedAccounts()
-  const { execute, read } = deployments
+  const { execute } = deployments
   const { to1e18, from1e18 } = helpers.number
 
   const VendingMachineKeep = await deployments.get("VendingMachineKeep")
