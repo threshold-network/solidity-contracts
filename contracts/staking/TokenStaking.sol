@@ -72,15 +72,14 @@ contract TokenStaking is
     uint256 internal constant SLASHING_REWARD_PERCENT = 5;
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
     uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
+    uint256 internal constant CONVERSION_DIVISOR = 10**(18 - 3);
 
     T internal token;
     IKeepTokenStaking internal keepStakingContract;
     KeepStake internal keepStake;
     INuCypherStakingEscrow internal nucypherStakingContract;
 
-    uint256 internal keepFloatingPointDivisor;
     uint256 internal keepRatio;
-    uint256 internal nucypherFloatingPointDivisor;
     uint256 internal nucypherRatio;
 
     uint96 public minTStakeAmount;
@@ -190,8 +189,6 @@ contract TokenStaking is
         _;
     }
 
-    // constructor() {}
-
     /// @param _token Address of T token contract
     /// @param _keepStakingContract Address of Keep staking contract
     /// @param _nucypherStakingContract Address of NuCypher staking contract
@@ -205,7 +202,7 @@ contract TokenStaking is
         VendingMachine _keepVendingMachine,
         VendingMachine _nucypherVendingMachine,
         KeepStake _keepStake
-    ) public initializer {
+    ) external initializer {
         // calls to check contracts are working
         require(
             _token.totalSupply() > 0 &&
@@ -219,10 +216,7 @@ contract TokenStaking is
         keepStake = _keepStake;
         nucypherStakingContract = _nucypherStakingContract;
 
-        keepFloatingPointDivisor = _keepVendingMachine.FLOATING_POINT_DIVISOR();
         keepRatio = _keepVendingMachine.ratio();
-        nucypherFloatingPointDivisor = _nucypherVendingMachine
-            .FLOATING_POINT_DIVISOR();
         nucypherRatio = _nucypherVendingMachine.ratio();
     }
 
@@ -774,7 +768,7 @@ contract TokenStaking is
         OperatorInfo storage operatorStruct = operators[operator];
         // rounding amount to guarantee exact T<>NU conversion in both ways,
         // so there's no remainder after unstaking
-        (, uint96 tRemainder) = tToNu(amount);
+        (, uint96 tRemainder) = convertFromT(amount, nucypherRatio);
         amount -= tRemainder;
         require(
             amount > 0 &&
@@ -845,7 +839,7 @@ contract TokenStaking is
         (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
             .getDelegationInfo(operator);
 
-        (uint96 realKeepInTStake, ) = keepToT(keepStakeAmount);
+        (uint96 realKeepInTStake, ) = convertToT(keepStakeAmount, keepRatio);
         uint96 oldKeepInTStake = operatorStruct.keepInTStake;
 
         require(
@@ -896,7 +890,7 @@ contract TokenStaking is
         uint256 nuStakeAmount = nucypherStakingContract.getAllTokens(
             operatorStruct.owner
         );
-        (uint96 realNuInTStake, ) = nuToT(nuStakeAmount);
+        (uint96 realNuInTStake, ) = convertToT(nuStakeAmount, nucypherRatio);
         uint96 oldNuInTStake = operatorStruct.nuInTStake;
         require(oldNuInTStake > realNuInTStake, "There is no discrepancy");
 
@@ -1092,7 +1086,10 @@ contract TokenStaking is
         override
         returns (uint256 nuAmount)
     {
-        (nuAmount, ) = tToNu(operators[operator].nuInTStake);
+        (nuAmount, ) = convertFromT(
+            operators[operator].nuInTStake,
+            nucypherRatio
+        );
     }
 
     /// @notice Gets the stake owner, the beneficiary and the authorizer
@@ -1341,7 +1338,7 @@ contract TokenStaking is
         if (tAmountToSlash > 0 && operatorStruct.keepInTStake > 0) {
             (uint256 keepStakeAmount, , ) = keepStakingContract
                 .getDelegationInfo(slashing.operator);
-            (uint96 tAmount, ) = keepToT(keepStakeAmount);
+            (uint96 tAmount, ) = convertToT(keepStakeAmount, keepRatio);
             operatorStruct.keepInTStake = tAmount;
 
             tAmountToSlash = seizeKeep(
@@ -1455,7 +1452,10 @@ contract TokenStaking is
             tPenalty = operatorStruct.keepInTStake;
         }
 
-        (uint256 keepPenalty, uint96 tRemainder) = tToKeep(tPenalty);
+        (uint256 keepPenalty, uint96 tRemainder) = convertFromT(
+            tPenalty,
+            keepRatio
+        );
         if (keepPenalty == 0) {
             return tAmountToSlash;
         }
@@ -1493,7 +1493,10 @@ contract TokenStaking is
             tPenalty = operatorStruct.nuInTStake;
         }
 
-        (uint256 nuPenalty, uint96 tRemainder) = tToNu(tPenalty);
+        (uint256 nuPenalty, uint96 tRemainder) = convertFromT(
+            tPenalty,
+            nucypherRatio
+        );
         if (nuPenalty == 0) {
             return tAmountToSlash;
         }
@@ -1600,7 +1603,7 @@ contract TokenStaking is
             owner,
             operator
         );
-        (uint96 tAmount, ) = nuToT(nuStakeAmount);
+        (uint96 tAmount, ) = convertToT(nuStakeAmount, nucypherRatio);
         return tAmount;
     }
 
@@ -1611,60 +1614,33 @@ contract TokenStaking is
             operator,
             address(this)
         );
-        (uint96 tAmount, ) = keepToT(keepStakeAmount);
+        (uint96 tAmount, ) = convertToT(keepStakeAmount, keepRatio);
         return tAmount;
     }
 
-    /// @notice Returns the T token amount that's obtained from `amount` wrapped
-    ///         tokens (KEEP), and the remainder that can't be converted.
-    function keepToT(uint256 keepAmount)
+    /// @notice Returns the T token amount that's obtained from `amount` legacy
+    ///         tokens for the given `ratio`, and the remainder that can't be
+    ///         converted.
+    function convertToT(uint256 amount, uint256 ratio)
         internal
-        view
-        returns (uint96 tAmount, uint256 keepRemainder)
+        pure
+        returns (uint96 tAmount, uint256 remainder)
     {
-        keepRemainder = keepAmount % keepFloatingPointDivisor;
-        uint256 convertibleAmount = keepAmount - keepRemainder;
-        tAmount = ((convertibleAmount * keepRatio) / keepFloatingPointDivisor)
-            .toUint96();
+        remainder = amount % CONVERSION_DIVISOR;
+        uint256 convertibleAmount = amount - remainder;
+        tAmount = ((convertibleAmount * ratio) / CONVERSION_DIVISOR).toUint96();
     }
 
-    /// @notice The amount of wrapped tokens (KEEP) that's obtained from
-    ///         `amount` T tokens, and the remainder that can't be converted.
-    function tToKeep(uint96 tAmount)
+    /// @notice Returns the amount of legacy tokens that's obtained from
+    ///         `tAmount` T tokens for the given `ratio`, and the T remainder
+    ///         that can't be converted.
+    function convertFromT(uint96 tAmount, uint256 ratio)
         internal
-        view
-        returns (uint256 keepAmount, uint96 tRemainder)
+        pure
+        returns (uint256 amount, uint96 tRemainder)
     {
-        tRemainder = (tAmount % keepRatio).toUint96();
+        tRemainder = (tAmount % ratio).toUint96();
         uint256 convertibleAmount = tAmount - tRemainder;
-        keepAmount = (convertibleAmount * keepFloatingPointDivisor) / keepRatio;
-    }
-
-    /// @notice Returns the T token amount that's obtained from `amount` wrapped
-    ///         tokens (NU), and the remainder that can't be converted.
-    function nuToT(uint256 nuAmount)
-        internal
-        view
-        returns (uint96 tAmount, uint256 nuRemainder)
-    {
-        nuRemainder = nuAmount % nucypherFloatingPointDivisor;
-        uint256 convertibleAmount = nuAmount - nuRemainder;
-        tAmount = ((convertibleAmount * nucypherRatio) /
-            nucypherFloatingPointDivisor).toUint96();
-    }
-
-    /// @notice The amount of wrapped tokens (NU) that's obtained from
-    ///         `amount` T tokens, and the remainder that can't be converted.
-    function tToNu(uint96 tAmount)
-        internal
-        view
-        returns (uint256 nuAmount, uint96 tRemainder)
-    {
-        //slither-disable-next-line weak-prng
-        tRemainder = (tAmount % nucypherRatio).toUint96();
-        uint256 convertibleAmount = tAmount - tRemainder;
-        nuAmount =
-            (convertibleAmount * nucypherFloatingPointDivisor) /
-            nucypherRatio;
+        amount = (convertibleAmount * CONVERSION_DIVISOR) / ratio;
     }
 }
