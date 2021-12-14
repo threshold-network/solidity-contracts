@@ -72,7 +72,7 @@ const config: HardhatUserConfig = {
     deployments: {
       // For hardhat environment we can fork the mainnet, so we need to point it
       // to the contract artifacts.
-      // hardhat: ["./external/mainnet"],
+      hardhat: process.env.FORKING_URL ? ["./external/mainnet"] : [],
       // For development environment we expect the local dependencies to be linked
       // with `yarn link` command.
       development: ["node_modules/@keep-network/keep-core/artifacts"],
