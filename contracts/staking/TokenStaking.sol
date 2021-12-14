@@ -16,19 +16,18 @@
 pragma solidity 0.8.9;
 
 import "./IApplication.sol";
-import "./IStaking.sol";
 import "./ILegacyTokenStaking.sol";
-import "./IApplication.sol";
+import "./IStaking.sol";
 import "./KeepStake.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
 import "../utils/PercentUtils.sol";
 import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
 ///         Apart from the basic usage of enabling T stakes, it also acts as a
@@ -37,7 +36,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 ///         that run on the Threshold Network. Note that legacy NU/KEEP staking
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
-contract TokenStaking is Ownable, IStaking, Checkpoints {
+contract TokenStaking is Initializable, IStaking, Checkpoints {
     using SafeERC20 for T;
     using PercentUtils for uint256;
     using SafeCast for uint256;
@@ -91,6 +90,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     uint256 internal immutable nucypherFloatingPointDivisor;
     uint256 internal immutable nucypherRatio;
 
+    address public governance;
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
     uint96 public stakeDiscrepancyPenalty;
@@ -171,9 +171,13 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         address indexed oldOwner,
         address indexed newOwner
     );
+    event GovernanceTransferred(
+        address indexed previousGovernance,
+        address indexed newGovernance
+    );
 
     modifier onlyGovernance() {
-        require(owner() == msg.sender, "Caller is not the governance");
+        require(governance == msg.sender, "Caller is not the governance");
         _;
     }
 
@@ -234,6 +238,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         nucypherFloatingPointDivisor = _nucypherVendingMachine
             .FLOATING_POINT_DIVISOR();
         nucypherRatio = _nucypherVendingMachine.ratio();
+    }
+
+    function initialize() external initializer {
+        _transferGovernance(msg.sender);
     }
 
     //
@@ -1057,6 +1065,15 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         delegate(operator, delegatee);
     }
 
+    /// @notice Transfers ownership of the contract to `newGuvnor`.
+    function transferGovernance(address newGuvnor)
+        external
+        virtual
+        onlyGovernance
+    {
+        _transferGovernance(newGuvnor);
+    }
+
     //
     //
     // Auxiliary functions
@@ -1632,6 +1649,12 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         );
         (uint96 tAmount, ) = nuToT(nuStakeAmount);
         return tAmount;
+    }
+
+    function _transferGovernance(address newGuvnor) internal virtual {
+        address oldGuvnor = governance;
+        governance = newGuvnor;
+        emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
     /// @notice Returns amount of Keep stake in the Keep staking contract for the specified operator.
