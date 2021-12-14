@@ -14,7 +14,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
@@ -24,12 +23,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 ///         that run on the Threshold Network. Note that legacy NU/KEEP staking
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
-contract TokenStaking is
-    Initializable,
-    OwnableUpgradeable,
-    IStaking,
-    Checkpoints
-{
+contract TokenStaking is Initializable, IStaking, Checkpoints {
     using SafeERC20 for T;
     using PercentUtils for uint256;
     using SafeCast for uint256;
@@ -82,6 +76,7 @@ contract TokenStaking is
     uint256 internal keepRatio;
     uint256 internal nucypherRatio;
 
+    address public governance;
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
     uint96 public stakeDiscrepancyPenalty;
@@ -158,9 +153,13 @@ contract TokenStaking is
         address indexed oldOwner,
         address indexed newOwner
     );
+    event GovernanceTransferred(
+        address indexed previousGovernance,
+        address indexed newGovernance
+    );
 
     modifier onlyGovernance() {
-        require(owner() == msg.sender, "Caller is not the governance");
+        require(governance == msg.sender, "Caller is not the governance");
         _;
     }
 
@@ -203,6 +202,7 @@ contract TokenStaking is
         VendingMachine _nucypherVendingMachine,
         KeepStake _keepStake
     ) external initializer {
+        transferGovernance(msg.sender);
         // calls to check contracts are working
         require(
             _token.totalSupply() > 0 &&
@@ -1164,6 +1164,13 @@ contract TokenStaking is
             operator,
             deauthorizingTo
         );
+    }
+
+    /// @notice Transfers ownership of the contract to `newGuvnor`.
+    function transferGovernance(address newGuvnor) public virtual {
+        address oldGuvnor = governance;
+        governance = newGuvnor;
+        emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination

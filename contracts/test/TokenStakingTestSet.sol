@@ -298,24 +298,6 @@ contract ManagedGrantMock {
 }
 
 contract ExtendedTokenStaking is TokenStaking {
-    // constructor(
-    //     T _token,
-    //     IKeepTokenStaking _keepStakingContract,
-    //     INuCypherStakingEscrow _nucypherStakingContract,
-    //     VendingMachine _keepVendingMachine,
-    //     VendingMachine _nucypherVendingMachine,
-    //     KeepStake _keepStake
-    // )
-    //     TokenStaking(
-    //         _token,
-    //         _keepStakingContract,
-    //         _nucypherStakingContract,
-    //         _keepVendingMachine,
-    //         _nucypherVendingMachine,
-    //         _keepStake
-    //     )
-    // {}
-
     function cleanAuthorizedApplications(
         address operator,
         uint256 numberToDelete
