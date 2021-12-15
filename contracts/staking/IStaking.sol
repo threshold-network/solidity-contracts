@@ -350,14 +350,20 @@ interface IStaking {
     function getSlashingQueueLength() external view returns (uint256);
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
-    /// @dev    For example, if the given operator has 10 T, 20 KEEP, and
-    ///         30 NU staked, their max authorization is 40, then `getMinStaked`
-    ///         for that operator returns 0 for KEEP stake type, 10 for NU stake
-    ///         type, and 0 for T stake type. In other words, minimum staked
-    ///         amount for the given stake type is the minimum amount of stake
-    ///         of the given type that needs to be preserved in the contract to
-    ///         satisfy the maximum application authorization given the amounts
-    ///         of other stake types for that operator.
+    /// @dev For example, suppose the given operator has 10 T, 20 T worth
+    ///      of KEEP, and 30 T worth of NU all staked, and the maximum
+    ///      application authorization is 40 T, then `getMinStaked` for
+    ///      that operator returns:
+    ///          * 0 T if KEEP stake type specified i.e.
+    ///            min = 40 T max - (10 T + 30 T worth of NU) = 0 T
+    ///          * 10 T if NU stake type specified i.e.
+    ///            min = 40 T max - (10 T + 20 T worth of KEEP) = 10 T
+    ///          * 0 T if T stake type specified i.e.
+    ///            min = 40 T max - (20 T worth of KEEP + 30 T worth of NU) < 0 T
+    ///      In other words, the minimum stake amount for the specified
+    ///      stake type is the minimum amount of stake of the given type
+    ///      needed to satisfy the maximum application authorization given
+    ///      the staked amounts of the other stake types for that operator.
     function getMinStaked(address operator, StakeType stakeTypes)
         external
         view
