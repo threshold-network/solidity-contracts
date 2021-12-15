@@ -506,11 +506,11 @@ Returns the authorized stake amount of the operator for the application.
 Returns staked amount of T, Keep and Nu for the specified operator. All values
 are in T denomination.
 
-==== `getStartTStakingTimestamp(address operator) external view returns (uint256)`
+==== `getStartStakingTimestamp(address operator) external view returns (uint256)`
 
-Returns start staking timestamp for T stake. This value is set at most once, 
-and only when a stake is created with T tokens. If a stake is created from 
-a legacy stake, this value will remain as zero.
+Returns start staking timestamp for T/NU stake. This value is set at most once, 
+and only when a stake is created with T or NU tokens. If a stake is created 
+from a legacy KEEP stake, this value will remain as zero.
 
 ==== `stakedNu(address operator) external view returns (uint256)`
 

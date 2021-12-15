@@ -317,11 +317,11 @@ interface IStaking {
             uint96 nuInTStake
         );
 
-    /// @notice Returns start staking timestamp for T stake.
+    /// @notice Returns start staking timestamp for T/NU stake.
     /// @dev    This value is set at most once, and only when a stake is created
-    ///         with T tokens. If a stake is created from a legacy stake,
-    ///         this value will remain as zero
-    function getStartTStakingTimestamp(address operator)
+    ///         with T or NU tokens. If a stake is created from a legacy KEEP
+    ///         stake, this value will remain as zero
+    function getStartStakingTimestamp(address operator)
         external
         view
         returns (uint256);
