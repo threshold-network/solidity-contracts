@@ -1,5 +1,8 @@
-import { HardhatRuntimeEnvironment } from "hardhat/types"
-import { DeployFunction } from "hardhat-deploy/types"
+import type {
+  HardhatRuntimeEnvironment,
+  HardhatNetworkConfig,
+} from "hardhat/types"
+import type { DeployFunction } from "hardhat-deploy/types"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments, helpers } = hre
@@ -10,15 +13,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const NuCypherToken = await deployments.getOrNull("NuCypherToken")
 
-  if (
-    hre.network.name === "mainnet" &&
-    NuCypherToken &&
-    helpers.address.isValid(NuCypherToken.address)
-  ) {
+  if (NuCypherToken && helpers.address.isValid(NuCypherToken.address)) {
     log(`using existing NuCypherToken at ${NuCypherToken.address}`)
 
     // Save deployment artifact of external contract to include it in the package.
     await deployments.save("NuCypherToken", NuCypherToken)
+  } else if (
+    hre.network.name !== "hardhat" ||
+    (hre.network.config as HardhatNetworkConfig).forking.enabled
+  ) {
+    throw new Error("deployed NuCypherToken contract not found")
   } else {
     log(`deploying NuCypherToken stub`)
 
