@@ -81,12 +81,18 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
     uint256 internal constant CONVERSION_DIVISOR = 10**(18 - 3);
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IKeepTokenStaking internal immutable keepStakingContract;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     KeepStake internal immutable keepStake;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     INuCypherStakingEscrow internal immutable nucypherStakingContract;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 internal immutable keepRatio;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 internal immutable nucypherRatio;
 
     address public governance;
@@ -103,7 +109,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     address[] public applications;
 
     SlashingEvent[] public slashingQueue;
-    uint256 public slashingQueueIndex = 0;
+    uint256 public slashingQueueIndex;
 
     event OperatorStaked(
         StakeType indexed stakeType,
@@ -211,6 +217,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @param _keepVendingMachine Address of Keep vending machine
     /// @param _nucypherVendingMachine Address of NuCypher vending machine
     /// @param _keepStake Address of Keep contract with grant owners
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         T _token,
         IKeepTokenStaking _keepStakingContract,
