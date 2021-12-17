@@ -23,7 +23,8 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
-    "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network"
+    "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network",
+    "prepare": "tsc -p tsconfig.export.json"
   },
   "devDependencies": {
     "@keep-network/hardhat-helpers": "^0.4.1-pre.2",

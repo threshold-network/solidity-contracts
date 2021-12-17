@@ -4,6 +4,7 @@ artifacts/
 build/
 cache/
 deployments/
+export/
 export.json
 
 typechain/
