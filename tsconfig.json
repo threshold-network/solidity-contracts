@@ -1,6 +1,4 @@
 {
-  "files": [
-    "./hardhat.config.ts",
-  ],
+  "files": ["./hardhat.config.ts"],
   "include": ["./deploy"]
 }
