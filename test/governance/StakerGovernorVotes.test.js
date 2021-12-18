@@ -1,9 +1,7 @@
 const { expect } = require("chai")
-const {
-  lastBlockNumber,
-  mineBlock,
-  to1e18,
-} = require("../helpers/contract-test-helpers")
+
+const { mineBlocks, lastBlockNumber } = helpers.time
+const { to1e18 } = helpers.number
 
 describe("StakerGovernorVotes", () => {
   let tToken
@@ -67,7 +65,7 @@ describe("StakerGovernorVotes", () => {
       beforeEach(async () => {
         await tToken.connect(staker).approve(tStaking.address, stake)
         await tStaking.connect(staker).deposit(stake)
-        lastBlock = (await mineBlock()) - 1
+        lastBlock = (await mineBlocks(1)) - 1
       })
 
       it("liquid balance should decrease by 4", async () => {
@@ -104,7 +102,7 @@ describe("StakerGovernorVotes", () => {
         await tToken.connect(staker).approve(tStaking.address, stake)
         await tStaking.connect(staker).deposit(stake)
         await tStaking.connect(staker).withdraw(withdrawal)
-        lastBlock = (await mineBlock()) - 1
+        lastBlock = (await mineBlocks(1)) - 1
       })
 
       it("liquid balance should increase by 2", async () => {

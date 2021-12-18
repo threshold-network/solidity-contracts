@@ -1,5 +1,7 @@
 const { expect } = require("chai")
-const { to1e18, lastBlockNumber } = require("../helpers/contract-test-helpers")
+
+const { lastBlockNumber } = helpers.time
+const { to1e18 } = helpers.number
 
 describe("TokenholderGovernorVotes", () => {
   let tToken
