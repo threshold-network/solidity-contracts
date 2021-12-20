@@ -12,6 +12,15 @@ contract TestTokenholderGovernorStub {
     address public timelock = address(0x42);
 }
 
+contract TestTokenholderGovernorStubV2 {
+    string public name = "TokenholderGovernor";
+    address public timelock;
+
+    constructor(address _timelock) {
+        timelock = _timelock;
+    }
+}
+
 contract TestStakerGovernor is StakerGovernor {
     constructor(
         IVotesHistory tStaking,
