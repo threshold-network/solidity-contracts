@@ -9,4 +9,13 @@ interface ITestKeepTokenStaking is IKeepTokenStaking {
         address operator,
         address operatorContract
     ) external;
+
+    function commitTopUp(address operator) external;
+
+    function undelegate(address operator) external;
+
+    function getLocks(address operator)
+        external
+        view
+        returns (address[] memory creators, uint256[] memory expirations);
 }
