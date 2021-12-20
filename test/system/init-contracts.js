@@ -1,3 +1,7 @@
+const { helpers } = require("hardhat")
+const { impersonateAccount } = helpers.account
+const { to1e18 } = helpers.number
+
 const {
   keepTokenAddress,
   nuCypherTokenAddress,
@@ -6,10 +10,6 @@ const {
   keepRegistryAddress,
   keepTokenGrantAddress,
 } = require("./constants.js")
-const {
-  to1e18,
-  impersonateAccount,
-} = require("../helpers/contract-test-helpers")
 
 async function initContracts() {
   const deployer = await ethers.getSigner(0)
@@ -58,11 +58,10 @@ async function initContracts() {
   // to work with Keep authorizations.
   await keepRegistry
     .connect(
-      await impersonateAccount(
-        await keepRegistry.registryKeeper(),
-        deployer,
-        "5"
-      )
+      await impersonateAccount(await keepRegistry.registryKeeper(), {
+        from: deployer,
+        value: "5",
+      })
     )
     .approveOperatorContract(tokenStaking.address)
 

@@ -1,4 +1,5 @@
-const { to1e18 } = require("../helpers/contract-test-helpers")
+const { helpers } = require("hardhat")
+const { to1e18 } = helpers.number
 
 module.exports.keepTokenAddress = "0x85Eee30c52B0b379b046Fb0F85F4f3Dc3009aFEC"
 module.exports.keepTokenGrantAddress =

@@ -1,12 +1,12 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
-import { from1e18, to1e18 } from "../test/helpers/contract-test-helpers"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments, helpers } = hre
   const { log } = deployments
   const { deployer } = await getNamedAccounts()
   const { execute, read } = deployments
+  const { to1e18, from1e18 } = helpers.number
 
   const NuCypherToken = await deployments.getOrNull("NuCypherToken")
 
