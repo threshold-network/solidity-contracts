@@ -2059,12 +2059,7 @@ describe("TokenStaking", () => {
         it("should emit AuthorizationDecreaseApproved", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
-            .withArgs(
-              operator.address,
-              application1Mock.address,
-              amount,
-              Zero
-            )
+            .withArgs(operator.address, application1Mock.address, amount, Zero)
         })
       }
     )
@@ -2112,12 +2107,7 @@ describe("TokenStaking", () => {
         it("should emit AuthorizationDecreaseApproved", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
-            .withArgs(
-              operator.address,
-              application2Mock.address,
-              amount,
-              Zero
-            )
+            .withArgs(operator.address, application2Mock.address, amount, Zero)
         })
       }
     )
