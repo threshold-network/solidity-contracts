@@ -58,9 +58,18 @@ describeFn("SystemTests: TokenStaking", () => {
 
     beforeEach(async () => {
       // impersonate and drop 1 ETH for each account
-      owner = await impersonateAccount(ownerAddress, purse, "1")
-      operator = await impersonateAccount(operatorAddress, purse, "1")
-      authorizer = await impersonateAccount(authorizerAddress, purse, "1")
+      owner = await impersonateAccount(ownerAddress, {
+        from: purse,
+        amount: "1",
+      })
+      operator = await impersonateAccount(operatorAddress, {
+        from: purse,
+        amount: "1",
+      })
+      authorizer = await impersonateAccount(authorizerAddress, {
+        from: purse,
+        amount: "1",
+      })
     })
 
     context("when I have authorized T staking contract", () => {
@@ -117,10 +126,22 @@ describeFn("SystemTests: TokenStaking", () => {
 
     beforeEach(async () => {
       // impersonate and drop 1 ETH for each account
-      owner = await impersonateAccount(ownerAddress, purse, "1")
-      operator = await impersonateAccount(operatorAddress, purse, "1")
-      authorizer = await impersonateAccount(authorizerAddress, purse, "1")
-      beneficiary = await impersonateAccount(beneficiaryAddress, purse, "1")
+      owner = await impersonateAccount(ownerAddress, {
+        from: purse,
+        amount: "1",
+      })
+      operator = await impersonateAccount(operatorAddress, {
+        from: purse,
+        amount: "1",
+      })
+      authorizer = await impersonateAccount(authorizerAddress, {
+        from: purse,
+        amount: "1",
+      })
+      beneficiary = await impersonateAccount(beneficiaryAddress, {
+        from: purse,
+        amount: "1",
+      })
     })
 
     context("when I copied my stake to T staking contract", () => {
@@ -165,9 +186,18 @@ describeFn("SystemTests: TokenStaking", () => {
 
     beforeEach(async () => {
       // impersonate and drop 1 ETH for each account
-      owner = await impersonateAccount(ownerAddress, purse, "1")
-      operator = await impersonateAccount(operatorAddress, purse, "1")
-      authorizer = await impersonateAccount(authorizerAddress, purse, "1")
+      owner = await impersonateAccount(ownerAddress, {
+        from: purse,
+        amount: "1",
+      })
+      operator = await impersonateAccount(operatorAddress, {
+        from: purse,
+        amount: "1",
+      })
+      authorizer = await impersonateAccount(authorizerAddress, {
+        from: purse,
+        amount: "1",
+      })
     })
 
     context("when I copied my stake to T staking contract", () => {
@@ -227,8 +257,14 @@ describeFn("SystemTests: TokenStaking", () => {
 
     beforeEach(async () => {
       // impersonate and drop 1 ETH for each account
-      operator = await impersonateAccount(operatorAddress, purse, "1")
-      authorizer = await impersonateAccount(authorizerAddress, purse, "1")
+      operator = await impersonateAccount(operatorAddress, {
+        from: purse,
+        amount: "1",
+      })
+      authorizer = await impersonateAccount(authorizerAddress, {
+        from: purse,
+        amount: "1",
+      })
     })
 
     context("when I copied my stake to T staking contract", () => {
