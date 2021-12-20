@@ -23,11 +23,12 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
-    "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network"
+    "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network",
+    "postinstall": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts"
   },
   "devDependencies": {
     "@keep-network/hardhat-helpers": "^0.4.1-pre.2",
-    "@keep-network/hardhat-local-networks-config": "^0.1.0-pre.0",
+    "@keep-network/hardhat-local-networks-config": "^0.1.0-pre.4",
     "@keep-network/prettier-config-keep": "github:keep-network/prettier-config-keep#d6ec02e",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
