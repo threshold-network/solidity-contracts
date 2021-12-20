@@ -569,10 +569,10 @@
   resolved "https://registry.yarnpkg.com/@keep-network/hardhat-helpers/-/hardhat-helpers-0.4.1-pre.2.tgz#4c03b7bf52d28378383dbcbd94d9fd3dc3bfbf70"
   integrity sha512-Mkgy4yD3ZVvyDshejFLTJU2+APX0w1RL9CFDH5P8ulhlzuSfwr07oo7VO2Bqw4WUuM879Rmfnmy1Ffwn/tnzyQ==
 
-"@keep-network/hardhat-local-networks-config@^0.1.0-pre.0":
-  version "0.1.0-pre.0"
-  resolved "https://registry.yarnpkg.com/@keep-network/hardhat-local-networks-config/-/hardhat-local-networks-config-0.1.0-pre.0.tgz#55ab2f524f3bc5ad094d878c74644a0f77054396"
-  integrity sha512-wrVuXPA64nItBKXhhucf9u6rrXbXQ8mRYb455EuBkbeN20OA4umznLNniXNkkhDrePVr0d5WgRV7Mn3wO8KKcQ==
+"@keep-network/hardhat-local-networks-config@^0.1.0-pre.4":
+  version "0.1.0-pre.4"
+  resolved "https://registry.yarnpkg.com/@keep-network/hardhat-local-networks-config/-/hardhat-local-networks-config-0.1.0-pre.4.tgz#cc0c8ac1f5e30f33378e7451f696ab17d504ab86"
+  integrity sha512-HSQv1xXMUoJCJKrjDJg2Afxj5VmCxEshWZUGNxk1d6D5p5+GBpakb/m6COwMkdwa6cVIcZqUMEBEAnf0fKLWog==
   dependencies:
     deepmerge "^4.2.2"
     untildify "^4.0.0"
