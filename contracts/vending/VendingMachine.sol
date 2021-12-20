@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// ██████████████     ▐████▌     ██████████████
+// ██████████████     ▐████▌     ██████████████
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+// ██████████████     ▐████▌     ██████████████
+// ██████████████     ▐████▌     ██████████████
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,8 +27,8 @@ import "../token/T.sol";
 ///         to a fixed ratio. This will go on indefinitely and enable NU and
 ///         KEEP token holders to join T network without needing to buy or
 ///         sell any assets. Logistically, anyone holding NU or KEEP can wrap
-///         those assets in order to receive T. They can also unwrap T in
-///         order to go back to the underlying asset. There is a separate
+///         those assets in order to upgrade to T. They can also unwrap T in
+///         order to downgrade back to the underlying asset. There is a separate
 ///         instance of this contract deployed for KEEP holders and a separate
 ///         instance of this contract deployed for NU holders.
 contract VendingMachine is IReceiveApproval {
@@ -145,7 +158,7 @@ contract VendingMachine is IReceiveApproval {
     }
 
     /// @notice Returns the T token amount that's obtained from `amount` wrapped
-    ///         tokens (KEEP/NU), and the remainder that can't be converted.
+    ///         tokens (KEEP/NU), and the remainder that can't be upgraded.
     function conversionToT(uint256 amount)
         public
         view
@@ -157,7 +170,7 @@ contract VendingMachine is IReceiveApproval {
     }
 
     /// @notice The amount of wrapped tokens (KEEP/NU) that's obtained from
-    ///         `amount` T tokens, and the remainder that can't be converted.
+    ///         `amount` T tokens, and the remainder that can't be downgraded.
     function conversionFromT(uint256 amount)
         public
         view

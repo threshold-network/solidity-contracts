@@ -21,7 +21,7 @@ This proposal aims at implementing a minimum viable staking contract version
 allowing to support legacy KEEP and NU stakes, as well as native T delegations
 in all applications developed against this staking contract version.
 It means that all stakers, no matter of the type of their stake (legacy KEEP,
-legacy NEW, liquid T) will be able to participate in all applications developed
+legacy NU, liquid T) will be able to participate in all applications developed
 against this staking contract version on equal rules.
 The functionality of the staking contract can be further extended by the
 upgradeability of the contract code.
@@ -256,9 +256,9 @@ limit. Slashing are processed in a FIFO basis, and there is just one function
 exposed by the staking contract allowing to slash one or more operators from the
 head of the queue. Callback failure does not revert the transaction. In case
 the callback failed, the slashing request is removed from the queue and never
-retried so it is in the best application's interest to ensure it can always
+retried so it is in the application's best interest to ensure it can always
 execute the callback. The same happens if the slash operation fails because
-the given operator has not enough stake to slash.
+the given operator has insufficient stake to slash.
 
 In the case of legacy stakers, their liquid T is slashed first before a call to 
 the legacy contract is executed.

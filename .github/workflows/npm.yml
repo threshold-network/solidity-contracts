@@ -1,0 +1,45 @@
+name: NPM
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/**"
+      - "package.json"
+      - "yarn.lock"
+  workflow_dispatch:
+
+jobs:
+  npm-compile-publish-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+          registry-url: "https://registry.npmjs.org"
+          cache: "yarn"
+
+      - name: Resolve latest contracts
+        run: |
+          yarn upgrade @keep-network/keep-core
+
+      # Deploy contracts to a local network to generate deployment artifacts that
+      # are required by dashboard compilation.
+      - name: Deploy contracts
+        run: yarn deploy --network hardhat --write true
+
+      - name: Bump up package version
+        id: npm-version-bump
+        uses: keep-network/npm-version-bump@v2
+        with:
+          environment: dev
+          branch: ${{ github.ref }}
+          commit: ${{ github.sha }}
+
+      - name: Publish package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access=public --network=hardhat --tag=development

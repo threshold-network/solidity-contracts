@@ -8,6 +8,19 @@ function to1ePrecision(n, precision) {
   return ethers.BigNumber.from(n).mul(decimalMultiplier)
 }
 
+function from1e18(n) {
+  return from1ePrecision(n, 18)
+}
+
+function from1ePrecision(n, precision) {
+  const value = ethers.BigNumber.from(n)
+  const decimalMultiplier = ethers.BigNumber.from(10).pow(precision)
+
+  return value.gte(decimalMultiplier) && value.mod(decimalMultiplier).isZero()
+    ? value.div(decimalMultiplier).toString()
+    : formatFixed(n, precision)
+}
+
 async function getBlockTime(blockNumber) {
   return (await ethers.provider.getBlock(blockNumber)).timestamp
 }
@@ -68,6 +81,8 @@ async function impersonateAccount(accountAddress, purseSigner, amount) {
 
 module.exports.to1e18 = to1e18
 module.exports.to1ePrecision = to1ePrecision
+module.exports.from1e18 = from1e18
+module.exports.from1ePrecision = from1ePrecision
 module.exports.getBlockTime = getBlockTime
 module.exports.lastBlockNumber = lastBlockNumber
 module.exports.lastBlockTime = lastBlockTime

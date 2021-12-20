@@ -1,7 +1,21 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// ██████████████     ▐████▌     ██████████████
+// ██████████████     ▐████▌     ██████████████
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+// ██████████████     ▐████▌     ██████████████
+// ██████████████     ▐████▌     ██████████████
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
+//               ▐████▌    ▐████▌
 
 pragma solidity 0.8.9;
 
+import "./IVotesHistory.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -15,12 +29,13 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 ///      {delegateBySig}. Voting power can be publicly queried through
 ///      {getVotes} and {getPastVotes}.
 ///      NOTE: Extracted from OpenZeppelin ERCVotes.sol.
-abstract contract Checkpoints {
+abstract contract Checkpoints is IVotesHistory {
     struct Checkpoint {
         uint32 fromBlock;
         uint96 votes;
     }
 
+    // slither-disable-next-line uninitialized-state
     mapping(address => address) internal _delegates;
     mapping(address => uint128[]) internal _checkpoints;
     uint128[] internal _totalSupplyCheckpoints;

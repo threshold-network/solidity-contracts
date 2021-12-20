@@ -1,9 +1,18 @@
 {
-  "name": "@t-network/solidity-contracts",
-  "version": "0.0.1",
+  "name": "@threshold-network/solidity-contracts",
+  "version": "0.0.2-dev",
   "license": "GPL-3.0-or-later",
+  "files": [
+    "artifacts/",
+    "build/contracts/",
+    "contracts/",
+    "!**/test/",
+    "deploy/",
+    "export.json"
+  ],
   "scripts": {
     "build": "hardhat compile",
+    "deploy": "hardhat deploy --export export.json",
     "format": "npm run lint && prettier --check .",
     "format:fix": "npm run lint:fix && prettier --write .",
     "lint": "npm run lint:js && npm run lint:sol",
@@ -13,29 +22,39 @@
     "lint:js": "eslint . ",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
-    "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js"
+    "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
+    "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network"
   },
   "devDependencies": {
     "@keep-network/hardhat-helpers": "^0.2.0-pre.4",
+    "@keep-network/hardhat-local-networks-config": "^0.1.0-pre.0",
     "@keep-network/prettier-config-keep": "github:keep-network/prettier-config-keep#d6ec02e",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@tenderly/hardhat-tenderly": "^1.0.12",
+    "@types/chai": "^4.2.22",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.11.6",
     "chai": "^4.3.4",
     "eslint": "^7.27.0",
     "eslint-config-keep": "github:keep-network/eslint-config-keep#0c27ade",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.1",
+    "hardhat-deploy": "^0.9.4",
     "hardhat": "^2.6.8",
     "hardhat-gas-reporter": "^1.0.4",
+    "hardhat-local-networks-config-plugin": "^0.0.6",
     "prettier": "^2.3.2",
     "prettier-plugin-sh": "^0.7.1",
     "prettier-plugin-solidity": "^1.0.0-beta.14 ",
     "solhint": "^3.3.6",
     "solhint-config-keep": "github:keep-network/solhint-config-keep",
-    "typescript": "^4.3.2"
+    "ts-node": "^10.4.0",
+    "typescript": "^4.4.4"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.3",
-    "@thesis/solidity-contracts": "github:thesis/solidity-contracts#507c647"
+    "@keep-network/keep-core": "^1.8.0-dev.4",
+    "@openzeppelin/contracts": "^4.4",
+    "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
   }
 }
