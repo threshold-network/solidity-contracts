@@ -1212,6 +1212,7 @@ describe("TokenStaking", () => {
               .withArgs(
                 operator.address,
                 application1Mock.address,
+                0,
                 authorizedAmount
               )
           })
@@ -1309,6 +1310,7 @@ describe("TokenStaking", () => {
               .withArgs(
                 operator.address,
                 application1Mock.address,
+                0,
                 authorizedAmount1
               )
             await expect(tx2)
@@ -1316,6 +1318,7 @@ describe("TokenStaking", () => {
               .withArgs(
                 operator.address,
                 application1Mock.address,
+                authorizedAmount1,
                 authorizedAmount1.add(authorizedAmount2)
               )
           })
@@ -1481,6 +1484,7 @@ describe("TokenStaking", () => {
             .withArgs(
               operator.address,
               application1Mock.address,
+              0,
               authorizedAmount
             )
         })
@@ -1553,7 +1557,7 @@ describe("TokenStaking", () => {
           it("should emit AuthorizationIncreased", async () => {
             await expect(tx2)
               .to.emit(tokenStaking, "AuthorizationIncreased")
-              .withArgs(operator.address, application2Mock.address, tAmount)
+              .withArgs(operator.address, application2Mock.address, 0, tAmount)
           })
         })
       })
@@ -1686,7 +1690,8 @@ describe("TokenStaking", () => {
 
       context("when amount to decrease is less than authorized", () => {
         const amountToDecrease = amount.div(3)
-        const expectedAmount = amount.sub(amountToDecrease)
+        const expectedFromAmount = amount
+        const expectedToAmount = amount.sub(amountToDecrease)
         let tx
 
         beforeEach(async () => {
@@ -1711,7 +1716,7 @@ describe("TokenStaking", () => {
         it("should send request to application", async () => {
           expect(
             await application1Mock.operators(operator.address)
-          ).to.deep.equal([amount, expectedAmount])
+          ).to.deep.equal([amount, expectedToAmount])
         })
 
         it("should emit AuthorizationDecreaseRequested", async () => {
@@ -1720,7 +1725,8 @@ describe("TokenStaking", () => {
             .withArgs(
               operator.address,
               application1Mock.address,
-              expectedAmount
+              expectedFromAmount,
+              expectedToAmount
             )
         })
       })
@@ -1773,19 +1779,30 @@ describe("TokenStaking", () => {
           it("should emit AuthorizationDecreaseRequested", async () => {
             await expect(tx)
               .to.emit(tokenStaking, "AuthorizationDecreaseRequested")
-              .withArgs(operator.address, application1Mock.address, Zero)
+              .withArgs(
+                operator.address,
+                application1Mock.address,
+                amount,
+                Zero
+              )
             await expect(tx)
               .to.emit(tokenStaking, "AuthorizationDecreaseRequested")
-              .withArgs(operator.address, application2Mock.address, Zero)
+              .withArgs(
+                operator.address,
+                application2Mock.address,
+                amount,
+                Zero
+              )
           })
         }
       )
 
       context("when decrease requested twice", () => {
+        const expectedFromAmount = amount
         const amountToDecrease1 = amount.div(3)
-        const expectedAmount1 = amount.sub(amountToDecrease1)
+        const expectedToAmount1 = amount.sub(amountToDecrease1)
         const amountToDecrease2 = amount.div(5)
-        const expectedAmount2 = amount.sub(amountToDecrease2)
+        const expectedToAmount2 = amount.sub(amountToDecrease2)
         let tx1
         let tx2
 
@@ -1818,7 +1835,7 @@ describe("TokenStaking", () => {
         it("should send request to application with last amount", async () => {
           expect(
             await application1Mock.operators(operator.address)
-          ).to.deep.equal([amount, expectedAmount2])
+          ).to.deep.equal([amount, expectedToAmount2])
         })
 
         it("should emit AuthorizationDecreaseRequested twice", async () => {
@@ -1827,14 +1844,16 @@ describe("TokenStaking", () => {
             .withArgs(
               operator.address,
               application1Mock.address,
-              expectedAmount1
+              expectedFromAmount,
+              expectedToAmount1
             )
           await expect(tx2)
             .to.emit(tokenStaking, "AuthorizationDecreaseRequested")
             .withArgs(
               operator.address,
               application1Mock.address,
-              expectedAmount2
+              expectedFromAmount,
+              expectedToAmount2
             )
         })
       })
@@ -1931,7 +1950,8 @@ describe("TokenStaking", () => {
 
     context("when approve after request of partial deauthorization", () => {
       const amountToDecrease = amount.div(3)
-      const expectedAmount = amount.sub(amountToDecrease)
+      const expectedFromAmount = amount
+      const expectedToAmount = amount.sub(amountToDecrease)
       let tx
 
       beforeEach(async () => {
@@ -1953,13 +1973,13 @@ describe("TokenStaking", () => {
             operator.address,
             application1Mock.address
           )
-        ).to.equal(expectedAmount)
+        ).to.equal(expectedToAmount)
       })
 
       it("should decrease min staked amount in T", async () => {
         expect(
           await tokenStaking.getMinStaked(operator.address, StakeTypes.T)
-        ).to.equal(expectedAmount)
+        ).to.equal(expectedToAmount)
         expect(
           await tokenStaking.getMinStaked(operator.address, StakeTypes.NU)
         ).to.equal(0)
@@ -1971,7 +1991,12 @@ describe("TokenStaking", () => {
       it("should emit AuthorizationDecreaseApproved", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
-          .withArgs(operator.address, application1Mock.address, expectedAmount)
+          .withArgs(
+            operator.address,
+            application1Mock.address,
+            expectedFromAmount,
+            expectedToAmount
+          )
       })
     })
 
@@ -2034,7 +2059,12 @@ describe("TokenStaking", () => {
         it("should emit AuthorizationDecreaseApproved", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
-            .withArgs(operator.address, application1Mock.address, Zero)
+            .withArgs(
+              operator.address,
+              application1Mock.address,
+              amount,
+              Zero
+            )
         })
       }
     )
@@ -2082,7 +2112,12 @@ describe("TokenStaking", () => {
         it("should emit AuthorizationDecreaseApproved", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
-            .withArgs(operator.address, application2Mock.address, Zero)
+            .withArgs(
+              operator.address,
+              application2Mock.address,
+              amount,
+              Zero
+            )
         })
       }
     )
@@ -2225,7 +2260,7 @@ describe("TokenStaking", () => {
       it("should emit AuthorizationDecreaseApproved", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
-          .withArgs(operator.address, application1Mock.address, 0)
+          .withArgs(operator.address, application1Mock.address, amount, 0)
       })
     })
   })
@@ -4946,7 +4981,13 @@ describe("TokenStaking", () => {
             .withArgs(operator.address, 0, true)
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
-            .withArgs(operator.address, application1Mock.address, Zero, true)
+            .withArgs(
+              operator.address,
+              application1Mock.address,
+              keepInTAmount,
+              Zero,
+              true
+            )
         })
       })
 
@@ -5078,6 +5119,7 @@ describe("TokenStaking", () => {
               .withArgs(
                 operator.address,
                 application1Mock.address,
+                authorizedAmount1,
                 expectedKeepInTAmount,
                 true
               )
@@ -5185,6 +5227,7 @@ describe("TokenStaking", () => {
               .withArgs(
                 operator.address,
                 application1Mock.address,
+                authorizedAmount,
                 tStake,
                 true
               )
@@ -5323,6 +5366,7 @@ describe("TokenStaking", () => {
               .withArgs(
                 operator.address,
                 brokenApplicationMock.address,
+                authorizedAmount,
                 Zero,
                 false
               )
@@ -5331,6 +5375,7 @@ describe("TokenStaking", () => {
               .withArgs(
                 operator.address,
                 expensiveApplicationMock.address,
+                authorizedAmount,
                 Zero,
                 false
               )
@@ -5568,7 +5613,13 @@ describe("TokenStaking", () => {
             .withArgs(operator.address, 0, true)
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
-            .withArgs(operator.address, application1Mock.address, Zero, true)
+            .withArgs(
+              operator.address,
+              application1Mock.address,
+              newNuInTAmount,
+              Zero,
+              true
+            )
         })
       })
 
@@ -6679,12 +6730,19 @@ describe("TokenStaking", () => {
             .withArgs(
               otherStaker.address,
               application1Mock.address,
+              operator2Authorized1,
               operator2Authorized1.sub(amountToSlash),
               true
             )
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
-            .withArgs(otherStaker.address, application1Mock.address, Zero, true)
+            .withArgs(
+              otherStaker.address,
+              application1Mock.address,
+              operator2Authorized1.sub(amountToSlash),
+              Zero,
+              true
+            )
         })
       })
 
