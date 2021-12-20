@@ -21,19 +21,25 @@ async function initContracts() {
   const keepRegistry = await resolveKeepRegistry()
   const keepTokenGrant = await resolveKeepTokenGrant()
 
+  // 10 billion T minted
   const tToken = await deployTToken(to1e18(10000000000))
 
   const keepVendingMachine = await deployVendingMachine(
     keepToken,
     tToken,
+    // 999,848,780 KEEP is the current KEEP total supply
     to1e18(999848780),
+    // 45% of T supply goes to KEEP vending machine
     to1e18(4500000000)
   )
 
   const nuCypherVendingMachine = await deployVendingMachine(
     nuCypherToken,
     tToken,
+    // 1,350,000,000 is the NU total supply after pausing inflation
+    // (this number will be different for mainnet deployment but close to this one)
     to1e18(1350000000),
+    // 45% of T supply goes to KEEP vending machine
     to1e18(4500000000)
   )
 
