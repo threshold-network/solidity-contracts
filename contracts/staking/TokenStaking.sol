@@ -122,22 +122,26 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     event AuthorizationIncreased(
         address indexed operator,
         address indexed application,
-        uint96 amount
+        uint96 fromAmount,
+        uint96 toAmount
     );
     event AuthorizationDecreaseRequested(
         address indexed operator,
         address indexed application,
-        uint96 amount
+        uint96 fromAmount,
+        uint96 toAmount
     );
     event AuthorizationDecreaseApproved(
         address indexed operator,
         address indexed application,
-        uint96 amount
+        uint96 fromAmount,
+        uint96 toAmount
     );
     event AuthorizationInvoluntaryDecreased(
         address indexed operator,
         address indexed application,
-        uint96 amount,
+        uint96 fromAmount,
+        uint96 toAmount,
         bool indexed successfulCall
     );
     event PanicButtonSet(
@@ -422,9 +426,9 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @notice Increases the authorization of the given operator for the given
     ///         application by the given amount. Can only be called by the given
     ///         operator’s authorizer.
-    /// @dev Calls `authorizationIncreased(address operator, uint256 amount)`
-    ///      on the given application to notify the application about
-    ///      authorization change. See `IApplication`.
+    /// @dev Calls `authorizationIncreased` callback on the given application to
+    ///      notify the application about authorization change.
+    ///      See `IApplication`.
     function increaseAuthorization(
         address operator,
         address application,
@@ -442,7 +446,8 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         AppAuthorization storage authorization = operatorStruct.authorizations[
             application
         ];
-        if (authorization.authorized == 0) {
+        uint96 fromAmount = authorization.authorized;
+        if (fromAmount == 0) {
             require(
                 authorizationCeiling == 0 ||
                     operatorStruct.authorizedApplications.length <
@@ -458,10 +463,12 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         emit AuthorizationIncreased(
             operator,
             application,
+            fromAmount,
             authorization.authorized
         );
         IApplication(application).authorizationIncreased(
             operator,
+            fromAmount,
             authorization.authorized
         );
     }
@@ -472,7 +479,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     ///         it happens depends on the application. Can only be called by the
     ///         given operator’s authorizer. Overwrites pending authorization
     ///         decrease for the given operator and application.
-    /// @dev Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
+    /// @dev Calls `authorizationDecreaseRequested` callback
     ///      for each authorized application. See `IApplication`.
     function requestAuthorizationDecrease(address operator) external {
         OperatorInfo storage operatorStruct = operators[operator];
@@ -517,11 +524,13 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         ];
         require(authorization.deauthorizing > 0, "No deauthorizing in process");
 
+        uint96 fromAmount = authorization.authorized;
         authorization.authorized -= authorization.deauthorizing;
         authorization.deauthorizing = 0;
         emit AuthorizationDecreaseApproved(
             operator,
             msg.sender,
+            fromAmount,
             authorization.authorized
         );
 
@@ -549,11 +558,17 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         AppAuthorization storage authorization = operatorStruct.authorizations[
             application
         ];
-        require(authorization.authorized > 0, "Application is not authorized");
+        uint96 fromAmount = authorization.authorized;
+        require(fromAmount > 0, "Application is not authorized");
         authorization.authorized = 0;
         authorization.deauthorizing = 0;
 
-        emit AuthorizationDecreaseApproved(operator, application, 0);
+        emit AuthorizationDecreaseApproved(
+            operator,
+            application,
+            fromAmount,
+            0
+        );
         cleanAuthorizedApplications(operatorStruct, 1);
     }
 
@@ -1138,8 +1153,8 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     ///         it happens depends on the application. Can only be called by the
     ///         given operator’s authorizer. Overwrites pending authorization
     ///         decrease for the given operator and application.
-    /// @dev Calls `authorizationDecreaseRequested(address operator, uint256 amount)`
-    ///      on the given application. See `IApplication`.
+    /// @dev Calls `authorizationDecreaseRequested` callback on the given
+    ///      application. See `IApplication`.
     function requestAuthorizationDecrease(
         address operator,
         address application,
@@ -1167,10 +1182,12 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         emit AuthorizationDecreaseRequested(
             operator,
             application,
+            authorization.authorized,
             deauthorizingTo
         );
         IApplication(application).authorizationDecreaseRequested(
             operator,
+            authorization.authorized,
             deauthorizingTo
         );
     }
@@ -1398,15 +1415,15 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
                 .authorizedApplications[i];
             AppAuthorization storage authorization = operatorStruct
                 .authorizations[authorizedApplication];
-
+            uint96 fromAmount = authorization.authorized;
             if (
                 application == address(0) ||
                 authorizedApplication == application
             ) {
                 authorization.authorized -= Math
-                    .min(authorization.authorized, slashedAmount)
+                    .min(fromAmount, slashedAmount)
                     .toUint96();
-            } else if (authorization.authorized <= totalStake) {
+            } else if (fromAmount <= totalStake) {
                 continue;
             }
             if (authorization.authorized > totalStake) {
@@ -1419,7 +1436,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
                 IApplication(authorizedApplication)
                     .involuntaryAuthorizationDecrease{
                     gas: GAS_LIMIT_AUTHORIZATION_DECREASE
-                }(operator, authorization.authorized)
+                }(operator, fromAmount, authorization.authorized)
             {} catch {
                 successful = false;
             }
@@ -1429,6 +1446,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             emit AuthorizationInvoluntaryDecreased(
                 operator,
                 authorizedApplication,
+                fromAmount,
                 authorization.authorized,
                 successful
             );
