@@ -7,6 +7,8 @@ deployments/
 export/
 export.json
 
+external/npm
+
 typechain/
 
 yarn-error.log

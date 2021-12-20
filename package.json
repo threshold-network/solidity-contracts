@@ -24,7 +24,7 @@
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
     "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network",
-    "postinstall": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts"
+    "postinstall": "./scripts/prepare-dependencies.sh && tsc -p tsconfig.export.json&& hardhat export-artifacts export/artifacts"
   },
   "devDependencies": {
     "@keep-network/hardhat-helpers": "^0.4.1-pre.2",
@@ -54,7 +54,7 @@
     "typescript": "^4.4.4"
   },
   "dependencies": {
-    "@keep-network/keep-core": "^1.8.0-dev.4",
+    "@keep-network/keep-core": "1.8.0-ropsten.16",
     "@openzeppelin/contracts": "^4.4",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
   }
