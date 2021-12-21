@@ -19,7 +19,7 @@ SOURCE_FILE="$DESTINATION_DIR/artifacts/TokenStaking.json"
 DESTINATION_FILE="$DESTINATION_DIR/artifacts/KeepTokenStaking.json"
 
 if [ -f "$SOURCE_FILE" ]; then
-    mv $SOURCE_FILE $DESTINATION_FILE
+  mv $SOURCE_FILE $DESTINATION_FILE
 else
-    echo "artifact for @keep-network/keep-core/TokenStaking.json not found"
+  echo "artifact for @keep-network/keep-core/TokenStaking.json not found"
 fi
