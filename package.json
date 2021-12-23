@@ -57,7 +57,7 @@
     "typescript": "^4.4.4"
   },
   "dependencies": {
-    "@keep-network/keep-core": "^1.8.0-dev.4",
+    "@keep-network/keep-core": ">1.8.0-dev <1.8.0-pre",
     "@openzeppelin/contracts": "^4.4",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
   }
