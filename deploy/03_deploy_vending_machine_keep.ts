@@ -9,7 +9,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const KeepToken = await deployments.get("KeepToken")
   const T = await deployments.get("T")
 
-  const KEEP_TOKEN_ALLOCATION = 1 // FIXME: Provide value
+  const KEEP_TOKEN_ALLOCATION = "940795010800000000000000000"
 
   // We're wrapping 100% of the minted KEEP and will be allocating 45% of the
   // minted T tokens. The remaining T tokens will be in the future distributed
