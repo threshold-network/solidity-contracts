@@ -9,18 +9,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const NuCypherToken = await deployments.get("NuCypherToken")
   const T = await deployments.get("T")
 
+  const NU_TOKEN_ALLOCATION = 1 // FIXME: Provide value
+
   const tTotalSupply = await read("T", "totalSupply")
   const T_ALLOCATION_NU = tTotalSupply.mul(45).div(100)
-
-  let wrappedTokenAmount = 0
-  if (hre.network.name === "mainnet") {
-    wrappedTokenAmount = await read(
-      "NuCypherStakingEscrow",
-      "currentPeriodSupply"
-    )
-  } else {
-    wrappedTokenAmount = await read("NuCypherToken", "totalSupply")
-  }
 
   const vendingMachine = await deployments.deploy("VendingMachineNuCypher", {
     contract: "VendingMachine",
@@ -28,7 +20,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     args: [
       NuCypherToken.address,
       T.address,
-      wrappedTokenAmount,
+      NU_TOKEN_ALLOCATION,
       T_ALLOCATION_NU,
     ],
     log: true,

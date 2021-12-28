@@ -9,7 +9,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const KeepToken = await deployments.get("KeepToken")
   const T = await deployments.get("T")
 
-  const keepTotalSupply = await read("KeepToken", "totalSupply")
+  const KEEP_TOKEN_ALLOCATION = 1 // FIXME: Provide value
+
   const tTotalSupply = await read("T", "totalSupply")
 
   // We're wrapping 100% of the minted KEEP and will be allocating 45% of the
@@ -21,7 +22,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const vendingMachine = await deployments.deploy("VendingMachineKeep", {
     contract: "VendingMachine",
     from: deployer,
-    args: [KeepToken.address, T.address, keepTotalSupply, T_ALLOCATION_KEEP],
+    args: [
+      KeepToken.address,
+      T.address,
+      KEEP_TOKEN_ALLOCATION,
+      T_ALLOCATION_KEEP,
+    ],
     log: true,
   })
 
