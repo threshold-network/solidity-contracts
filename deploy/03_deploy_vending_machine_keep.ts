@@ -2,22 +2,20 @@ import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments } = hre
+  const { getNamedAccounts, deployments, helpers } = hre
   const { deployer } = await getNamedAccounts()
-  const { read } = deployments
+  const { to1e18 } = helpers.number
 
   const KeepToken = await deployments.get("KeepToken")
   const T = await deployments.get("T")
 
   const KEEP_TOKEN_ALLOCATION = 1 // FIXME: Provide value
 
-  const tTotalSupply = await read("T", "totalSupply")
-
   // We're wrapping 100% of the minted KEEP and will be allocating 45% of the
   // minted T tokens. The remaining T tokens will be in the future distributed
   // between another instance of the VendingMachine (which will be wrapping NU
   // token) and a DAO treasury.
-  const T_ALLOCATION_KEEP = tTotalSupply.mul(45).div(100)
+  const T_ALLOCATION_KEEP = to1e18("4500000000")
 
   const vendingMachine = await deployments.deploy("VendingMachineKeep", {
     contract: "VendingMachine",
