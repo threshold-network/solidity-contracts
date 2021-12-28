@@ -26,7 +26,7 @@
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
     "postinstall": "./scripts/prepare-dependencies.sh $INIT_CWD",
-    "prepack": "tsc -p tsconfig.export.json",
+    "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
     "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network"
   },
   "devDependencies": {
