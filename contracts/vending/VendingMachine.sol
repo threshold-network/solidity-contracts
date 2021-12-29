@@ -97,11 +97,6 @@ contract VendingMachine is IReceiveApproval {
         uint96 _wrappedTokenAllocation,
         uint96 _tTokenAllocation
     ) {
-        require(
-            _tToken.totalSupply() >= _tTokenAllocation &&
-                _wrappedToken.totalSupply() >= _wrappedTokenAllocation,
-            "Allocations can't be greater than token supplies"
-        );
         wrappedToken = _wrappedToken;
         tToken = _tToken;
         ratio =
