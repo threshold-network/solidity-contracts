@@ -86,6 +86,10 @@ const config: HardhatUserConfig = {
   namedAccounts: {
     deployer: {
       default: 0, // take the first account as deployer
+      mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
+    },
+    thresholdCouncil: {
+      mainnet: "0x00", // FIXME: Provide value
     },
   },
   mocha: {
