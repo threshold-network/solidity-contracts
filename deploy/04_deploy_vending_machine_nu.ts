@@ -9,7 +9,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const NuCypherToken = await deployments.get("NuCypherToken")
   const T = await deployments.get("T")
 
-  const NU_TOKEN_ALLOCATION = 1 // FIXME: Provide value
+  const NU_TOKEN_ALLOCATION = "1380688920644254727736959922"
 
   const T_ALLOCATION_NU = to1e18("4500000000")
 
