@@ -20,7 +20,7 @@ const ApplicationStatus = {
 const { upgrades } = require("hardhat")
 
 // FIXME: Investigate why the upgrades plug-in thinks we're using delegatecalls
-upgrades.silenceWarnings();
+upgrades.silenceWarnings()
 
 describe("TokenStaking", () => {
   let tToken
