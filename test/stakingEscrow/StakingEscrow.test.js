@@ -8,7 +8,7 @@ const { initContracts } = require ("./init-contracts")
 const describeFn =
   process.env.NODE_ENV === "stakingescrow-test" ? describe : describe.skip
 
-describeFn("StakingEcrow", () => {
+describeFn("StakingEscrow", () => {
   const startingBlock = 13946254
 
   let tToken

@@ -1,15 +1,19 @@
 const {
   tTokenAddress,
+  nuCypherTokenAddress,
   keepTokenStakingAddress,
-  nuCypherStakingEscrowAddress,
+  oldNuCypherStakingEscrowAddress,
+  nuCypherWorkLockAddress,
   keepVendingMachineAddress,
-  nuCypherVendingMachineAddress,
+  nuCypherVendingMachineAddress
 } = require ("./constants")
 
 async function initContracts() {
   const tToken = await resolveTToken()
+  const nuCypherToken = await resolveNuCypherToken()
   const keepTokenStaking = await resolveKeepTokenStaking()
-  const nuCypherStakingEscrow = await resolveNuCypherStakingEscrow()
+  const oldNuCypherStakingEscrow = await resolveNuCypherStakingEscrow()
+  const nuCypherWorkLock = await resolveNuCypherWorkLock()
   const keepVendingMachine = await resolveKeepVendingMachine()
   const nuCypherVendingMachine = await resolveNuCypherVendingMachine()
 
@@ -18,10 +22,16 @@ async function initContracts() {
   const tokenStaking = await deployTokenStaking(
     tToken,
     keepTokenStaking,
-    nuCypherStakingEscrow,
+    oldNuCypherStakingEscrow,
     keepVendingMachine,
     nuCypherVendingMachine,
     keepStake
+  )
+
+  const newNuCypherStakingEscrow = await deployNuCypherStakingEscrow(
+    nuCypherToken,
+    nuCypherWorkLock,
+    tokenStaking
   )
 
   return {
@@ -31,6 +41,10 @@ async function initContracts() {
 
 async function resolveTToken() {
   return await ethers.getContractAt("T", tTokenAddress)
+}
+
+async function resolveNuCypherToken() {
+  return await ethers.getContractAt("NuCypherToken", nuCypherTokenAddress)
 }
 
 async function resolveKeepTokenStaking() {
@@ -43,7 +57,14 @@ async function resolveKeepTokenStaking() {
 async function resolveNuCypherStakingEscrow() {
   return await ethers.getContractAt(
     "INuCypherStakingEscrow",
-    nuCypherStakingEscrowAddress
+    oldNuCypherStakingEscrowAddress
+  )
+}
+
+async function resolveNuCypherWorkLock() {
+  return await ethers.getContractAt(
+    "WorkLock",
+    nuCypherWorkLockAddress
   )
 }
 
@@ -91,6 +112,23 @@ async function deployTokenStaking(
   await tokenStaking.deployed()
 
   return tokenStaking
+}
+
+async function deployNuCypherStakingEscrow(
+  nuToken,
+  nuCypherWorkLock,
+  tokenStaking
+) {
+  const StakingEscrow = await ethers.getContractFactory("StakingEscrow")
+  const stakingEscrow = await StakingEscrow.deploy(
+    nuToken.address,
+    nuCypherWorkLock.address,
+    tokenStaking.address
+  )
+
+  await stakingEscrow.deployed()
+
+  return stakingEscrow
 }
 
 module.exports.initContracts = initContracts
