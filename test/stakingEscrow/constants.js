@@ -3,7 +3,7 @@ module.exports.nuCypherTokenAddress =
   "0x4fE83213D56308330EC302a8BD641f1d0113A4Cc"
 module.exports.keepTokenStakingAddress =
   "0x1293a54e160D1cd7075487898d65266081A15458"
-module.exports.oldNuCypherStakingEscrowAddress =
+module.exports.nuCypherStakingEscrowAddress =
   "0xbbD3C0C794F40c4f993B03F65343aCC6fcfCb2e2"
 module.exports.nuCypherWorkLockAddress =
   "0xe9778E69a961e64d3cdBB34CF6778281d34667c2"

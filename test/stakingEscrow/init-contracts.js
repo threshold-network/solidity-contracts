@@ -2,7 +2,7 @@ const {
   tTokenAddress,
   nuCypherTokenAddress,
   keepTokenStakingAddress,
-  oldNuCypherStakingEscrowAddress,
+  nuCypherStakingEscrowAddress,
   nuCypherWorkLockAddress,
   keepVendingMachineAddress,
   nuCypherVendingMachineAddress
@@ -12,7 +12,7 @@ async function initContracts() {
   const tToken = await resolveTToken()
   const nuCypherToken = await resolveNuCypherToken()
   const keepTokenStaking = await resolveKeepTokenStaking()
-  const oldNuCypherStakingEscrow = await resolveNuCypherStakingEscrow()
+  const nuCypherStakingEscrow = await resolveNuCypherStakingEscrow()
   const nuCypherWorkLock = await resolveNuCypherWorkLock()
   const keepVendingMachine = await resolveKeepVendingMachine()
   const nuCypherVendingMachine = await resolveNuCypherVendingMachine()
@@ -22,20 +22,21 @@ async function initContracts() {
   const tokenStaking = await deployTokenStaking(
     tToken,
     keepTokenStaking,
-    oldNuCypherStakingEscrow,
+    nuCypherStakingEscrow,
     keepVendingMachine,
     nuCypherVendingMachine,
     keepStake
   )
 
-  const newNuCypherStakingEscrow = await deployNuCypherStakingEscrow(
+  const stakingEscrowImplementation = await deployStakingEscrowImplementation(
     nuCypherToken,
     nuCypherWorkLock,
     tokenStaking
   )
 
   return {
-    tToken: tToken
+    nuCypherStakingEscrow: nuCypherStakingEscrow,
+    stakingEscrowImplementation: stakingEscrowImplementation,
   }
 }
 
@@ -57,7 +58,7 @@ async function resolveKeepTokenStaking() {
 async function resolveNuCypherStakingEscrow() {
   return await ethers.getContractAt(
     "INuCypherStakingEscrow",
-    oldNuCypherStakingEscrowAddress
+    nuCypherStakingEscrowAddress
   )
 }
 
@@ -114,7 +115,7 @@ async function deployTokenStaking(
   return tokenStaking
 }
 
-async function deployNuCypherStakingEscrow(
+async function deployStakingEscrowImplementation(
   nuToken,
   nuCypherWorkLock,
   tokenStaking
