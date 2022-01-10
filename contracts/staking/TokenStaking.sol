@@ -1701,6 +1701,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         pure
         returns (uint256 amount, uint96 tRemainder)
     {
+        //slither-disable-next-line weak-prng
         tRemainder = (tAmount % ratio).toUint96();
         uint256 convertibleAmount = tAmount - tRemainder;
         amount = (convertibleAmount * CONVERSION_DIVISOR) / ratio;
