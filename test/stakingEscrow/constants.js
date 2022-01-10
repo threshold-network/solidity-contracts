@@ -11,3 +11,4 @@ module.exports.keepVendingMachineAddress =
   "0xE47c80e8c23f6B4A1aE41c34837a0599D5D16bb0"
 module.exports.nuCypherVendingMachineAddress =
   "0x1CCA7E410eE41739792eA0A24e00349Dd247680e"
+module.exports.daoAgentAddress = "0xb6bfF48574B722F3BFf0C29c9e1b631dD19c1A93"

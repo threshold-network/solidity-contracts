@@ -5,8 +5,8 @@ const {
   nuCypherStakingEscrowAddress,
   nuCypherWorkLockAddress,
   keepVendingMachineAddress,
-  nuCypherVendingMachineAddress
-} = require ("./constants")
+  nuCypherVendingMachineAddress,
+} = require("./constants.js")
 
 async function initContracts() {
   const tToken = await resolveTToken()
@@ -63,17 +63,11 @@ async function resolveNuCypherStakingEscrow() {
 }
 
 async function resolveNuCypherWorkLock() {
-  return await ethers.getContractAt(
-    "WorkLock",
-    nuCypherWorkLockAddress
-  )
+  return await ethers.getContractAt("WorkLock", nuCypherWorkLockAddress)
 }
 
 async function resolveKeepVendingMachine() {
-  return await ethers.getContractAt(
-    "VendingMachine",
-    keepVendingMachineAddress
-  )
+  return await ethers.getContractAt("VendingMachine", keepVendingMachineAddress)
 }
 
 async function resolveNuCypherVendingMachine() {
