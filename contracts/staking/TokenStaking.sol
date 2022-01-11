@@ -22,12 +22,12 @@ import "./KeepStake.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
 import "../utils/PercentUtils.sol";
+import "../utils/SafeT.sol";
 import "../vending/VendingMachine.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
 ///         Apart from the basic usage of enabling T stakes, it also acts as a
@@ -37,7 +37,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
 contract TokenStaking is Initializable, IStaking, Checkpoints {
-    using SafeERC20 for T;
+    using SafeT for T;
     using PercentUtils for uint256;
     using SafeCast for uint256;
 
@@ -231,7 +231,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             _token.totalSupply() > 0 &&
                 _keepStakingContract.ownerOf(address(0)) == address(0) &&
                 _nucypherStakingContract.getAllTokens(address(0)) == 0 &&
-                Address.isContract(address(_keepStake)),
+                AddressUpgradeable.isContract(address(_keepStake)),
             "Wrong input parameters"
         );
         token = _token;

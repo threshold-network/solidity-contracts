@@ -19,9 +19,6 @@ const ApplicationStatus = {
 }
 const { upgrades } = require("hardhat")
 
-// FIXME: Investigate why the upgrades plug-in thinks we're using delegatecalls
-upgrades.silenceWarnings()
-
 describe("TokenStaking", () => {
   let tToken
   let keepVendingMachine
@@ -145,7 +142,6 @@ describe("TokenStaking", () => {
           nucypherVendingMachine.address,
           keepStake.address,
         ],
-        unsafeAllow: ["delegatecall"],
       }
     )
     await tokenStaking.deployed()

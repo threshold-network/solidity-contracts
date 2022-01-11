@@ -169,7 +169,6 @@ async function deployTokenStaking(
         nuCypherVendingMachine.address,
         keepStake.address,
       ],
-      unsafeAllow: ["delegatecall"],
     }
   )
 
