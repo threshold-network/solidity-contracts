@@ -23,22 +23,14 @@ describeFn("StakingEscrow", () => {
     nuCypherStakingEscrow = contracts.nuCypherStakingEscrow
     stakingEscrowImplementation = contracts.stakingEscrowImplementation
 
-    const deployer = await ethers.getSigner(0)
-    const test = await ethers.getSigner(10)
+    const purse = await ethers.getSigner(1)
 
-    daoAgent = await impersonateAccount(daoAgentAddress, {from: deployer, value: "2",})
+    daoAgent = await impersonateAccount(daoAgentAddress, {from: purse, value: "20",})
 
-    // WIP: check if I can send Ether from impersonated address
-    console.log(await daoAgent.getBalance())
-    console.log(await test.getBalance())
-
-    await daoAgent.sendTransaction({
-      to: test.address,
-      value: ethers.utils.parseEther("1.0"), // Sends exactly 1.0 ether
-    });
-
-    console.log(await daoAgent.getBalance())
-    console.log(await test.getBalance())
+    console.log("=== the new target should be: ", stakingEscrowImplementation.address)
+    console.log("=== target before ", await nuCypherStakingEscrow.target())
+    console.log(await nuCypherStakingEscrow.connect(daoAgent).upgrade(stakingEscrowImplementation.address))
+    console.log("new target: ", await nuCypherStakingEscrow.target())
 
   })
 
