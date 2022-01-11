@@ -1,13 +1,12 @@
 const { expect } = require("chai")
 
 const { upgrades } = require("hardhat")
-const { Manifest } = require("@openzeppelin/upgrades-core")
 
 describe("ProxyAdminWithDeputy", () => {
   let deployer
   let deputy
   let timelock
-  let originalAdmin
+  let adminWithDeputy
 
   let SimpleStorage
   const initialState = 42
@@ -92,32 +91,11 @@ describe("ProxyAdminWithDeputy", () => {
         storage.address,
         adminWithDeputy.address
       )
-
-      // We patch the Network Manifest to use our ProxyAdminWithDeputy.
-      // This will facilitate reuse of the Upgrade plugin with our proxy admin.
-      const manifest = new Manifest(31337) // await Manifest.forNetwork(provider);
-      manifestData = await manifest.read()
-      originalAdmin = manifestData.admin.address
-      manifestData.admin.address = adminWithDeputy.address
-      await manifest.lockedRun(async () => {
-        await manifest.write(manifestData)
-      })
-    })
-
-    afterEach(async () => {
-      // We restore the Network Manifest
-      const manifest = new Manifest(31337) // await Manifest.forNetwork(provider);
-      manifestData = await manifest.read()
-      manifestData.admin.address = originalAdmin
-      await manifest.lockedRun(async () => {
-        await manifest.write(manifestData)
-      })
     })
 
     it("ProxyAdminWithDeputy is the admin for the UpgradeableProxy", async () => {
-      const adminInstance = await upgrades.admin.getInstance()
-      const adminAddress = await adminInstance.getProxyAdmin(storage.address)
-      expect(adminInstance.address).to.equal(adminAddress)
+      const adminAddress = await adminWithDeputy.getProxyAdmin(storage.address)
+      expect(adminWithDeputy.address).to.equal(adminAddress)
     })
 
     describe("Upgrades procedure with ProxyAdminWithDeputy", () => {
@@ -142,8 +120,7 @@ describe("ProxyAdminWithDeputy", () => {
       })
 
       it("Deputy can upgrade, version is now 2 and state is correct", async () => {
-        const adminInstance = await upgrades.admin.getInstance()
-        await adminInstance
+        await adminWithDeputy
           .connect(deputy)
           .upgrade(storage.address, newImplementationAddress)
         expect(await storage.storedValue()).to.equal(initialState)
@@ -151,8 +128,7 @@ describe("ProxyAdminWithDeputy", () => {
       })
 
       it("ProxyAdminWithDeputy's owner (the Timelock) can upgrade, version is now 2 and state is correct", async () => {
-        const adminInstance = await upgrades.admin.getInstance()
-        await adminInstance
+        await adminWithDeputy
           .connect(timelock)
           .upgrade(storage.address, newImplementationAddress)
         expect(await storage.storedValue()).to.equal(42)
