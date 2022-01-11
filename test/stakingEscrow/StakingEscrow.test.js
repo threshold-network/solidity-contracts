@@ -10,35 +10,40 @@ const { daoAgentAddress } = require("./constants")
 const describeFn =
   process.env.NODE_ENV === "stakingescrow-test" ? describe : describe.skip
 
-describeFn("StakingEscrow", () => {
+describeFn("System Tests: StakingEscrow", () => {
   const startingBlock = 13979631
 
+  let purse
+  let daoAgent
+
+  // Contracts
   let nuCypherStakingEscrow
   let stakingEscrowImplementation
 
   beforeEach(async () => {
     await resetFork(startingBlock)
 
+    purse = await ethers.getSigner(1)
+    daoAgent = await impersonateAccount(daoAgentAddress, {
+      from: purse,
+      value: "10",
+    })
+
     const contracts = await initContracts()
     nuCypherStakingEscrow = contracts.nuCypherStakingEscrow
     stakingEscrowImplementation = contracts.stakingEscrowImplementation
 
-    const purse = await ethers.getSigner(1)
-
-    daoAgent = await impersonateAccount(daoAgentAddress, {from: purse, value: "20",})
-
-    console.log("=== the new target should be: ", stakingEscrowImplementation.address)
-    console.log("=== target before ", await nuCypherStakingEscrow.target())
-    console.log(await nuCypherStakingEscrow.connect(daoAgent).upgrade(stakingEscrowImplementation.address))
-    console.log("new target: ", await nuCypherStakingEscrow.target())
-
+    await nuCypherStakingEscrow
+      .connect(daoAgent)
+      .upgrade(stakingEscrowImplementation.address)
   })
 
-  describe("foo", () => {
-    context("bar", () => {
-      it("foobar", () => {
-        let value = true
-        expect(value).to.be.equal(true)
+  describe("setup", () => {
+    context("once upgraded", () => {
+      it("should dispatcher target address to new stakingEscrow", async () => {
+        expect(await nuCypherStakingEscrow.target()).to.equal(
+          stakingEscrowImplementation.address
+        )
       })
     })
   })

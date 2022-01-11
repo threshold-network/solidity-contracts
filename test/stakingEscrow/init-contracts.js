@@ -56,10 +56,7 @@ async function resolveKeepTokenStaking() {
 }
 
 async function resolveNuCypherStakingEscrow() {
-  return await ethers.getContractAt(
-    "Dispatcher",
-    nuCypherStakingEscrowAddress
-  )
+  return await ethers.getContractAt("Dispatcher", nuCypherStakingEscrowAddress)
 }
 
 async function resolveNuCypherWorkLock() {
