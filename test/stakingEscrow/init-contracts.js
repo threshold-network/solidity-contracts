@@ -2,8 +2,8 @@ const {
   tTokenAddress,
   nuCypherTokenAddress,
   keepTokenStakingAddress,
-  nuCypherStakingEscrowAddress,
-  nuCypherWorkLockAddress,
+  stakingEscrowAddress,
+  workLockAddress,
   keepVendingMachineAddress,
   nuCypherVendingMachineAddress,
 } = require("./constants.js")
@@ -12,8 +12,9 @@ async function initContracts() {
   const tToken = await resolveTToken()
   const nuCypherToken = await resolveNuCypherToken()
   const keepTokenStaking = await resolveKeepTokenStaking()
-  const nuCypherStakingEscrow = await resolveNuCypherStakingEscrow()
-  const nuCypherWorkLock = await resolveNuCypherWorkLock()
+  const stakingEscrow = await resolveStakingEscrow()
+  const stakingEscrowDispatcher = await resolveStakingEscrowDispatcher()
+  const workLock = await resolveWorkLock()
   const keepVendingMachine = await resolveKeepVendingMachine()
   const nuCypherVendingMachine = await resolveNuCypherVendingMachine()
 
@@ -22,7 +23,7 @@ async function initContracts() {
   const tokenStaking = await deployTokenStaking(
     tToken,
     keepTokenStaking,
-    nuCypherStakingEscrow,
+    stakingEscrow,
     keepVendingMachine,
     nuCypherVendingMachine,
     keepStake
@@ -30,12 +31,14 @@ async function initContracts() {
 
   const stakingEscrowImplementation = await deployStakingEscrowImplementation(
     nuCypherToken,
-    nuCypherWorkLock,
+    workLock,
     tokenStaking
   )
 
   return {
-    nuCypherStakingEscrow: nuCypherStakingEscrow,
+    tokenStaking: tokenStaking,
+    stakingEscrow: stakingEscrow,
+    stakingEscrowDispatcher: stakingEscrowDispatcher,
     stakingEscrowImplementation: stakingEscrowImplementation,
   }
 }
@@ -55,12 +58,20 @@ async function resolveKeepTokenStaking() {
   )
 }
 
-async function resolveNuCypherStakingEscrow() {
-  return await ethers.getContractAt("Dispatcher", nuCypherStakingEscrowAddress)
+// resolveNuCypherStakingEscrow() and resolveNuCypherStakingEscrowDispatcher()
+// both functions resolve the same proxy contract deployed on mainnet, but due to
+// ether.js limitation, it's necessary to have two instances: the former to call
+// the implementation methods, and the latter to call the proxy ones
+async function resolveStakingEscrow() {
+  return await ethers.getContractAt("StakingEscrow", stakingEscrowAddress)
 }
 
-async function resolveNuCypherWorkLock() {
-  return await ethers.getContractAt("WorkLock", nuCypherWorkLockAddress)
+async function resolveStakingEscrowDispatcher() {
+  return await ethers.getContractAt("Dispatcher", stakingEscrowAddress)
+}
+
+async function resolveWorkLock() {
+  return await ethers.getContractAt("WorkLock", workLockAddress)
 }
 
 async function resolveKeepVendingMachine() {
