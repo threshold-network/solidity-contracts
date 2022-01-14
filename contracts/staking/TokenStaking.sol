@@ -24,8 +24,8 @@ import "../token/T.sol";
 import "../utils/PercentUtils.sol";
 import "../utils/SafeTUpgradeable.sol";
 import "../vending/VendingMachine.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
@@ -43,7 +43,7 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 contract TokenStaking is Initializable, IStaking, Checkpoints {
     using SafeTUpgradeable for T;
     using PercentUtils for uint256;
-    using SafeCast for uint256;
+    using SafeCastUpgradeable for uint256;
 
     enum ApplicationStatus {
         NOT_APPROVED,
@@ -1044,7 +1044,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
 
         uint256 maxIndex = slashingQueueIndex + count;
-        maxIndex = Math.min(maxIndex, slashingQueue.length);
+        maxIndex = MathUpgradeable.min(maxIndex, slashingQueue.length);
         count = maxIndex - slashingQueueIndex;
         uint96 tAmountToBurn = 0;
 
@@ -1248,7 +1248,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             i++
         ) {
             address application = operatorStruct.authorizedApplications[i];
-            maxAuthorization = Math.max(
+            maxAuthorization = MathUpgradeable.max(
                 maxAuthorization,
                 operatorStruct.authorizations[application].authorized
             );
@@ -1258,19 +1258,19 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             return 0;
         }
         if (stakeTypes != StakeType.T) {
-            maxAuthorization -= Math.min(
+            maxAuthorization -= MathUpgradeable.min(
                 maxAuthorization,
                 operatorStruct.tStake
             );
         }
         if (stakeTypes != StakeType.NU) {
-            maxAuthorization -= Math.min(
+            maxAuthorization -= MathUpgradeable.min(
                 maxAuthorization,
                 operatorStruct.nuInTStake
             );
         }
         if (stakeTypes != StakeType.KEEP) {
-            maxAuthorization -= Math.min(
+            maxAuthorization -= MathUpgradeable.min(
                 maxAuthorization,
                 operatorStruct.keepInTStake
             );
@@ -1342,7 +1342,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint256 queueLength = slashingQueue.length;
         for (uint256 i = 0; i < _operators.length; i++) {
             address operator = _operators[i];
-            uint256 amountToSlash = Math.min(
+            uint256 amountToSlash = MathUpgradeable.min(
                 operators[operator].authorizations[msg.sender].authorized,
                 amount
             );
@@ -1360,7 +1360,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         if (notifier != address(0)) {
             uint256 reward = ((slashingQueue.length - queueLength) *
                 notificationReward).percent(rewardMultiplier);
-            reward = Math.min(reward, notifiersTreasury);
+            reward = MathUpgradeable.min(reward, notifiersTreasury);
             emit NotifierRewarded(notifier, reward);
             if (reward != 0) {
                 notifiersTreasury -= reward;
@@ -1453,7 +1453,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 application == address(0) ||
                 authorizedApplication == application
             ) {
-                authorization.authorized -= Math
+                authorization.authorized -= MathUpgradeable
                     .min(fromAmount, slashedAmount)
                     .toUint96();
             } else if (fromAmount <= totalStake) {

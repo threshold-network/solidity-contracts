@@ -16,9 +16,8 @@
 pragma solidity 0.8.9;
 
 import "./IVotesHistory.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 
 /// @title Checkpoints
 /// @dev Abstract contract to support checkpoints for Compound-like voting and
@@ -74,7 +73,7 @@ abstract contract Checkpoints is IVotesHistory {
         virtual
         returns (uint32)
     {
-        return SafeCast.toUint32(_checkpoints[account].length);
+        return SafeCastUpgradeable.toUint32(_checkpoints[account].length);
     }
 
     /// @notice Get the address `account` is currently delegating to.
@@ -179,7 +178,7 @@ abstract contract Checkpoints is IVotesHistory {
             if (fromBlock == block.number) {
                 ckpts[pos - 1] = encodeCheckpoint(
                     fromBlock,
-                    SafeCast.toUint96(newWeight)
+                    SafeCastUpgradeable.toUint96(newWeight)
                 );
                 return (oldWeight, newWeight);
             }
@@ -187,8 +186,8 @@ abstract contract Checkpoints is IVotesHistory {
 
         ckpts.push(
             encodeCheckpoint(
-                SafeCast.toUint32(block.number),
-                SafeCast.toUint96(newWeight)
+                SafeCastUpgradeable.toUint32(block.number),
+                SafeCastUpgradeable.toUint96(newWeight)
             )
         );
     }
@@ -222,7 +221,7 @@ abstract contract Checkpoints is IVotesHistory {
         uint256 high = ckpts.length;
         uint256 low = 0;
         while (low < high) {
-            uint256 mid = Math.average(low, high);
+            uint256 mid = MathUpgradeable.average(low, high);
             uint32 midBlock = decodeBlockNumber(ckpts[mid]);
             if (midBlock > blockNumber) {
                 high = mid;
