@@ -28,6 +28,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 ///      {delegateBySig}. Voting power can be publicly queried through
 ///      {getVotes} and {getPastVotes}.
 ///      NOTE: Extracted from OpenZeppelin ERCVotes.sol.
+/// @dev This contract is upgrade-safe.
 abstract contract Checkpoints is IVotesHistory {
     struct Checkpoint {
         uint32 fromBlock;
@@ -38,6 +39,11 @@ abstract contract Checkpoints is IVotesHistory {
     mapping(address => address) internal _delegates;
     mapping(address => uint128[]) internal _checkpoints;
     uint128[] internal _totalSupplyCheckpoints;
+
+    // Reserved storage space in case we need to add more variables,
+    // since there are upgradeable contracts that inherit from this one.
+    // See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[47] private __gap;
 
     /// @notice Emitted when an account changes their delegate.
     event DelegateChanged(
