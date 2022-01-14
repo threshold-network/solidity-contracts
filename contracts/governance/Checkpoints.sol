@@ -43,6 +43,7 @@ abstract contract Checkpoints is IVotesHistory {
     // Reserved storage space in case we need to add more variables,
     // since there are upgradeable contracts that inherit from this one.
     // See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    // slither-disable-next-line unused-state
     uint256[47] private __gap;
 
     /// @notice Emitted when an account changes their delegate.
