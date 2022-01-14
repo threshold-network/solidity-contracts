@@ -53,7 +53,6 @@ describe("ProxyAdminWithDeputy", () => {
     })
 
     it("ProxyAdmin is the admin for the UpgradeableProxy", async () => {
-      const adminInstance = await upgrades.admin.getInstance()
       const adminAddress = await adminInstance.getProxyAdmin(storage.address)
       expect(adminInstance.address).to.equal(adminAddress)
     })
