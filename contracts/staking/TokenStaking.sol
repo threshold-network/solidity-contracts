@@ -180,10 +180,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address indexed oldOwner,
         address indexed newOwner
     );
-    event GovernanceTransferred(
-        address indexed previousGovernance,
-        address indexed newGovernance
-    );
+    event GovernanceTransferred(address oldGovernance, address newGovernance);
 
     modifier onlyGovernance() {
         require(governance == msg.sender, "Caller is not the governance");
