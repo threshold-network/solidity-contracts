@@ -36,6 +36,10 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 ///         that run on the Threshold Network. Note that legacy NU/KEEP staking
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
+/// @dev TokenStaking is upgradeable, using OpenZeppelin's Upgradeability
+///      framework. As such, it is required to satisfy OZ's guidelines, like
+///      restrictions on constructors, immutable variables, base contracts and
+///      libraries. See https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable
 contract TokenStaking is Initializable, IStaking, Checkpoints {
     using SafeTUpgradeable for T;
     using PercentUtils for uint256;
