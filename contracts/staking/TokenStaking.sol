@@ -22,7 +22,7 @@ import "./KeepStake.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
 import "../utils/PercentUtils.sol";
-import "../utils/SafeT.sol";
+import "../utils/SafeTUpgradeable.sol";
 import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -37,7 +37,7 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
 contract TokenStaking is Initializable, IStaking, Checkpoints {
-    using SafeT for T;
+    using SafeTUpgradeable for T;
     using PercentUtils for uint256;
     using SafeCast for uint256;
 
