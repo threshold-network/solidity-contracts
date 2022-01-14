@@ -36,6 +36,7 @@ async function initContracts() {
   )
 
   return {
+    nuCypherToken: nuCypherToken,
     tokenStaking: tokenStaking,
     stakingEscrow: stakingEscrow,
     stakingEscrowDispatcher: stakingEscrowDispatcher,
