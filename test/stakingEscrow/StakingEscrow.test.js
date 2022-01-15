@@ -1,8 +1,12 @@
-const { expect } = require("chai")
+const chai = require("chai")
+const chaiAsPromised = require("chai-as-promised")
+chai.use(chaiAsPromised)
+const expect = chai.expect
 const fc = require("fast-check")
 
 const { helpers } = require("hardhat")
 const { impersonateAccount } = helpers.account
+const { to1e18 } = helpers.number
 const { resetFork } = helpers.forking
 
 const { initContracts } = require("./init-contracts")
@@ -50,7 +54,7 @@ describeFn("System Tests: StakingEscrow", () => {
   })
 
   describe("setup", () => {
-    context("once proxy contract upgraded", () => {
+    context("once proxy contract is upgraded", () => {
       it("should dispatcher target address to new stakingEscrow", async () => {
         expect(await stakingEscrow.target()).to.equal(
           stakingEscrowImplementation.address
@@ -63,7 +67,7 @@ describeFn("System Tests: StakingEscrow", () => {
         expect(await stakingEscrow.target()).to.equal(previousTarget)
       })
 
-      it("should stakers amount not be zero", async () => {
+      it("should number of stakers don't be zero", async () => {
         expect(await stakingEscrow.getStakersLength()).to.not.equal(0)
       })
 
@@ -76,7 +80,7 @@ describeFn("System Tests: StakingEscrow", () => {
   })
 
   describe("staking", () => {
-    context("when operator have no stake on token staking", () => {
+    context("when operator has not staked on Token Staking", () => {
       it("staked NU should be zero", async () => {
         await fc.assert(
           fc.asyncProperty(
@@ -116,19 +120,43 @@ describeFn("System Tests: StakingEscrow", () => {
           fc.asyncProperty(
             fc.integer({ min: 0, max: stakers.length - 1 }),
             async (index) => {
-              const operatorAddress = stakers[index]
-              const operator = await impersonate(purse, operatorAddress)
+              const stakerAddress = stakers[index]
+              const staker = await impersonate(purse, stakerAddress)
 
               const stakeTokens = await stakingEscrow.getAllTokens(
-                operatorAddress
+                stakerAddress
               )
-              const nuBalance = await nuCypherToken.balanceOf(operatorAddress)
+              const nuBalance = await nuCypherToken.balanceOf(stakerAddress)
 
-              await stakingEscrow.connect(operator).withdraw(stakeTokens)
+              await stakingEscrow.connect(staker).withdraw(stakeTokens)
 
-              expect(await nuCypherToken.balanceOf(operatorAddress)).to.equal(
+              expect(await nuCypherToken.balanceOf(stakerAddress)).to.equal(
                 nuBalance.add(stakeTokens)
               )
+            }
+          )
+        )
+      })
+    })
+
+    context("when staker has not NU tokens staked on Staking Escrow", () => {
+      it("should not be possible to withdraw NU", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const stakerAddress = stakers[index]
+              const staker = await impersonate(purse, stakerAddress)
+
+              const stakeTokens = await stakingEscrow.getAllTokens(
+                stakerAddress
+              )
+
+              await stakingEscrow.connect(staker).withdraw(stakeTokens)
+
+              await expect(
+                stakingEscrow.connect(staker).withdraw(to1e18(10000))
+              ).to.be.rejectedWith(Error)
             }
           )
         )
