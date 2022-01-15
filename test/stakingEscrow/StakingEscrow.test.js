@@ -1,4 +1,5 @@
 const { expect } = require("chai")
+const fc = require("fast-check");
 
 const { helpers } = require("hardhat")
 const { to1e18 } = helpers.number
