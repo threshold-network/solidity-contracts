@@ -39,6 +39,9 @@ const config: HardhatUserConfig = {
           ? parseInt(process.env.FORKING_BLOCK)
           : undefined,
       },
+      accounts: {
+        accountsBalance: "1000000000000000000000000"
+      },
       tags: ["local"],
     },
     development: {
@@ -119,7 +122,7 @@ const config: HardhatUserConfig = {
     },
   },
   mocha: {
-    timeout: 100000,
+    timeout: 60000,
   },
 }
 

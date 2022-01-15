@@ -28,9 +28,11 @@ describeFn("System Tests: StakingEscrow", () => {
     })
   }
 
-  beforeEach(async () => {
-    fc.configureGlobal({ numRuns: 10 })
+  before(() => {
+    fc.configureGlobal({ numRuns: stakers.length, skipEqualValues: true })
+  })
 
+  beforeEach(async () => {
     await resetFork(startingBlock)
 
     const contracts = await initContracts()
