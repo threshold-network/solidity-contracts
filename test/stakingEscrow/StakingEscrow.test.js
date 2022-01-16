@@ -253,5 +253,62 @@ describeFn("System Tests: StakingEscrow", () => {
         )
       })
     })
+
+    context("when operator partially stake NU", () => {
+      it("should be able to withdraw not staked NU", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const operatorAddress = stakers[index]
+              const operator = await impersonate(purse, operatorAddress)
+              const escrowNu = await stakingEscrow.getAllTokens(operatorAddress)
+              const nuToUnstakeInT = nuToT(escrowNu.div(2))
+
+              // Method reverts if insufficient tokens: skipping this case...
+              if (nuToUnstakeInT.tAmount > 0) {
+                await tokenStaking
+                  .connect(operator)
+                  .stakeNu(operatorAddress, operatorAddress, operatorAddress)
+                // Unstake the half of Nu staked
+                await tokenStaking.connect(operator).unstakeNu(operatorAddress, nuToUnstakeInT.tAmount)
+
+                const stakedNu = await tokenStaking.stakedNu(operatorAddress)
+                const withdrawableNu = escrowNu.sub(stakedNu)
+
+                await stakingEscrow.connect(operator).withdraw(withdrawableNu)
+
+                expect(await stakingEscrow.getAllTokens(operatorAddress)).to.equal(stakedNu)
+              }
+            }
+          )
+        )
+      })
+
+      it("should not be able to withdraw staked NU", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const operatorAddress = stakers[index]
+              const operator = await impersonate(purse, operatorAddress)
+              let escrowNu = await stakingEscrow.getAllTokens(operatorAddress)
+              const nuToUnstakeInT = nuToT(escrowNu.div(2))
+
+              // Method reverts if insufficient tokens: skipping this case...
+              if (nuToUnstakeInT.tAmount > 0) {
+                await tokenStaking
+                  .connect(operator)
+                  .stakeNu(operatorAddress, operatorAddress, operatorAddress)
+                // Unstake the half of Nu staked
+                await tokenStaking.connect(operator).unstakeNu(operatorAddress, nuToUnstakeInT.tAmount)
+
+                await expect(stakingEscrow.connect(operator).withdraw(escrowNu)).to.be.reverted
+              }
+            }
+          )
+        )
+      })
+    })
   })
 })
