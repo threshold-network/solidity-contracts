@@ -196,6 +196,24 @@ describeFn("System Tests: StakingEscrow", () => {
           )
         )
       })
+
+      it("should not be possible to unstake NU", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const operatorAddress = stakers[index]
+              const operator = await impersonate(purse, operatorAddress)
+
+              if (await tokenStaking.stakedNu(operatorAddress) == 0) {
+                await expect(tokenStaking
+                  .connect(operator)
+                  .unstakeNu(operatorAddress, to1e18(1000))).to.be.reverted
+              }
+            }
+          )
+        )
+      })
     })
 
     context("when operator stake all NU tokens on Token Staking", () => {
