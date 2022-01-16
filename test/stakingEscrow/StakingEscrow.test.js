@@ -1,7 +1,4 @@
-const chai = require("chai")
-const chaiAsPromised = require("chai-as-promised")
-chai.use(chaiAsPromised)
-const expect = chai.expect
+const { expect } = require("chai")
 const fc = require("fast-check")
 
 const { helpers } = require("hardhat")
@@ -24,6 +21,7 @@ describeFn("System Tests: StakingEscrow", () => {
   let tokenStaking
   let stakingEscrow
   let stakingEscrowImplementation
+  let nuCypherVendingMachine
 
   async function impersonate(purse, account) {
     return await impersonateAccount(account, {
@@ -44,6 +42,7 @@ describeFn("System Tests: StakingEscrow", () => {
     tokenStaking = contracts.tokenStaking
     stakingEscrow = contracts.stakingEscrow
     stakingEscrowImplementation = contracts.stakingEscrowImplementation
+    nuCypherVendingMachine = contracts.nuCypherVendingMachine
 
     purse = await ethers.getSigner(1)
     daoAgent = await impersonate(purse, daoAgentAddress)
@@ -100,13 +99,10 @@ describeFn("System Tests: StakingEscrow", () => {
             async (index) => {
               const operatorAddress = stakers[index]
               const operator = await impersonate(purse, operatorAddress)
-
               const tokens = await stakingEscrow.getAllTokens(operatorAddress)
               const withdrawTokens = tokens.div(2)
               const difference = tokens.sub(withdrawTokens)
-
               await stakingEscrow.connect(operator).withdraw(withdrawTokens)
-
               expect(
                 await stakingEscrow.getAllTokens(operatorAddress)
               ).to.equal(difference)
@@ -122,14 +118,11 @@ describeFn("System Tests: StakingEscrow", () => {
             async (index) => {
               const stakerAddress = stakers[index]
               const staker = await impersonate(purse, stakerAddress)
-
               const stakeTokens = await stakingEscrow.getAllTokens(
                 stakerAddress
               )
               const nuBalance = await nuCypherToken.balanceOf(stakerAddress)
-
               await stakingEscrow.connect(staker).withdraw(stakeTokens)
-
               expect(await nuCypherToken.balanceOf(stakerAddress)).to.equal(
                 nuBalance.add(stakeTokens)
               )
@@ -147,16 +140,77 @@ describeFn("System Tests: StakingEscrow", () => {
             async (index) => {
               const stakerAddress = stakers[index]
               const staker = await impersonate(purse, stakerAddress)
-
               const stakeTokens = await stakingEscrow.getAllTokens(
                 stakerAddress
               )
-
               await stakingEscrow.connect(staker).withdraw(stakeTokens)
-
               await expect(
                 stakingEscrow.connect(staker).withdraw(to1e18(10000))
-              ).to.be.rejectedWith(Error)
+              ).to.be.reverted
+            }
+          )
+        )
+      })
+    })
+
+    context("when operator stake all NU tokens on Token Staking", () => {
+      it("should be staked or be reverted if insufficient NU", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const operatorAddress = stakers[index]
+              const operator = await impersonate(purse, operatorAddress)
+              const escrowNu = await stakingEscrow.getAllTokens(operatorAddress)
+              const escrowNuInT = await nuCypherVendingMachine.conversionToT(
+                escrowNu
+              )
+              // If insufficient NU tokens, method reverts
+              if (escrowNuInT.tAmount == 0) {
+                await expect(
+                  tokenStaking
+                    .connect(operator)
+                    .stakeNu(operatorAddress, operatorAddress, operatorAddress)
+                ).to.be.revertedWith("Nothing to sync")
+              } else {
+                const [, , previouslyStakedNuInT] = await tokenStaking.stakes(
+                  operatorAddress
+                )
+                const expectedStakedTokensInT = previouslyStakedNuInT.add(
+                  escrowNuInT.tAmount
+                )
+                await tokenStaking
+                  .connect(operator)
+                  .stakeNu(operatorAddress, operatorAddress, operatorAddress)
+                const [, , stakedNuInT] = await tokenStaking.stakes(
+                  operatorAddress
+                )
+                expect(stakedNuInT).to.equal(expectedStakedTokensInT)
+              }
+            }
+          )
+        )
+      }).timeout(120000)
+
+      it("should fail if try to withdraw", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const operatorAddress = stakers[index]
+              const operator = await impersonate(purse, operatorAddress)
+              const escrowNu = await stakingEscrow.getAllTokens(operatorAddress)
+              const escrowNuInT = await nuCypherVendingMachine.conversionToT(
+                escrowNu
+              )
+              // If insufficient NU tokens, method reverts
+              if (escrowNuInT.tAmount > 0) {
+                await tokenStaking
+                  .connect(operator)
+                  .stakeNu(operatorAddress, operatorAddress, operatorAddress)
+                await expect(stakingEscrow.connect(operator).withdraw(escrowNu))
+                  .to.be.reverted
+              }
             }
           )
         )

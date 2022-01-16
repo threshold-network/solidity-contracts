@@ -41,6 +41,7 @@ async function initContracts() {
     stakingEscrow: stakingEscrow,
     stakingEscrowDispatcher: stakingEscrowDispatcher,
     stakingEscrowImplementation: stakingEscrowImplementation,
+    nuCypherVendingMachine: nuCypherVendingMachine,
   }
 }
 
