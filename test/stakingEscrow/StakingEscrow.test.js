@@ -15,6 +15,8 @@ const describeFn =
 describeFn("System Tests: StakingEscrow", () => {
   let purse
   let daoAgent
+  let floatingPointDivisor
+  let nuCypherRatio
 
   // Contracts
   let nuCypherToken
@@ -30,8 +32,23 @@ describeFn("System Tests: StakingEscrow", () => {
     })
   }
 
-  before(() => {
+  const nuToT = (nuTokens) => {
+    amount = ethers.BigNumber.from(nuTokens)
+    const wrappedRemainder = amount.mod(floatingPointDivisor)
+    amount = amount.sub(wrappedRemainder)
+    return {
+      tAmount: amount.mul(nuCypherRatio).div(floatingPointDivisor),
+      remainder: wrappedRemainder,
+    }
+  }
+
+  before(async () => {
     fc.configureGlobal({ numRuns: stakers.length, skipEqualValues: true })
+    await resetFork(startingBlock)
+    const contracts = await initContracts()
+    nuCypherVendingMachine = contracts.nuCypherVendingMachine
+    floatingPointDivisor = await nuCypherVendingMachine.FLOATING_POINT_DIVISOR()
+    nuCypherRatio = await nuCypherVendingMachine.ratio()
   })
 
   beforeEach(async () => {
@@ -74,6 +91,30 @@ describeFn("System Tests: StakingEscrow", () => {
         const stakersNumber = await stakingEscrow.getStakersLength()
         await resetFork(startingBlock)
         expect(await stakingEscrow.getStakersLength()).to.equal(stakersNumber)
+      })
+    })
+
+    context("once NuCypher Vending machine is resolved", () => {
+      it("should conversionToT calculates amount and remainder", async () => {
+        await fc.assert(
+          fc.asyncProperty(fc.bigUintN(64), async (tokens) => {
+            const nuTokens = ethers.BigNumber.from(tokens)
+            const convertedNuTokens =
+              await nuCypherVendingMachine.conversionToT(nuTokens)
+            expect(nuToT(nuTokens).tAmount).to.equal(convertedNuTokens.tAmount)
+            expect(nuToT(nuTokens).remainder).to.equal(
+              convertedNuTokens.wrappedRemainder
+            )
+          }),
+          {
+            numRuns: 20,
+            examples: [
+              [0],
+              [BigInt(floatingPointDivisor)],
+              [BigInt(floatingPointDivisor) * BigInt(128)],
+            ],
+          }
+        )
       })
     })
   })
@@ -132,7 +173,7 @@ describeFn("System Tests: StakingEscrow", () => {
       })
     })
 
-    context("when staker has not NU tokens staked on Staking Escrow", () => {
+    context("when staker has not NU staked on Staking Escrow", () => {
       it("should not be possible to withdraw NU", async () => {
         await fc.assert(
           fc.asyncProperty(
@@ -162,9 +203,7 @@ describeFn("System Tests: StakingEscrow", () => {
               const operatorAddress = stakers[index]
               const operator = await impersonate(purse, operatorAddress)
               const escrowNu = await stakingEscrow.getAllTokens(operatorAddress)
-              const escrowNuInT = await nuCypherVendingMachine.conversionToT(
-                escrowNu
-              )
+              const escrowNuInT = nuToT(escrowNu)
               // If insufficient NU tokens, method reverts
               if (escrowNuInT.tAmount == 0) {
                 await expect(
@@ -192,7 +231,7 @@ describeFn("System Tests: StakingEscrow", () => {
         )
       }).timeout(120000)
 
-      it("should fail if try to withdraw", async () => {
+      it("should not be able to withdraw NU", async () => {
         await fc.assert(
           fc.asyncProperty(
             fc.integer({ min: 0, max: stakers.length - 1 }),
@@ -200,10 +239,8 @@ describeFn("System Tests: StakingEscrow", () => {
               const operatorAddress = stakers[index]
               const operator = await impersonate(purse, operatorAddress)
               const escrowNu = await stakingEscrow.getAllTokens(operatorAddress)
-              const escrowNuInT = await nuCypherVendingMachine.conversionToT(
-                escrowNu
-              )
-              // If insufficient NU tokens, method reverts
+              const escrowNuInT = nuToT(escrowNu)
+              // Method reverts if insufficient tokens: skipping this case...
               if (escrowNuInT.tAmount > 0) {
                 await tokenStaking
                   .connect(operator)
