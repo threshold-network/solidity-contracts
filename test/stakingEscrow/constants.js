@@ -12,7 +12,9 @@ module.exports.nuCypherVendingMachineAddress =
   "0x1CCA7E410eE41739792eA0A24e00349Dd247680e"
 module.exports.daoAgentAddress = "0xb6bfF48574B722F3BFf0C29c9e1b631dD19c1A93"
 
+// Changing the startingBlock requires to update the stakers list
 module.exports.startingBlock = 13979631
+// Staker list: all Staking Escrow's stakers whose staked amount > 0
 module.exports.stakers = [
   "0x4d3c343D4BD676E4098336EF75f1d717149623A1",
   "0xCE4407dF6ae8A92EB69412bD6a8ec49A9B9b40dD",

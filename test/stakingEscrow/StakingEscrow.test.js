@@ -13,6 +13,12 @@ const describeFn =
   process.env.NODE_ENV === "stakingescrow-test" ? describe : describe.skip
 
 describeFn("System Tests: StakingEscrow", () => {
+  // numRuns: is the number of runs of property-based tests. The max allowed
+  // value is stakers.length, which implies an exhaustive testing (all stakers
+  // of Staking Escrow contract are tested). Lower values speed up the tests,
+  // but only that number of stakers (randomly selected) will be tested.
+  const numRuns = stakers.length
+
   let purse
   let daoAgent
   let floatingPointDivisor
@@ -43,12 +49,7 @@ describeFn("System Tests: StakingEscrow", () => {
   }
 
   before(async () => {
-    // numRuns: is the number of runs of property-based tests. The max allowed
-    // value is stakers.length, which implies an exhaustive testing (all stakers
-    // of Staking Escrow contract are tested). Lower values speed up the tests,
-    // but only that number of stakers (randomly selected) will be tested.
-    fc.configureGlobal({ numRuns: stakers.length, skipEqualValues: true })
-    await resetFork(startingBlock)
+    fc.configureGlobal({ numRuns: numRuns, skipEqualValues: true })
     const contracts = await initContracts()
     nuCypherVendingMachine = contracts.nuCypherVendingMachine
     floatingPointDivisor = await nuCypherVendingMachine.FLOATING_POINT_DIVISOR()
