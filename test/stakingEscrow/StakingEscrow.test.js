@@ -3,8 +3,9 @@ const fc = require("fast-check")
 
 const { helpers } = require("hardhat")
 const { impersonateAccount } = helpers.account
-const { to1e18 } = helpers.number
 const { resetFork } = helpers.forking
+const { lastBlockTime, increaseTime } = helpers.time
+const { to1e18 } = helpers.number
 
 const { initContracts } = require("./init-contracts")
 const { daoAgentAddress, startingBlock, stakers } = require("./constants")
@@ -49,18 +50,25 @@ describeFn("System Tests: StakingEscrow", () => {
     }
   }
 
+  // Get what is the minimum staked value on Staking Escrow
+  const getMinStaked = async (stakersList, stakingEscrowContract) => {
+    let min = await stakingEscrowContract.getAllTokens(stakersList[0])
+    for (const staker of stakersList) {
+      let amount = await stakingEscrowContract.getAllTokens(staker)
+      min = min.gt(amount) ? amount : min
+    }
+    return min
+  }
+
   before(async () => {
+    await resetFork(startingBlock)
     fc.configureGlobal({ numRuns: numRuns, skipEqualValues: true })
     const contracts = await initContracts()
     nuCypherVendingMachine = contracts.nuCypherVendingMachine
+    stakingEscrow = contracts.stakingEscrow
     floatingPointDivisor = await nuCypherVendingMachine.FLOATING_POINT_DIVISOR()
     nuCypherRatio = await nuCypherVendingMachine.ratio()
-    // Set what is the minimum staked value on Staking Escrow
-    minStaked = await stakingEscrow.getAllTokens(stakers[0])
-    stakers.forEach(async (staker) => {
-      const amount = await stakingEscrow.getAllTokens(staker)
-      minStaked = minStaked > amount ? amount : minStaked
-    })
+    minStaked = await getMinStaked(stakers, stakingEscrow)
   })
 
   beforeEach(async () => {
