@@ -7,6 +7,9 @@ import "hardhat-gas-reporter"
 import "hardhat-deploy"
 import "@tenderly/hardhat-tenderly"
 
+require("hardhat-contract-sizer")
+require("@openzeppelin/hardhat-upgrades")
+
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [

@@ -16,19 +16,18 @@
 pragma solidity 0.8.9;
 
 import "./IApplication.sol";
-import "./IStaking.sol";
 import "./ILegacyTokenStaking.sol";
-import "./IApplication.sol";
+import "./IStaking.sol";
 import "./KeepStake.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
 import "../utils/PercentUtils.sol";
+import "../utils/SafeTUpgradeable.sol";
 import "../vending/VendingMachine.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
 ///         Apart from the basic usage of enabling T stakes, it also acts as a
@@ -37,10 +36,14 @@ import "@openzeppelin/contracts/utils/Address.sol";
 ///         that run on the Threshold Network. Note that legacy NU/KEEP staking
 ///         contracts see TokenStaking as an application (e.g., slashing is
 ///         requested by TokenStaking and performed by the legacy contracts).
-contract TokenStaking is Ownable, IStaking, Checkpoints {
-    using SafeERC20 for T;
+/// @dev TokenStaking is upgradeable, using OpenZeppelin's Upgradeability
+///      framework. As such, it is required to satisfy OZ's guidelines, like
+///      restrictions on constructors, immutable variables, base contracts and
+///      libraries. See https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable
+contract TokenStaking is Initializable, IStaking, Checkpoints {
+    using SafeTUpgradeable for T;
     using PercentUtils for uint256;
-    using SafeCast for uint256;
+    using SafeCastUpgradeable for uint256;
 
     enum ApplicationStatus {
         NOT_APPROVED,
@@ -80,17 +83,23 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     uint256 internal constant SLASHING_REWARD_PERCENT = 5;
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
     uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
+    uint256 internal constant CONVERSION_DIVISOR = 10**(18 - 3);
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IKeepTokenStaking internal immutable keepStakingContract;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     KeepStake internal immutable keepStake;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     INuCypherStakingEscrow internal immutable nucypherStakingContract;
 
-    uint256 internal immutable keepFloatingPointDivisor;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 internal immutable keepRatio;
-    uint256 internal immutable nucypherFloatingPointDivisor;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 internal immutable nucypherRatio;
 
+    address public governance;
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
     uint96 public stakeDiscrepancyPenalty;
@@ -104,7 +113,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     address[] public applications;
 
     SlashingEvent[] public slashingQueue;
-    uint256 public slashingQueueIndex = 0;
+    uint256 public slashingQueueIndex;
 
     event OperatorStaked(
         StakeType indexed stakeType,
@@ -171,9 +180,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         address indexed oldOwner,
         address indexed newOwner
     );
+    event GovernanceTransferred(address oldGovernance, address newGovernance);
 
     modifier onlyGovernance() {
-        require(owner() == msg.sender, "Caller is not the governance");
+        require(governance == msg.sender, "Caller is not the governance");
         _;
     }
 
@@ -208,6 +218,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     /// @param _keepVendingMachine Address of Keep vending machine
     /// @param _nucypherVendingMachine Address of NuCypher vending machine
     /// @param _keepStake Address of Keep contract with grant owners
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         T _token,
         IKeepTokenStaking _keepStakingContract,
@@ -221,7 +232,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             _token.totalSupply() > 0 &&
                 _keepStakingContract.ownerOf(address(0)) == address(0) &&
                 _nucypherStakingContract.getAllTokens(address(0)) == 0 &&
-                Address.isContract(address(_keepStake)),
+                AddressUpgradeable.isContract(address(_keepStake)),
             "Wrong input parameters"
         );
         token = _token;
@@ -229,11 +240,12 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         keepStake = _keepStake;
         nucypherStakingContract = _nucypherStakingContract;
 
-        keepFloatingPointDivisor = _keepVendingMachine.FLOATING_POINT_DIVISOR();
         keepRatio = _keepVendingMachine.ratio();
-        nucypherFloatingPointDivisor = _nucypherVendingMachine
-            .FLOATING_POINT_DIVISOR();
         nucypherRatio = _nucypherVendingMachine.ratio();
+    }
+
+    function initialize() external initializer {
+        _transferGovernance(msg.sender);
     }
 
     //
@@ -795,7 +807,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         OperatorInfo storage operatorStruct = operators[operator];
         // rounding amount to guarantee exact T<>NU conversion in both ways,
         // so there's no remainder after unstaking
-        (, uint96 tRemainder) = tToNu(amount);
+        (, uint96 tRemainder) = convertFromT(amount, nucypherRatio);
         amount -= tRemainder;
         require(
             amount > 0 &&
@@ -866,7 +878,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
             .getDelegationInfo(operator);
 
-        (uint96 realKeepInTStake, ) = keepToT(keepStakeAmount);
+        (uint96 realKeepInTStake, ) = convertToT(keepStakeAmount, keepRatio);
         uint96 oldKeepInTStake = operatorStruct.keepInTStake;
 
         require(
@@ -917,7 +929,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         uint256 nuStakeAmount = nucypherStakingContract.getAllTokens(
             operatorStruct.owner
         );
-        (uint96 realNuInTStake, ) = nuToT(nuStakeAmount);
+        (uint96 realNuInTStake, ) = convertToT(nuStakeAmount, nucypherRatio);
         uint96 oldNuInTStake = operatorStruct.nuInTStake;
         require(oldNuInTStake > realNuInTStake, "There is no discrepancy");
 
@@ -1029,7 +1041,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         );
 
         uint256 maxIndex = slashingQueueIndex + count;
-        maxIndex = Math.min(maxIndex, slashingQueue.length);
+        maxIndex = MathUpgradeable.min(maxIndex, slashingQueue.length);
         count = maxIndex - slashingQueueIndex;
         uint96 tAmountToBurn = 0;
 
@@ -1055,6 +1067,15 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
     ///         of this stake.
     function delegateVoting(address operator, address delegatee) external {
         delegate(operator, delegatee);
+    }
+
+    /// @notice Transfers ownership of the contract to `newGuvnor`.
+    function transferGovernance(address newGuvnor)
+        external
+        virtual
+        onlyGovernance
+    {
+        _transferGovernance(newGuvnor);
     }
 
     //
@@ -1113,7 +1134,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         override
         returns (uint256 nuAmount)
     {
-        (nuAmount, ) = tToNu(operators[operator].nuInTStake);
+        (nuAmount, ) = convertFromT(
+            operators[operator].nuInTStake,
+            nucypherRatio
+        );
     }
 
     /// @notice Gets the stake owner, the beneficiary and the authorizer
@@ -1221,7 +1245,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             i++
         ) {
             address application = operatorStruct.authorizedApplications[i];
-            maxAuthorization = Math.max(
+            maxAuthorization = MathUpgradeable.max(
                 maxAuthorization,
                 operatorStruct.authorizations[application].authorized
             );
@@ -1231,19 +1255,19 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             return 0;
         }
         if (stakeTypes != StakeType.T) {
-            maxAuthorization -= Math.min(
+            maxAuthorization -= MathUpgradeable.min(
                 maxAuthorization,
                 operatorStruct.tStake
             );
         }
         if (stakeTypes != StakeType.NU) {
-            maxAuthorization -= Math.min(
+            maxAuthorization -= MathUpgradeable.min(
                 maxAuthorization,
                 operatorStruct.nuInTStake
             );
         }
         if (stakeTypes != StakeType.KEEP) {
-            maxAuthorization -= Math.min(
+            maxAuthorization -= MathUpgradeable.min(
                 maxAuthorization,
                 operatorStruct.keepInTStake
             );
@@ -1315,7 +1339,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         uint256 queueLength = slashingQueue.length;
         for (uint256 i = 0; i < _operators.length; i++) {
             address operator = _operators[i];
-            uint256 amountToSlash = Math.min(
+            uint256 amountToSlash = MathUpgradeable.min(
                 operators[operator].authorizations[msg.sender].authorized,
                 amount
             );
@@ -1333,7 +1357,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         if (notifier != address(0)) {
             uint256 reward = ((slashingQueue.length - queueLength) *
                 notificationReward).percent(rewardMultiplier);
-            reward = Math.min(reward, notifiersTreasury);
+            reward = MathUpgradeable.min(reward, notifiersTreasury);
             emit NotifierRewarded(notifier, reward);
             if (reward != 0) {
                 notifiersTreasury -= reward;
@@ -1370,7 +1394,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
         if (tAmountToSlash > 0 && operatorStruct.keepInTStake > 0) {
             (uint256 keepStakeAmount, , ) = keepStakingContract
                 .getDelegationInfo(slashing.operator);
-            (uint96 tAmount, ) = keepToT(keepStakeAmount);
+            (uint96 tAmount, ) = convertToT(keepStakeAmount, keepRatio);
             operatorStruct.keepInTStake = tAmount;
 
             tAmountToSlash = seizeKeep(
@@ -1426,7 +1450,7 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
                 application == address(0) ||
                 authorizedApplication == application
             ) {
-                authorization.authorized -= Math
+                authorization.authorized -= MathUpgradeable
                     .min(fromAmount, slashedAmount)
                     .toUint96();
             } else if (fromAmount <= totalStake) {
@@ -1485,7 +1509,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             tPenalty = operatorStruct.keepInTStake;
         }
 
-        (uint256 keepPenalty, uint96 tRemainder) = tToKeep(tPenalty);
+        (uint256 keepPenalty, uint96 tRemainder) = convertFromT(
+            tPenalty,
+            keepRatio
+        );
         if (keepPenalty == 0) {
             return tAmountToSlash;
         }
@@ -1523,7 +1550,10 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             tPenalty = operatorStruct.nuInTStake;
         }
 
-        (uint256 nuPenalty, uint96 tRemainder) = tToNu(tPenalty);
+        (uint256 nuPenalty, uint96 tRemainder) = convertFromT(
+            tPenalty,
+            nucypherRatio
+        );
         if (nuPenalty == 0) {
             return tAmountToSlash;
         }
@@ -1630,8 +1660,14 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             owner,
             operator
         );
-        (uint96 tAmount, ) = nuToT(nuStakeAmount);
+        (uint96 tAmount, ) = convertToT(nuStakeAmount, nucypherRatio);
         return tAmount;
+    }
+
+    function _transferGovernance(address newGuvnor) internal virtual {
+        address oldGuvnor = governance;
+        governance = newGuvnor;
+        emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
     /// @notice Returns amount of Keep stake in the Keep staking contract for the specified operator.
@@ -1641,60 +1677,34 @@ contract TokenStaking is Ownable, IStaking, Checkpoints {
             operator,
             address(this)
         );
-        (uint96 tAmount, ) = keepToT(keepStakeAmount);
+        (uint96 tAmount, ) = convertToT(keepStakeAmount, keepRatio);
         return tAmount;
     }
 
-    /// @notice Returns the T token amount that's obtained from `amount` wrapped
-    ///         tokens (KEEP), and the remainder that can't be converted.
-    function keepToT(uint256 keepAmount)
+    /// @notice Returns the T token amount that's obtained from `amount` legacy
+    ///         tokens for the given `ratio`, and the remainder that can't be
+    ///         converted.
+    function convertToT(uint256 amount, uint256 ratio)
         internal
-        view
-        returns (uint96 tAmount, uint256 keepRemainder)
+        pure
+        returns (uint96 tAmount, uint256 remainder)
     {
-        keepRemainder = keepAmount % keepFloatingPointDivisor;
-        uint256 convertibleAmount = keepAmount - keepRemainder;
-        tAmount = ((convertibleAmount * keepRatio) / keepFloatingPointDivisor)
-            .toUint96();
+        remainder = amount % CONVERSION_DIVISOR;
+        uint256 convertibleAmount = amount - remainder;
+        tAmount = ((convertibleAmount * ratio) / CONVERSION_DIVISOR).toUint96();
     }
 
-    /// @notice The amount of wrapped tokens (KEEP) that's obtained from
-    ///         `amount` T tokens, and the remainder that can't be converted.
-    function tToKeep(uint96 tAmount)
+    /// @notice Returns the amount of legacy tokens that's obtained from
+    ///         `tAmount` T tokens for the given `ratio`, and the T remainder
+    ///         that can't be converted.
+    function convertFromT(uint96 tAmount, uint256 ratio)
         internal
-        view
-        returns (uint256 keepAmount, uint96 tRemainder)
-    {
-        tRemainder = (tAmount % keepRatio).toUint96();
-        uint256 convertibleAmount = tAmount - tRemainder;
-        keepAmount = (convertibleAmount * keepFloatingPointDivisor) / keepRatio;
-    }
-
-    /// @notice Returns the T token amount that's obtained from `amount` wrapped
-    ///         tokens (NU), and the remainder that can't be converted.
-    function nuToT(uint256 nuAmount)
-        internal
-        view
-        returns (uint96 tAmount, uint256 nuRemainder)
-    {
-        nuRemainder = nuAmount % nucypherFloatingPointDivisor;
-        uint256 convertibleAmount = nuAmount - nuRemainder;
-        tAmount = ((convertibleAmount * nucypherRatio) /
-            nucypherFloatingPointDivisor).toUint96();
-    }
-
-    /// @notice The amount of wrapped tokens (NU) that's obtained from
-    ///         `amount` T tokens, and the remainder that can't be converted.
-    function tToNu(uint96 tAmount)
-        internal
-        view
-        returns (uint256 nuAmount, uint96 tRemainder)
+        pure
+        returns (uint256 amount, uint96 tRemainder)
     {
         //slither-disable-next-line weak-prng
-        tRemainder = (tAmount % nucypherRatio).toUint96();
+        tRemainder = (tAmount % ratio).toUint96();
         uint256 convertibleAmount = tAmount - tRemainder;
-        nuAmount =
-            (convertibleAmount * nucypherFloatingPointDivisor) /
-            nucypherRatio;
+        amount = (convertibleAmount * CONVERSION_DIVISOR) / ratio;
     }
 }

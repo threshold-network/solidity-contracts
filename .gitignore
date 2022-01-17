@@ -17,3 +17,6 @@ yarn-error.log
 
 .hardhat/*
 !.hardhat/networks_TEMPLATE.ts
+
+# OpenZeppelin
+.openzeppelin/unknown-*.json

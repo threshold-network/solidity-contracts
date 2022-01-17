@@ -1,4 +1,4 @@
-const { helpers } = require("hardhat")
+const { helpers, upgrades } = require("hardhat")
 const { impersonateAccount } = helpers.account
 const { to1e18 } = helpers.number
 
@@ -156,13 +156,20 @@ async function deployTokenStaking(
   keepStake
 ) {
   const TokenStaking = await ethers.getContractFactory("TokenStaking")
-  const tokenStaking = await TokenStaking.deploy(
-    tToken.address,
-    keepTokenStaking.address,
-    nuCypherStakingEscrow.address,
-    keepVendingMachine.address,
-    nuCypherVendingMachine.address,
-    keepStake.address
+  const tokenStakingInitializerArgs = []
+  const tokenStaking = await upgrades.deployProxy(
+    TokenStaking,
+    tokenStakingInitializerArgs,
+    {
+      constructorArgs: [
+        tToken.address,
+        keepTokenStaking.address,
+        nuCypherStakingEscrow.address,
+        keepVendingMachine.address,
+        nuCypherVendingMachine.address,
+        keepStake.address,
+      ],
+    }
   )
 
   await tokenStaking.deployed()

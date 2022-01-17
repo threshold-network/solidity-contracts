@@ -35,6 +35,7 @@
     "@keep-network/prettier-config-keep": "github:keep-network/prettier-config-keep#d6ec02e",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/hardhat-upgrades": "^1.12.0",
     "@tenderly/hardhat-tenderly": "^1.0.12",
     "@types/chai": "^4.2.22",
     "@types/mocha": "^9.0.0",
@@ -45,6 +46,7 @@
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.1",
     "hardhat": "^2.6.8",
+    "hardhat-contract-sizer": "^2.1.1",
     "hardhat-deploy": "^0.9.4",
     "hardhat-gas-reporter": "^1.0.4",
     "hardhat-local-networks-config-plugin": "^0.0.6",
@@ -59,6 +61,7 @@
   "dependencies": {
     "@keep-network/keep-core": ">1.8.0-dev <1.8.0-pre",
     "@openzeppelin/contracts": "^4.4",
+    "@openzeppelin/contracts-upgradeable": "^4.4",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
   },
   "peerDependencies": {

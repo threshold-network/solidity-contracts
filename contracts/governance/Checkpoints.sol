@@ -16,9 +16,8 @@
 pragma solidity 0.8.9;
 
 import "./IVotesHistory.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 
 /// @title Checkpoints
 /// @dev Abstract contract to support checkpoints for Compound-like voting and
@@ -29,6 +28,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 ///      {delegateBySig}. Voting power can be publicly queried through
 ///      {getVotes} and {getPastVotes}.
 ///      NOTE: Extracted from OpenZeppelin ERCVotes.sol.
+/// @dev This contract is upgrade-safe.
 abstract contract Checkpoints is IVotesHistory {
     struct Checkpoint {
         uint32 fromBlock;
@@ -39,6 +39,12 @@ abstract contract Checkpoints is IVotesHistory {
     mapping(address => address) internal _delegates;
     mapping(address => uint128[]) internal _checkpoints;
     uint128[] internal _totalSupplyCheckpoints;
+
+    // Reserved storage space in case we need to add more variables,
+    // since there are upgradeable contracts that inherit from this one.
+    // See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    // slither-disable-next-line unused-state
+    uint256[47] private __gap;
 
     /// @notice Emitted when an account changes their delegate.
     event DelegateChanged(
@@ -74,7 +80,7 @@ abstract contract Checkpoints is IVotesHistory {
         virtual
         returns (uint32)
     {
-        return SafeCast.toUint32(_checkpoints[account].length);
+        return SafeCastUpgradeable.toUint32(_checkpoints[account].length);
     }
 
     /// @notice Get the address `account` is currently delegating to.
@@ -179,7 +185,7 @@ abstract contract Checkpoints is IVotesHistory {
             if (fromBlock == block.number) {
                 ckpts[pos - 1] = encodeCheckpoint(
                     fromBlock,
-                    SafeCast.toUint96(newWeight)
+                    SafeCastUpgradeable.toUint96(newWeight)
                 );
                 return (oldWeight, newWeight);
             }
@@ -187,8 +193,8 @@ abstract contract Checkpoints is IVotesHistory {
 
         ckpts.push(
             encodeCheckpoint(
-                SafeCast.toUint32(block.number),
-                SafeCast.toUint96(newWeight)
+                SafeCastUpgradeable.toUint32(block.number),
+                SafeCastUpgradeable.toUint96(newWeight)
             )
         );
     }
@@ -222,7 +228,7 @@ abstract contract Checkpoints is IVotesHistory {
         uint256 high = ckpts.length;
         uint256 low = 0;
         while (low < high) {
-            uint256 mid = Math.average(low, high);
+            uint256 mid = MathUpgradeable.average(low, high);
             uint32 midBlock = decodeBlockNumber(ckpts[mid]);
             if (midBlock > blockNumber) {
                 high = mid;

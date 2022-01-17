@@ -17,6 +17,7 @@ const ApplicationStatus = {
   PAUSED: 2,
   DISABLED: 3,
 }
+const { upgrades } = require("hardhat")
 
 describe("TokenStaking", () => {
   let tToken
@@ -128,13 +129,20 @@ describe("TokenStaking", () => {
     await nucypherStakingMock.deployed()
 
     const TokenStaking = await ethers.getContractFactory("TokenStaking")
-    tokenStaking = await TokenStaking.deploy(
-      tToken.address,
-      keepStakingMock.address,
-      nucypherStakingMock.address,
-      keepVendingMachine.address,
-      nucypherVendingMachine.address,
-      keepStake.address
+    const tokenStakingInitializerArgs = []
+    tokenStaking = await upgrades.deployProxy(
+      TokenStaking,
+      tokenStakingInitializerArgs,
+      {
+        constructorArgs: [
+          tToken.address,
+          keepStakingMock.address,
+          nucypherStakingMock.address,
+          keepVendingMachine.address,
+          nucypherVendingMachine.address,
+          keepStake.address,
+        ],
+      }
     )
     await tokenStaking.deployed()
 
