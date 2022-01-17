@@ -292,7 +292,7 @@ describeFn("System Tests: StakingEscrow", () => {
             async (index) => {
               const ownerAddress = stakers[index]
               const owner = await impersonate(purse, ownerAddress)
-              const otherOperatorAdd = ethers.Wallet.createRandom().address
+              const otherOpAdd = ethers.Wallet.createRandom().address
               const escrowNu = await stakingEscrow.getAllTokens(ownerAddress)
 
               if (nuToT(escrowNu).tAmount > 0) {
@@ -303,7 +303,7 @@ describeFn("System Tests: StakingEscrow", () => {
                 await expect(
                   tokenStaking
                     .connect(owner)
-                    .stakeNu(otherOperatorAdd, otherOperatorAdd, otherOperatorAdd)
+                    .stakeNu(otherOpAdd, otherOpAdd, otherOpAdd)
                 ).to.be.reverted
               }
             }
@@ -410,7 +410,7 @@ describeFn("System Tests: StakingEscrow", () => {
               const ownerAddress = stakers[index]
               const owner = await impersonate(purse, ownerAddress)
               const escrowNu = await stakingEscrow.getAllTokens(ownerAddress)
-              const otherOperatorAdd = ethers.Wallet.createRandom().address
+              const otherOpAdd = ethers.Wallet.createRandom().address
 
               // Method reverts if insufficient tokens: skipping this case...
               if (nuToT(escrowNu).tAmount > 0) {
@@ -420,16 +420,14 @@ describeFn("System Tests: StakingEscrow", () => {
                 await tokenStaking.connect(owner).unstakeAll(ownerAddress)
                 await tokenStaking
                   .connect(owner)
-                  .stakeNu(otherOperatorAdd, otherOperatorAdd, otherOperatorAdd)
+                  .stakeNu(otherOpAdd, otherOpAdd, otherOpAdd)
 
-                const roles = await tokenStaking.rolesOf(otherOperatorAdd)
-                const [, , nuInTStake] = await tokenStaking.stakes(
-                  otherOperatorAdd
-                )
+                const roles = await tokenStaking.rolesOf(otherOpAdd)
+                const [, , nuInTStake] = await tokenStaking.stakes(otherOpAdd)
 
                 expect(roles.owner).to.equal(ownerAddress)
-                expect(roles.beneficiary).to.equal(otherOperatorAdd)
-                expect(roles.authorizer).to.equal(otherOperatorAdd)
+                expect(roles.beneficiary).to.equal(otherOpAdd)
+                expect(roles.authorizer).to.equal(otherOpAdd)
                 expect(await tokenStaking.stakedNu(ownerAddress)).to.equal(0)
                 expect(nuInTStake).to.equal(nuToT(escrowNu).tAmount)
               }
