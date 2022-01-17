@@ -205,10 +205,12 @@ describeFn("System Tests: StakingEscrow", () => {
               const operatorAddress = stakers[index]
               const operator = await impersonate(purse, operatorAddress)
 
-              if (await tokenStaking.stakedNu(operatorAddress) == 0) {
-                await expect(tokenStaking
-                  .connect(operator)
-                  .unstakeNu(operatorAddress, to1e18(1000))).to.be.reverted
+              if ((await tokenStaking.stakedNu(operatorAddress)) == 0) {
+                await expect(
+                  tokenStaking
+                    .connect(operator)
+                    .unstakeNu(operatorAddress, to1e18(1000))
+                ).to.be.reverted
               }
             }
           )
@@ -269,6 +271,32 @@ describeFn("System Tests: StakingEscrow", () => {
                   .stakeNu(operatorAddress, operatorAddress, operatorAddress)
                 await expect(stakingEscrow.connect(operator).withdraw(escrowNu))
                   .to.be.reverted
+              }
+            }
+          )
+        )
+      })
+
+      it("should not be able to stake again with other operator address", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const ownerAddress = stakers[index]
+              const owner = await impersonate(purse, ownerAddress)
+              const otherOperatorAdd = ethers.Wallet.createRandom().address
+              const escrowNu = await stakingEscrow.getAllTokens(ownerAddress)
+
+              if (nuToT(escrowNu).tAmount > 0) {
+                await tokenStaking
+                  .connect(owner)
+                  .stakeNu(ownerAddress, ownerAddress, ownerAddress)
+
+                await expect(
+                  tokenStaking
+                    .connect(owner)
+                    .stakeNu(otherOperatorAdd, otherOperatorAdd, otherOperatorAdd)
+                ).to.be.reverted
               }
             }
           )
