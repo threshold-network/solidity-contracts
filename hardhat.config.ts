@@ -46,6 +46,14 @@ const config: HardhatUserConfig = {
       chainId: 1101,
       tags: ["local"],
     },
+    rinkeby: {
+      url: process.env.CHAIN_API_URL || "",
+      chainId: 4,
+      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
+        : undefined,
+      tags: ["tenderly"],
+    },
     ropsten: {
       url: process.env.CHAIN_API_URL || "",
       chainId: 3,
