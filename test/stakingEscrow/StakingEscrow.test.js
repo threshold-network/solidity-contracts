@@ -21,6 +21,7 @@ describeFn("System Tests: StakingEscrow", () => {
 
   let purse
   let daoAgent
+  let minStaked
   let floatingPointDivisor
   let nuCypherRatio
 
@@ -54,6 +55,12 @@ describeFn("System Tests: StakingEscrow", () => {
     nuCypherVendingMachine = contracts.nuCypherVendingMachine
     floatingPointDivisor = await nuCypherVendingMachine.FLOATING_POINT_DIVISOR()
     nuCypherRatio = await nuCypherVendingMachine.ratio()
+    // Set what is the minimum staked value on Staking Escrow
+    minStaked = await stakingEscrow.getAllTokens(stakers[0])
+    stakers.forEach(async (staker) => {
+      const amount = await stakingEscrow.getAllTokens(staker)
+      minStaked = minStaked > amount ? amount : minStaked
+    })
   })
 
   beforeEach(async () => {
