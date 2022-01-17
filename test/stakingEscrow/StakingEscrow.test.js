@@ -22,7 +22,6 @@ describeFn("System Tests: StakingEscrow", () => {
 
   let purse
   let daoAgent
-  let minStaked
   let floatingPointDivisor
   let nuCypherRatio
 
@@ -50,25 +49,13 @@ describeFn("System Tests: StakingEscrow", () => {
     }
   }
 
-  // Get what is the minimum staked value on Staking Escrow
-  const getMinStaked = async (stakersList, stakingEscrowContract) => {
-    let min = await stakingEscrowContract.getAllTokens(stakersList[0])
-    for (const staker of stakersList) {
-      let amount = await stakingEscrowContract.getAllTokens(staker)
-      min = min.gt(amount) ? amount : min
-    }
-    return min
-  }
-
   before(async () => {
     await resetFork(startingBlock)
     fc.configureGlobal({ numRuns: numRuns, skipEqualValues: true })
     const contracts = await initContracts()
     nuCypherVendingMachine = contracts.nuCypherVendingMachine
-    stakingEscrow = contracts.stakingEscrow
     floatingPointDivisor = await nuCypherVendingMachine.FLOATING_POINT_DIVISOR()
     nuCypherRatio = await nuCypherVendingMachine.ratio()
-    minStaked = await getMinStaked(stakers, stakingEscrow)
   })
 
   beforeEach(async () => {
