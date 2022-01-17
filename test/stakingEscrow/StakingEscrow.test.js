@@ -4,6 +4,7 @@ const fc = require("fast-check")
 const { helpers } = require("hardhat")
 const { impersonateAccount } = helpers.account
 const { resetFork } = helpers.forking
+const { createSnapshot, restoreSnapshot } = helpers.snapshot
 const { lastBlockTime, increaseTime } = helpers.time
 const { to1e18 } = helpers.number
 
@@ -193,7 +194,7 @@ describeFn("System Tests: StakingEscrow", () => {
               )
               await stakingEscrow.connect(staker).withdraw(stakeTokens)
               await expect(
-                stakingEscrow.connect(staker).withdraw(to1e18(10000))
+                stakingEscrow.connect(staker).withdraw(to1e18(1000))
               ).to.be.reverted
             }
           )
@@ -256,7 +257,7 @@ describeFn("System Tests: StakingEscrow", () => {
             }
           )
         )
-      }).timeout(300000)
+      })
 
       it("staker should not be able to withdraw NU", async () => {
         await fc.assert(
@@ -280,7 +281,7 @@ describeFn("System Tests: StakingEscrow", () => {
         )
       })
 
-      it("should not be able to stake again with other operator address", async () => {
+      it("should not be staked again with other operator address", async () => {
         await fc.assert(
           fc.asyncProperty(
             fc.integer({ min: 0, max: stakers.length - 1 }),
@@ -304,7 +305,7 @@ describeFn("System Tests: StakingEscrow", () => {
             }
           )
         )
-      })
+      }).timeout(300000)
     })
 
     context("when operator partially stake NU", () => {
@@ -430,6 +431,176 @@ describeFn("System Tests: StakingEscrow", () => {
           )
         )
       }).timeout(300000)
+    })
+  })
+
+  describe("vesting", () => {
+    context("when not vesting parameter set up", () => {
+      it("unvested NU should be zero", async () => {
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const stakAdd = stakers[index]
+              expect(await stakingEscrow.getUnvestedTokens(stakAdd)).to.equal(0)
+            }
+          )
+        )
+      })
+    })
+
+    context("when set up a vesting parameter with release rate zero", () => {
+      beforeEach(async () => {
+        const timestamp = (await lastBlockTime()) + 3600
+        const releaseTimestamp = new Array(stakers.length).fill(timestamp)
+        const releaseRate = new Array(stakers.length).fill(0)
+        await stakingEscrow
+          .connect(daoAgent)
+          .setupVesting(stakers, releaseTimestamp, releaseRate)
+      })
+
+      it("all NU tokens should be registered as vested", async () => {
+        await fc.assert(
+          fc
+            .asyncProperty(
+              fc.integer({ min: 0, max: stakers.length - 1 }),
+              async (index) => {
+                const stakAdd = stakers[index]
+                const stakTokens = await stakingEscrow.getAllTokens(stakAdd)
+                const unvTokens = await stakingEscrow.getUnvestedTokens(stakAdd)
+                expect(unvTokens).to.not.equal(0)
+                expect(unvTokens).to.equal(stakTokens)
+              }
+            )
+            .beforeEach(async () => {
+              createSnapshot()
+            })
+            .afterEach(async () => {
+              restoreSnapshot()
+            })
+        )
+      })
+
+      it("unvested tokens should not change during vesting time", async () => {
+        await increaseTime(1800)
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const stakAdd = stakers[index]
+              const stakTokens = await stakingEscrow.getAllTokens(stakAdd)
+              const unvTokens = await stakingEscrow.getUnvestedTokens(stakAdd)
+              expect(unvTokens).to.not.equal(0)
+              expect(unvTokens).to.equal(stakTokens)
+            }
+          )
+        )
+      })
+
+      it("should not be able to withdraw before release time", async () => {
+        await increaseTime(1800)
+        await fc.assert(
+          fc
+            .asyncProperty(
+              fc.integer({ min: 0, max: stakers.length - 1 }),
+              async (index) => {
+                const stakAdd = stakers[index]
+                const staker = await impersonate(purse, stakAdd)
+                const stakTokens = await stakingEscrow.getAllTokens(stakAdd)
+                const unvestedTokens = await stakingEscrow.getUnvestedTokens(
+                  stakAdd
+                )
+                expect(unvestedTokens).to.above(0)
+                await expect(stakingEscrow.connect(staker).withdraw(stakTokens))
+                  .to.be.reverted
+              }
+            )
+            .beforeEach(async () => {
+              createSnapshot()
+            })
+            .afterEach(async () => {
+              restoreSnapshot()
+            })
+        )
+      })
+
+      it("should be able to withdraw after release time", async () => {
+        await increaseTime(3600)
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const stakAdd = stakers[index]
+              const staker = await impersonate(purse, stakAdd)
+              const stakTokens = await stakingEscrow.getAllTokens(stakAdd)
+              const unvestTokens = await stakingEscrow.getUnvestedTokens(
+                stakAdd
+              )
+              const preNuTokens = await nuCypherToken.balanceOf(stakAdd)
+              await stakingEscrow.connect(staker).withdraw(stakTokens)
+              const nuTokens = await nuCypherToken.balanceOf(stakAdd)
+              expect(unvestTokens).to.equal(0)
+              expect(stakTokens.add(preNuTokens)).to.equal(nuTokens)
+            }
+          )
+        )
+      })
+    })
+
+    context("when set up a vesting param with release rate not zero", () => {
+      beforeEach(async () => {
+        const timestamp = (await lastBlockTime()) + 3600
+        const releaseTimestamp = new Array(stakers.length).fill(timestamp)
+        const releaseRate = []
+        for (const staker of stakers) {
+          releaseRate.push((await stakingEscrow.getAllTokens(staker)).div(3600))
+        }
+        await stakingEscrow
+          .connect(daoAgent)
+          .setupVesting(stakers, releaseTimestamp, releaseRate)
+      })
+
+      it("after a time some staked Nu should be unvested", async () => {
+        await increaseTime(1800)
+        await fc.assert(
+          fc.asyncProperty(
+            fc.integer({ min: 0, max: stakers.length - 1 }),
+            async (index) => {
+              const stakAdd = stakers[index]
+              const stakTokens = await stakingEscrow.getAllTokens(stakAdd)
+              const unvTokens = await stakingEscrow.getUnvestedTokens(stakAdd)
+              expect(unvTokens).to.below(stakTokens)
+            }
+          )
+        )
+      })
+
+      it("after a time should be able to withdraw unvested NU", async () => {
+        await increaseTime(1800)
+        await fc.assert(
+          fc
+            .asyncProperty(
+              fc.integer({ min: 0, max: stakers.length - 1 }),
+              async (index) => {
+                const stakAdd = stakers[index]
+                const staker = await impersonate(purse, stakAdd)
+                const stakTokens = await stakingEscrow.getAllTokens(stakAdd)
+                const unvTokens = await stakingEscrow.getUnvestedTokens(stakAdd)
+                const preNuTokens = await nuCypherToken.balanceOf(stakAdd)
+                const freeTokens = stakTokens.sub(unvTokens)
+                await stakingEscrow.connect(staker).withdraw(freeTokens)
+                const nuTokens = await nuCypherToken.balanceOf(stakAdd)
+                expect(freeTokens.add(preNuTokens)).to.equal(nuTokens)
+              }
+            )
+            .beforeEach(async () => {
+              await createSnapshot()
+            })
+            .afterEach(async () => {
+              await restoreSnapshot()
+            })
+        )
+      })
     })
   })
 })
