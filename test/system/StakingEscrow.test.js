@@ -8,8 +8,12 @@ const { createSnapshot, restoreSnapshot } = helpers.snapshot
 const { lastBlockTime, increaseTime } = helpers.time
 const { to1e18 } = helpers.number
 
-const { initContracts } = require("./init-contracts")
-const { daoAgentAddress, startingBlock, stakers } = require("./constants")
+const { initContracts } = require("./StakingEscrow-init-contracts")
+const {
+  daoAgentAddress,
+  stakingEscrowStartingBlock,
+  stakers,
+} = require("./constants")
 
 const describeFn =
   process.env.NODE_ENV === "stakingescrow-test" ? describe : describe.skip
@@ -51,7 +55,7 @@ describeFn("System Tests: StakingEscrow", () => {
   }
 
   before(async () => {
-    await resetFork(startingBlock)
+    await resetFork(stakingEscrowStartingBlock)
     fc.configureGlobal({ numRuns: numRuns, skipEqualValues: true })
     const contracts = await initContracts()
     nuCypherVendingMachine = contracts.nuCypherVendingMachine
@@ -60,7 +64,7 @@ describeFn("System Tests: StakingEscrow", () => {
   })
 
   beforeEach(async () => {
-    await resetFork(startingBlock)
+    await resetFork(stakingEscrowStartingBlock)
 
     const contracts = await initContracts()
     nuCypherToken = contracts.nuCypherToken
@@ -87,7 +91,7 @@ describeFn("System Tests: StakingEscrow", () => {
 
       it("should prev. target match with target before upgrade", async () => {
         const previousTarget = await stakingEscrow.previousTarget()
-        await resetFork(startingBlock)
+        await resetFork(stakingEscrowStartingBlock)
         expect(await stakingEscrow.target()).to.equal(previousTarget)
       })
 
@@ -97,7 +101,7 @@ describeFn("System Tests: StakingEscrow", () => {
 
       it("should stakers number match before upgrade", async () => {
         const stakersNumber = await stakingEscrow.getStakersLength()
-        await resetFork(startingBlock)
+        await resetFork(stakingEscrowStartingBlock)
         expect(await stakingEscrow.getStakersLength()).to.equal(stakersNumber)
       })
     })
@@ -193,9 +197,8 @@ describeFn("System Tests: StakingEscrow", () => {
                 stakerAddress
               )
               await stakingEscrow.connect(staker).withdraw(stakeTokens)
-              await expect(
-                stakingEscrow.connect(staker).withdraw(to1e18(1000))
-              ).to.be.reverted
+              await expect(stakingEscrow.connect(staker).withdraw(to1e18(1000)))
+                .to.be.reverted
             }
           )
         )

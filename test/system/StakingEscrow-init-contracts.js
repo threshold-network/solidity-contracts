@@ -2,7 +2,7 @@ const {
   tTokenAddress,
   nuCypherTokenAddress,
   keepTokenStakingAddress,
-  stakingEscrowAddress,
+  nuCypherStakingEscrowAddress,
   workLockAddress,
   keepVendingMachineAddress,
   nuCypherVendingMachineAddress,
@@ -65,11 +65,14 @@ async function resolveKeepTokenStaking() {
 // ether.js limitation, it's necessary to have two instances: the former to call
 // the implementation methods, and the latter to call the proxy ones
 async function resolveStakingEscrow() {
-  return await ethers.getContractAt("StakingEscrow", stakingEscrowAddress)
+  return await ethers.getContractAt(
+    "StakingEscrow",
+    nuCypherStakingEscrowAddress
+  )
 }
 
 async function resolveStakingEscrowDispatcher() {
-  return await ethers.getContractAt("Dispatcher", stakingEscrowAddress)
+  return await ethers.getContractAt("Dispatcher", nuCypherStakingEscrowAddress)
 }
 
 async function resolveWorkLock() {
