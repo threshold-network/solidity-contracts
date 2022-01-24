@@ -3,12 +3,12 @@ import { HardhatUserConfig } from "hardhat/config"
 import "@keep-network/hardhat-helpers"
 import "@keep-network/hardhat-local-networks-config"
 import "@nomiclabs/hardhat-waffle"
-import "hardhat-gas-reporter"
-import "hardhat-deploy"
+import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
 
-require("hardhat-contract-sizer")
-require("@openzeppelin/hardhat-upgrades")
+import "hardhat-contract-sizer"
+import "hardhat-deploy"
+import "hardhat-gas-reporter"
 
 const config: HardhatUserConfig = {
   solidity: {
