@@ -50,7 +50,7 @@ module.exports.keepGrantStake = {
 }
 
 // Changing the startingBlock requires to update the stakers list
-module.exports.stakingEscrowStartBlock = 13979631
+module.exports.stakingEscrowStartingBlock = 13979631
 // Staker list: all Staking Escrow's stakers whose staked amount > 0
 module.exports.stakers = [
   "0x4d3c343D4BD676E4098336EF75f1d717149623A1",
