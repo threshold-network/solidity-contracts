@@ -136,7 +136,7 @@ contract KeepTokenStakingMock is IKeepTokenStaking {
 contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
     struct StakerStruct {
         uint256 value;
-        address operator;
+        address stakingProvider;
     }
 
     mapping(address => StakerStruct) public stakers;
@@ -157,19 +157,19 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
         investigators[investigator] += reward;
     }
 
-    function requestMerge(address staker, address operator)
+    function requestMerge(address staker, address stakingProvider)
         external
         override
         returns (uint256)
     {
         StakerStruct storage stakerStruct = stakers[staker];
         require(
-            stakerStruct.operator == address(0) ||
-                stakerStruct.operator == operator,
-            "Another operator was already set for this staker"
+            stakerStruct.stakingProvider == address(0) ||
+                stakerStruct.stakingProvider == stakingProvider,
+            "Another provider was already set for this staker"
         );
-        if (stakerStruct.operator == address(0)) {
-            stakerStruct.operator = operator;
+        if (stakerStruct.stakingProvider == address(0)) {
+            stakerStruct.stakingProvider = stakingProvider;
         }
         return stakers[staker].value;
     }
@@ -197,68 +197,79 @@ contract VendingMachineMock {
 }
 
 contract ApplicationMock is IApplication {
-    struct OperatorStruct {
+    struct StakingProviderStruct {
         uint96 authorized;
         uint96 deauthorizingTo;
     }
 
     TokenStaking internal immutable tokenStaking;
-    mapping(address => OperatorStruct) public operators;
+    mapping(address => StakingProviderStruct) public stakingProviders;
 
     constructor(TokenStaking _tokenStaking) {
         tokenStaking = _tokenStaking;
     }
 
     function authorizationIncreased(
-        address operator,
+        address stakingProvider,
         uint96,
         uint96 toAmount
     ) external override {
-        operators[operator].authorized = toAmount;
+        stakingProviders[stakingProvider].authorized = toAmount;
     }
 
     function authorizationDecreaseRequested(
-        address operator,
+        address stakingProvider,
         uint96,
         uint96 toAmount
     ) external override {
-        operators[operator].deauthorizingTo = toAmount;
+        stakingProviders[stakingProvider].deauthorizingTo = toAmount;
     }
 
-    function approveAuthorizationDecrease(address operator) external {
-        OperatorStruct storage operatorStruct = operators[operator];
-        operatorStruct.authorized = tokenStaking.approveAuthorizationDecrease(
-            operator
-        );
+    function approveAuthorizationDecrease(address stakingProvider) external {
+        StakingProviderStruct storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        stakingProviderStruct.authorized = tokenStaking
+            .approveAuthorizationDecrease(stakingProvider);
     }
 
-    function slash(uint96 amount, address[] memory _operators) external {
-        tokenStaking.slash(amount, _operators);
+    function slash(uint96 amount, address[] memory _stakingProviders) external {
+        tokenStaking.slash(amount, _stakingProviders);
     }
 
     function seize(
         uint96 amount,
         uint256 rewardMultiplier,
         address notifier,
-        address[] memory _operators
+        address[] memory _stakingProviders
     ) external {
-        tokenStaking.seize(amount, rewardMultiplier, notifier, _operators);
+        tokenStaking.seize(
+            amount,
+            rewardMultiplier,
+            notifier,
+            _stakingProviders
+        );
     }
 
     function involuntaryAuthorizationDecrease(
-        address operator,
+        address stakingProvider,
         uint96,
         uint96 toAmount
     ) public virtual override {
-        OperatorStruct storage operatorStruct = operators[operator];
-        require(toAmount != operatorStruct.authorized, "Nothing to decrease");
-        uint96 decrease = operatorStruct.authorized - toAmount;
-        if (operatorStruct.deauthorizingTo > decrease) {
-            operatorStruct.deauthorizingTo -= decrease;
+        StakingProviderStruct storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        require(
+            toAmount != stakingProviderStruct.authorized,
+            "Nothing to decrease"
+        );
+        uint96 decrease = stakingProviderStruct.authorized - toAmount;
+        if (stakingProviderStruct.deauthorizingTo > decrease) {
+            stakingProviderStruct.deauthorizingTo -= decrease;
         } else {
-            operatorStruct.deauthorizingTo = 0;
+            stakingProviderStruct.deauthorizingTo = 0;
         }
-        operatorStruct.authorized = toAmount;
+        stakingProviderStruct.authorized = toAmount;
     }
 }
 
@@ -280,11 +291,15 @@ contract ExpensiveApplicationMock is ApplicationMock {
     constructor(TokenStaking _tokenStaking) ApplicationMock(_tokenStaking) {}
 
     function involuntaryAuthorizationDecrease(
-        address operator,
+        address stakingProvider,
         uint96 fromAmount,
         uint96 toAmount
     ) public override {
-        super.involuntaryAuthorizationDecrease(operator, fromAmount, toAmount);
+        super.involuntaryAuthorizationDecrease(
+            stakingProvider,
+            fromAmount,
+            toAmount
+        );
         for (uint256 i = 0; i < 12; i++) {
             dummy.push(i);
         }
@@ -320,36 +335,41 @@ contract ExtendedTokenStaking is TokenStaking {
     {}
 
     function cleanAuthorizedApplications(
-        address operator,
+        address stakingProvider,
         uint256 numberToDelete
     ) external {
-        OperatorInfo storage operatorStruct = operators[operator];
-        cleanAuthorizedApplications(operatorStruct, numberToDelete);
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        cleanAuthorizedApplications(stakingProviderStruct, numberToDelete);
     }
 
     function setAuthorization(
-        address operator,
+        address stakingProvider,
         address application,
         uint96 amount
     ) external {
-        operators[operator].authorizations[application].authorized = amount;
+        stakingProviders[stakingProvider]
+            .authorizations[application]
+            .authorized = amount;
     }
 
     function setAuthorizedApplications(
-        address operator,
+        address stakingProvider,
         address[] memory _applications
     ) external {
-        operators[operator].authorizedApplications = _applications;
+        stakingProviders[stakingProvider]
+            .authorizedApplications = _applications;
     }
 
     // to decrease size of test contract
     function processSlashing(uint256 count) external override {}
 
-    function getAuthorizedApplications(address operator)
+    function getAuthorizedApplications(address stakingProvider)
         external
         view
         returns (address[] memory)
     {
-        return operators[operator].authorizedApplications;
+        return stakingProviders[stakingProvider].authorizedApplications;
     }
 }
