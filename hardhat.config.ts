@@ -100,7 +100,7 @@ const config: HardhatUserConfig = {
       mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
     },
     thresholdCouncil: {
-      mainnet: "0x00", // FIXME: Provide value
+      mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
     },
   },
   mocha: {
