@@ -12,9 +12,9 @@ toc::[]
 
 The goal of this proposal is to specify a simple and secure stake delegation
 mechanism. It should enable T owners to have their wallets offline and their
-stake managed by providers on their behalf. All off-chain client software
-should be able to run without exposing provider’s private key and should not
-require any owner’s keys at all. The stake delegation should also optimize the
+stake managed by staking providers on their behalf. All off-chain client software
+should be able to run without exposing staking provider’s private key and should
+not require any owner’s keys at all. The stake delegation should also optimize the
 network throughput without compromising the security of the owners’ stake.
 
 This proposal aims at implementing a minimum viable staking contract version
@@ -35,30 +35,31 @@ tokens are returned to the owner after stake delegation has finished.
 Owner’s participation is not required in the day-to-day operations on the
 stake, so cold storage can be accommodated to the maximum extent.
 
-Staking Provider:: An address of a party authorized to operate in the network on behalf
-of a given owner. The provider handles the everyday operations on the delegated
-stake without actually owning the staked tokens. A provider can not simply
-transfer away delegated tokens, however, it should be noted that the provider’s
-misbehavior may result in slashing tokens and thus the entire staked amount is
-indeed at stake.
+Staking Provider:: An address of a party authorized to operate in the network on
+behalf of a given owner. The staking provider handles the everyday operations on
+the delegated stake without actually owning the staked tokens. A staking provider
+can not simply transfer away delegated tokens, however, it should be noted that
+the staking provider’s misbehavior may result in slashing tokens and thus the
+entire staked amount is indeed at stake.
 
 Beneficiary:: An address where the rewards for participation are sent, earned by
-the provider, on behalf of the owner. A beneficiary doesn’t sign or publish any
-protocol-relevant transactions, but any currency or tokens earned by the
-provider will be transferred to the beneficiary.
+the staking provider, on behalf of the owner. A beneficiary doesn’t sign or
+publish any protocol-relevant transactions, but any currency or tokens earned by
+the staking provider will be transferred to the beneficiary.
 
 Authorizer:: An address appointed by an owner to authorize applications on
 behalf of the owner. An application must be approved by the authorizer before the
-provider is eligible to participate.
+staking provider is eligible to participate.
 
-Delegated stake:: An owner’s staked tokens, delegated to the provider by the
-owner. Delegation enables token owners to have their wallets offline and their
-stake operated by providers on their behalf.
+Delegated stake:: An owner’s staked tokens, delegated to the staking provider by 
+the owner. Delegation enables token owners to have their wallets offline and their
+stake operated by staking providers on their behalf.
 
 Application:: An external smart contract or a set of smart contracts utilizing
 functionalities offered by Threshold Network. Example applications are: random
 beacon, proxy re-encryption, and tBTC. Applications authorized for the given
-provider are eligible to slash the stake delegated to that provider.
+staking provider are eligible to slash the stake delegated to that staking
+provider.
 
 == Specification
 
@@ -67,21 +68,28 @@ provider are eligible to slash the stake delegated to that provider.
 ==== Delegating a stake
 
 Tokens are delegated by the owner. During the delegation, the owner needs to
-appoint a provider, beneficiary, and authorizer. The owner may decide to
+appoint a staking provider, beneficiary, and authorizer. The owner may decide to
 delegate just a portion of their tokens. The owner may delegate multiple times
-to different providers. For simplicity, the provider address can not be reused
-between delegations even if all tokens have been unstaked. To protect against 
-griefing by frontrunning stake delegation transactions and reserving provider
-addresses, staking contract should require a governable minimum stake amount for 
-each delegation and there should be a minimum undelegation delay of 24 hours.
+to different staking providers. For simplicity, the staking provider address can
+not be reused between delegations even if all tokens have been unstaked. To
+protect against griefing by frontrunning stake delegation transactions and
+reserving staking provider addresses, staking contract should require a
+governable minimum stake amount for  each delegation and there should be a
+minimum undelegation delay of 24 hours.
 
-Staking contract binds the owner with the provider, beneficiary, and authorizer
-for the given stake delegation and records the stake delegation amount.
+Staking contract binds the owner with the staking provider, beneficiary, and
+authorizer for the given stake delegation and records the stake delegation amount.
+
+The staking contract does not define operator role. The operator responsible for
+running off-chain client software is appointed by the staking provider in the
+particular application contract utilizing the staking contract. All off-chain
+client software should be able to run without exposing operator's or staking
+provider’s private key.
 
 Existing KEEP and NU stake owners also need to perform a delegation so that T
-staking contract can record their provider, beneficiary, and authorizer. Since
-these values are read-only, they should be copied from KEEP staking contract to
-T staking contract and NU stakers should set them during the delegation. For
+staking contract can record their staking provider, beneficiary, and authorizer.
+Since these values are read-only, they should be copied from KEEP staking contract
+to T staking contract and NU stakers should set them during the delegation. For
 existing stakes, the entire amount staked in the legacy contract is cached in T
 staking contract. Caching amount staked in the legacy staking contract helps to 
 identify discrepancy between staking contracts. It is much easier to just compare
@@ -90,10 +98,10 @@ information in sync section).
 
 ==== Authorizing an application
 
-Before the provider is eligible to participate in the given application, the
-authorizer appointed during the stake delegation needs to review the application
-and approve it to use the stake. From the moment of approval, the application
-is authorized to slash or seize the stake.
+Before the staking provider is eligible to participate in the given application,
+the authorizer appointed during the stake delegation needs to review the
+application and approve it to use the stake. From the moment of approval, the
+application is authorized to slash or seize the stake.
 
 The authorizer decides up to which amount the given application is eligible to
 slash. This allows managing the risk profile of the staker individually for each
@@ -114,7 +122,7 @@ The application is notified every single time the authorization increases or
 decreases. The application can revert this transaction in case some rules
 specific to that application are not met. Inside the callback, the application
 can also update its internal state, such as, for example, the weight of the
-provider in the sortition pool.
+staking provider in the sortition pool.
 
 Authorization decrease is a two-step process. First, the authorizer requests to
 decrease the authorization, and the application is notified about it by
@@ -126,8 +134,8 @@ overwrites the pending one.
 All applications first need to be authorized in a registry of T applications
 controlled by the governance before any authorizer can use them.
 To protect against the attack of blocking the slashing queue by exceeding the
-block gas limit for slashing the particular provider, there should be a
-governable limit of applications that can be authorized per provider.
+block gas limit for slashing the particular staking provider, there should be a
+governable limit of applications that can be authorized per staking provider.
 
 ==== Stake top-up
 
@@ -155,30 +163,32 @@ with T earned from operating in the network, so they would be in a worse spot
 than new T stakers allowed to top-up their stakes using earned T and this way
 increasing their rewards.
 
-The owner or provider can execute a stake top-up for a provider using a liquid T. 
-Stake top-up does not automatically increase authorization levels for applications.
-Stake top-up is a one-step process and does not require any delay.
+The owner or staking provider can execute a stake top-up for a staking provider
+using a liquid T.  Stake top-up does not automatically increase authorization
+levels for applications. Stake top-up is a one-step process and does not require
+any delay.
 
 ==== Undelegating a stake (unstaking)
 
-The owner or provider may decide to unstake some amount of tokens if the amount
-left on the stake after this operation will be higher or equal to the highest
-authorization amongst all applications. Even if all tokens have been unstaked,
-relationship between owner, provider, beneficiary, and authorizer is retained
-in the staking contract in case some applications still have some rewards
-waiting for withdrawal.
+The owner or staking provider may decide to unstake some amount of tokens if the
+amount left on the stake after this operation will be higher or equal to the
+highest authorization amongst all applications. Even if all tokens have been
+unstaked, relationship between owner, staking provider, beneficiary, and
+authorizer is retained in the staking contract in case some applications still
+have some rewards waiting for withdrawal.
 
 It is possible to change the composition of the staked amount by unstaking
 legacy tokens or by unstaking liquid T tokens. This allows existing KEEP/NU
 stakers to unstake their legacy stakes one day while still being able to operate
 in T network and earning rewards.
 
-If the owner or provider attempts to unstake tokens before 24 hours passed since
-the delegation so that the amount left in the contract would be below the
-minimum stake, the transaction reverts.
+If the owner or staking provider attempts to unstake tokens before 24 hours
+passed since the delegation so that the amount left in the contract would be
+below the minimum stake, the transaction reverts.
 
 It is expected that full unstaking is first completed on T staking contract before
-full unstaking on a legacy staking contract for the given provider gets initiated.
+full unstaking on a legacy staking contract for the given staking provider gets
+initiated.
 
 ==== Keeping information in sync
 
@@ -187,7 +197,7 @@ information in T staking contract about the amount staked in the legacy contract
 is always up-to-date.
 
 T staking contract should expose a function allowing to seize some amount of T
-from the provider in case that provider has a lower active stake
+from the staking provider in case that staking provider has a lower active stake
 (eligible for work selection) in the old staking contract than the amount cached
 in T staking contract. 5% of the amount seized is given to the person who
 notified about the discrepancy and the rest is burned. The amount is a
@@ -211,54 +221,54 @@ transaction. Even if it does not happen in the same transaction, this kind of
 discrepancy is not slashable given that the stake amount on the legacy contract
 is higher than the stake amount on T staking contract.
 
-In case the stake has been slashed on the legacy contract, the provider is
+In case the stake has been slashed on the legacy contract, the staking provider is
 required to update their information on T staking contract as soon as possible.
 In practice, for Keep, with the random beacon disabled, and tBTC v1 slashing the 
-stake only in case of a proven fraud that had to be committed by all providers of
-ECDSA keep, this approach is acceptable.
+stake only in case of a proven fraud that had to be committed by all staking
+providers of ECDSA keep, this approach is acceptable.
 
 An integral part of the staking contract should be a bot or process inside an
 off-chain client monitoring stakes and notifying about discrepancies. This is
 especially important given that the bot may need to voluntarily inform about
-discrepancies for providers that have been already slashed to zero.
+discrepancies for staking providers that have been already slashed to zero.
 
-Owner or provider can decrease the legacy contract active stake cached amount on
-T staking contract if no application has authorization higher than the liquid T
-stake. It allows to undelegate from the legacy staking contract while still
-being able to operate in T network and earning rewards.
+Owner or staking provider can decrease the legacy contract active stake cached
+amount on T staking contract if no application has authorization higher than the
+liquid T stake. It allows to undelegate from the legacy staking contract while
+still being able to operate in T network and earning rewards.
 
 ==== Slashing a stake
 
 Authorized applications can slash or seize a stake. Slash operation decreases
-the stake of a provider and burns slashed tokens. Seize decreases the stake,
-burns 95% of the stake, and awards up to 5% to the notifier of misbehavior.
+the stake of a staking provider and burns slashed tokens. Seize decreases the
+stake, burns 95% of the stake, and awards up to 5% to the notifier of misbehavior.
 
-To keep stakes synchronized between applications when providers are slashed,
-without the risk of running out of gas, the staking contract queues up slashings
-and let users process the transactions.
+To keep stakes synchronized between applications when staking providers are
+slashed, without the risk of running out of gas, the staking contract queues up
+slashings and let users process the transactions.
 
-When an application slashes one or more providers, it adds them to the slashing
-queue on the staking contract. A queue entry contains the provider's address and
-the amount they're due to be slashed.
+When an application slashes one or more staking providers, it adds them to the
+slashing queue on the staking contract. A queue entry contains the stakign
+provider's address and the amount they're due to be slashed.
 
-When there is at least one provider in the slashing queue, any account can
-submit a transaction processing one or more providers' slashings, and collecting
-a reward for doing so. A queued slashing is processed by updating the provider's
-stake to the post-slashing amount, updating authorized amount for each
-affected application, and notifying all affected applications that
-the provider's authorized stake has been reduced due to slashing. The
-application must then do the necessary adjustments, such as removing the
+When there is at least one staking provider in the slashing queue, any account
+can submit a transaction processing one or more staking providers' slashings,
+and collecting a reward for doing so. A queued slashing is processed by updating
+the staking provider's stake to the post-slashing amount, updating authorized
+amount for each affected application, and notifying all affected applications
+that the staking provider's authorized stake has been reduced due to slashing.
+The application must then do the necessary adjustments, such as removing the
 provider from the sortition pool or reducing its weight, changing the provider's
 eligibility for rewards, and so forth.
 
 Every application callback executed as a result of a slash should have a 250k gas
 limit. Slashing are processed in a FIFO basis, and there is just one function
-exposed by the staking contract allowing to slash one or more providers from the
-head of the queue. Callback failure does not revert the transaction. In case
-the callback failed, the slashing request is removed from the queue and never
-retried so it is in the application's best interest to ensure it can always
+exposed by the staking contract allowing to slash one or more staking providers
+from the head of the queue. Callback failure does not revert the transaction. In
+case the callback failed, the slashing request is removed from the queue and
+never retried so it is in the application's best interest to ensure it can always
 execute the callback. The same happens if the slash operation fails because
-the given provider has insufficient stake to slash.
+the given staking provider has insufficient stake to slash.
 
 In the case of legacy stakers, their liquid T is slashed first before a call to 
 the legacy contract is executed.
@@ -279,7 +289,7 @@ out of the scope of this document.
 
 ==== `stake(address stakingProvider, address beneficiary, address authorizer, uint96 amount) external` 
    
-Creates a delegation with `msg.sender` owner with the given provider,
+Creates a delegation with `msg.sender` owner with the given staking provider,
 beneficiary, and authorizer. Transfers the given amount of T to the staking
 contract. The owner of the delegation needs to have the amount approved to
 transfer to the staking contract.
@@ -316,14 +326,14 @@ stake authorizers are able to authorize it.
 
 ==== `increaseAuthorization(address stakingProvider, address application, uint96 amount) external onlyAuthorizerOf(stakingProvider)`
 
-Increases the authorization of the given provider for the given application by
+Increases the authorization of the given staking provider for the given application by
 the given amount. Calls `authorizationIncreased(address stakingProvider, uint96 amount)`
 callback on the given application to notify the application. Can only be called
 by the given provider's authorizer.
 
 ==== `requestAuthorizationDecrease(address stakingProvider, address application, uint96 amount) external onlyAuthorizerOf(stakingProvider)`
 
-Requests decrease of the authorization for the given provider on the given
+Requests decrease of the authorization for the given staking provider on the given
 application by the provided amount. Calls `authorizationDecreaseRequested(address stakingProvider, uint96 amount)`
 on the application. It does not change the authorized amount. Can only be called
 by the given provider's authorizer. Overwrites pending authorization decrease
@@ -333,16 +343,16 @@ for the given provider and application.
 
 Requests decrease of all authorizations for the given provider on all 
 applications by all authorized amount. Calls `authorizationDecreaseRequested(address stakingProvider, uint256 amount)`
-for each authorized application. It may not change the authorized amount immediatelly. 
-When it happens depends on the application. Can only be called by the given provider’s 
-authorizer. Overwrites pending authorization decrease for the given provider and 
-application.
+for each authorized application. It may not change the authorized amount
+immediatelly.  When it happens depends on the application. Can only be called by
+the given staking provider’s  authorizer. Overwrites pending authorization
+decrease for the given staking provider and  application.
 
 ==== `approveAuthorizationDecrease(address stakingProvider) external onlyRequestedApplication returns (uint96)`
 
 Called by the application at its discretion to approve the previously requested
 authorization decrease request. Can only be called by the application that
-was previously requested to decrease the authorization for that provider.
+was previously requested to decrease the authorization for that staking provider.
 Returns resulting authorized amount for the application.
 
 ==== `forceDecreaseAuthorization(address stakingProvider, address application) external`
@@ -374,26 +384,26 @@ application should be disabled, the role address should be set to 0x0 address.
 
 ==== `setAuthorizationCeiling(uint256 ceiling) external onlyGovernance`
 
-Sets the maximum number of applications one provider can authorize. Used to
+Sets the maximum number of applications one staking provider can authorize. Used to
 protect against DoSing slashing queue. Can only be called by the governance.
 
 === Stake top-up
 
 ==== `topUp(address stakingProvider, uint96 amount) external onlyOwnerOrStakingProvider(stakingProvider)`
 
-Increases the amount of the stake for the given provider. The sender of this
+Increases the amount of the stake for the given staking provider. The sender of this
 transaction needs to have the amount approved to transfer to the staking
-contract. Can be called only by the owner or provider.
+contract. Can be called only by the owner or staking provider.
 
 ==== `topUpKeep(address stakingProvider) external onlyOwnerOrStakingProvider(stakingProvider)`
 
 Propagates information about stake top-up from the legacy KEEP staking contract
-to T staking contract. Can be called only by the owner or provider.
+to T staking contract. Can be called only by the owner or staking provider.
 
 ==== `topUpNu(address stakingProvider) external onlyOwnerOrStakingProvider(stakingProvider)`
 
 Propagates information about stake top-up from the legacy NU staking contract
-to T staking contract. Can be called only by the owner or provider.
+to T staking contract. Can be called only by the owner or staking provider.
 
 === Undelegating a stake (unstaking)
 
@@ -402,7 +412,7 @@ to T staking contract. Can be called only by the owner or provider.
 Reduces the liquid T stake amount by `amount` and withdraws `amount` of T 
 to the owner. Reverts if there is at least one authorization higher than the sum
 of a legacy stake and remaining liquid T stake or if the `amount` is higher than
-the liquid T stake amount. Can be called only by the owner or provider.
+the liquid T stake amount. Can be called only by the owner or the staking provider.
 
 ==== `unstakeKeep(address stakingProvider) external onlyOwnerOrStakingProvider(stakingProvider)`
 
@@ -411,7 +421,7 @@ contract to 0. Reverts if the amount of liquid T staked in T staking contract is
 lower than the highest application authorization. This function allows to
 unstake from Keep staking contract and sill being able to operate in T network
 and earning rewards based on the liquid T staked. Can be called only by the
-delegation owner and provider.
+delegation owner or the staking provider.
 
 ==== `unstakeNu(address stakingProvider, uint96 amount) external onlyOwnerOrStakingProvider(stakingProvider)`
 
@@ -421,20 +431,22 @@ stake for that provider or if amount is higher than the cached legacy stake
 amount. If succeeded, the legacy NU stake can be partially or fully undelegated
 on the legacy staking contract. This function allows to unstake from NU staking 
 contract and sill being able to operate in T network and earning rewards based
-on the liquid T staked. Can be called only by the delegation owner and provider.
+on the liquid T staked. Can be called only by the delegation owner or the
+staking provider.
 
 ==== `unstakeAll(address stakingProvider) external onlyOwnerOrStakingProvider(stakingProvider)`
 
 Sets cached legacy stake amount to 0, sets the liquid T stake amount to 0 and
 withdraws all liquid T from the stake to the owner. Reverts if there is at least one
-non-zero authorization. Can be called only by the delegation owner and provider.
+non-zero authorization. Can be called only by the delegation owner or the
+staking  provider.
 
 === Keeping information in sync
 
 ==== `notifyKeepStakeDiscrepancy(address stakingProvider)`
 
 Notifies about the discrepancy between legacy KEEP active stake and amount
-cached in T staking contract. Slashes the provider in case the amount cached
+cached in T staking contract. Slashes the staking provider in case the amount cached
 is higher than the actual active stake amount in KEEP staking contract. 
 Needs to update authorizations of all affected applications and execute an
 involuntary authorization decrease on all affected applications.
@@ -446,7 +458,7 @@ against MEV frontrunners.
 ==== `notifyNuStakeDiscrepancy(address stakingProvider)`
 
 Notifies about the discrepancy between legacy NU active stake and amount
-cached in T staking contract. Slashes the provider in case the amount cached
+cached in T staking contract. Slashes the staking provider in case the amount cached
 is higher than the actual active stake amount in NU staking contract.
 Needs to update authorizations of all affected applications and execute an
 involuntary authorization decrease on all affected applications.
@@ -458,13 +470,13 @@ against MEV frontrunners.
 ==== `setStakeDiscrepancyPenalty(uint96 penalty, unit256 rewardMultiplier) external onlyGovernance`
 
 Sets the penalty amount for stake discrepancy and reward multiplier for
-reporting it. The penalty is seized from the provider account, and 5% of the
+reporting it. The penalty is seized from the staking provider account, and 5% of the
 penalty, scaled by the multiplier, is given to the notifier. The rest of the
 tokens are burned. Can only be called by the governance. See `seize` function.
 
 ==== `setNotificationReward(uint96 reward) external onlyGovernance`
 
-Sets reward in T tokens for notification of misbehaviour of one provider.
+Sets reward in T tokens for notification of misbehaviour of one staking provider.
 Can only be called by the governance.
 
 ==== `pushNotificationReward(uint96 reward) external`
@@ -480,14 +492,14 @@ the governance.
 
 ==== `slash(uint96 amount, address[] memory stakingProviders) external onlyAuthorizedApplication`
 
-Adds providers to the slashing queue along with the amount that should be
+Adds staking providers to the slashing queue along with the amount that should be
 slashed from each one of them. Can only be called by an authorized application.
 
 ==== `seize(uint96 amount, uint256 rewardMultipier, address notifier, address[] memory stakingProviders) external onlyAuthorizedApplication`
 	
-Adds providers to the slashing queue along with the amount. The notifier will 
-receive reward per each provider from notifiers treasury. Can only be called by 
-application authorized for all providers in the array.
+Adds staking providers to the slashing queue along with the amount. The notifier will 
+receive reward per each staking provider from notifiers treasury. Can only be called by 
+application authorized for all staking providers in the array.
 
 ==== `processSlashing(uint256 count)`
 
@@ -499,11 +511,11 @@ each affected application.
 
 ==== `authorizedStake(address stakingProvider, address application) external view returns (uint96)`
 
-Returns the authorized stake amount of the provider for the application.
+Returns the authorized stake amount of the staking provider for the application.
 
 ==== `stakes(address stakingProvider) external view returns (uint96 tStake, uint96 keepInTStake, uint96 nuInTStake)`
 
-Returns staked amount of T, Keep and Nu for the specified provider. All values
+Returns staked amount of T, Keep and Nu for the specified staking provider. All values
 are in T denomination.
 
 ==== `getStartStakingTimestamp(address stakingProvider) external view returns (uint256)`
@@ -514,12 +526,12 @@ from a legacy KEEP stake, this value will remain as zero.
 
 ==== `stakedNu(address stakingProvider) external view returns (uint256)`
 
-Returns staked amount of NU for the specified provider
+Returns staked amount of NU for the specified staking provider
 
 ==== `rolesOf(address stakingProvider) external view returns (address owner, address payable beneficiary, address authorizer)`
 
 Gets the stake owner, the beneficiary and the authorizer for the specified 
-provider address.
+staking provider address.
 
 ==== `getApplicationsLength() external view returns (uint256)`
 
@@ -531,17 +543,19 @@ Returns length of slashing queue
 
 ==== `getMinStaked(address stakingProvider, StakeType stakeTypes) external view returns (uint96)`
 
-Returns minimum possible stake for T, KEEP or NU (stake type) in T denomination. For example,
-suppose the given provider has 10 T, 20 T worth of KEEP, and 30 T worth of NU all staked, and the maximum
-application authorization is 40 T, then `getMinStaked` for that provider returns:
+Returns minimum possible stake for T, KEEP or NU (stake type) in T denomination.
+For example, suppose the given staking provider has 10 T, 20 T worth of KEEP,
+and 30 T worth of NU all staked, and the maximum application authorization is
+40 T, then `getMinStaked` for that staking provider returns:
 
 * 0 T if KEEP stake type specified i.e. min = 40 T max - (10 T + 30 T worth of NU) = 0 T
 * 10 T if NU stake type specified i.e. min = 40 T max - (10 T + 20 T worth of KEEP) = 10 T
 * 0 T if T stake type specified i.e. min = 40 T max - (20 T worth of KEEP + 30 T worth of NU) < 0 T
 
 In other words, the minimum stake amount for
-the specified stake type is the minimum amount of stake of the given type needed to satisfy
-the maximum application authorization given the staked amounts of the other stake types for that provider.
+the specified stake type is the minimum amount of stake of the given type needed
+to satisfy the maximum application authorization given the staked amounts of the
+other stake types for that staking provider.
 
 ==== `getAvailableToAuthorize(address stakingProvider, address application) external view returns (uint96)`
 
@@ -552,21 +566,21 @@ Returns available amount to authorize for the specified application
 ==== `authorizationIncreased(address stakingProvider, uint96 amount)`
 
 Used by T staking contract to inform the application the the authorized amount
-for the given provider increased to the given amount. The application may do any
-housekeeping necessary.
+for the given staking provider increased to the given amount. The application
+may do any housekeeping necessary.
 
 ==== `authorizationDecreaseRequested(address stakingProvider, uint96 amount)`
 
-Used by T staking contract to inform the application that the given provider
-requested to decrease the authorization to the given amount. The application
-should mark the authorization as pending decrease and respond to the staking
-contract with `approveAuthorizationDecrease` at its discretion. It may
+Used by T staking contract to inform the application that the given staking
+provider requested to decrease the authorization to the given amount. The
+application should mark the authorization as pending decrease and respond to the
+staking contract with `approveAuthorizationDecrease` at its discretion. It may
 happen right away but it also may happen several months later.
 
 ==== `involuntaryAuthorizationDecrease(address stakingProvider, uint96 amount)`
 
 Used by T staking contract to inform the application the authorization has
-been decreased for the given provider to the given amount involuntarily, as
-a result of slashing. Lets the application to do any housekeeping neccessary.
+been decreased for the given staking provider to the given amount involuntarily,
+as a result of slashing. Lets the application to do any housekeeping neccessary.
 Called with 250k gas limit and does not revert the transaction if 
 `involuntaryAuthorizationDecrease` call failed.
