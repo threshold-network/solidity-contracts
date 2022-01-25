@@ -258,8 +258,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
 
     /// @notice Creates a delegation with `msg.sender` owner with the given
-    ///         provider, beneficiary, and authorizer. Transfers the given
-    ///         amount of T to the staking contract.
+    ///         staking provider, beneficiary, and authorizer. Transfers the
+    ///         given amount of T to the staking contract.
     /// @dev The owner of the delegation needs to have the amount approved to
     ///      transfer to the staking contract.
     function stake(
@@ -416,10 +416,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
     ///         higher minimum stakes if necessary.
-    /// @dev Providers are not required to maintain a minimum T stake all
-    ///      the time. 24 hours after the delegation, T stake can be reduced
-    ///      below the minimum stake. The minimum stake is just to protect
-    ///      against griefing stake operation.
+    /// @dev Staking providers are not required to maintain a minimum T stake
+    ///      all the time. 24 hours after the delegation, T stake can be reduced
+    ///      below the minimum stake. The minimum stake in the staking contract
+    ///      is just to protect against griefing stake operation. Please note
+    ///      that each application may have its own minimum authorization though
+    ///      and the authorization can not be higher than the stake.
     function setMinimumStakeAmount(uint96 amount)
         external
         override
@@ -457,9 +459,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
     }
 
-    /// @notice Increases the authorization of the given provider for the given
-    ///         application by the given amount. Can only be called by the given
-    ///         provider’s authorizer.
+    /// @notice Increases the authorization of the given staking provider for
+    ///         the given application by the given amount. Can only be called by
+    ///         the given staking provider’s authorizer.
     /// @dev Calls `authorizationIncreased` callback on the given application to
     ///      notify the application about authorization change.
     ///      See `IApplication`.
@@ -511,12 +513,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
     }
 
-    /// @notice Requests decrease of all authorizations for the given provider on
-    ///         all applications by all authorized amount.
+    /// @notice Requests decrease of all authorizations for the given staking
+    ///         provider on all applications by all authorized amount.
     ///         It may not change the authorized amount immediatelly. When
     ///         it happens depends on the application. Can only be called by the
-    ///         given provider’s authorizer. Overwrites pending authorization
-    ///         decrease for the given provider and application.
+    ///         given staking provider’s authorizer. Overwrites pending
+    ///         authorization decrease for the given staking provider and
+    ///         application.
     /// @dev Calls `authorizationDecreaseRequested` callback
     ///      for each authorized application. See `IApplication`.
     function requestAuthorizationDecrease(address stakingProvider) external {
@@ -551,7 +554,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Called by the application at its discretion to approve the
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
-    ///         decrease the authorization for that provider.
+    ///         decrease the authorization for that staking provider.
     ///         Returns resulting authorized amount for the application.
     function approveAuthorizationDecrease(address stakingProvider)
         external
@@ -685,8 +688,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit PanicButtonSet(application, panicButton);
     }
 
-    /// @notice Sets the maximum number of applications one provider can
-    ///         authorize. Used to protect against DoSing slashing queue.
+    /// @notice Sets the maximum number of applications one staking provider can
+    ///         have authorized. Used to protect against DoSing slashing queue.
     ///         Can only be called by the Governance.
     function setAuthorizationCeiling(uint256 ceiling)
         external
@@ -703,8 +706,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
     //
 
-    /// @notice Increases the amount of the stake for the given provider.
-    ///         Can be called only by the owner or provider.
+    /// @notice Increases the amount of the stake for the given staking provider.
+    ///         Can be called only by the owner or the staking provider.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
     function topUp(address stakingProvider, uint96 amount)
@@ -724,7 +727,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Propagates information about stake top-up from the legacy KEEP
     ///         staking contract to T staking contract. Can be called only by
-    ///         the owner or provider.
+    ///         the owner or the staking provider.
     function topUpKeep(address stakingProvider)
         external
         override
@@ -747,7 +750,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Propagates information about stake top-up from the legacy NU
     ///         staking contract to T staking contract. Can be called only by
-    ///         the owner or provider.
+    ///         the owner or the staking provider.
     function topUpNu(address stakingProvider)
         external
         override
@@ -782,7 +785,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         authorization higher than the sum of the legacy stake and
     ///         remaining liquid T stake or if the unstake amount is higher than
     ///         the liquid T stake amount. Can be called only by the owner or
-    ///         provider.
+    ///         the staking provider.
     function unstakeT(address stakingProvider, uint96 amount)
         external
         override
@@ -818,7 +821,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         application authorization. This function allows to unstake from
     ///         KEEP staking contract and still being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
-    ///         called only by the delegation owner and provider.
+    ///         called only by the delegation owner or the staking provider.
     /// @dev    This function (or `unstakeAll`) must be called before
     ///         `undelegate`/`undelegateAt` in Keep staking contract. Otherwise
     ///         provider can be slashed by `notifyKeepStakeDiscrepancy` method.
@@ -844,18 +847,18 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Reduces cached legacy NU stake amount by the provided amount.
     ///         Reverts if there is at least one authorization higher than the
     ///         sum of remaining legacy NU stake and liquid T stake for that
-    ///         provider or if the untaked amount is higher than the cached
-    ///         legacy stake amount. If succeeded, the legacy NU stake can be
-    ///         partially or fully undelegated on the legacy staking contract.
-    ///         This function allows to unstake from NU staking contract and
-    ///         still being able to operate in T network and earning rewards
-    ///         based on the liquid T staked. Can be called only by the
-    ///         delegation owner and provider.
+    ///         staking provider or if the untaked amount is higher than the
+    ///         cached legacy stake amount. If succeeded, the legacy NU stake
+    ///         can be partially or fully undelegated on the legacy staking
+    ///         contract. This function allows to unstake from NU staking
+    ///         contract and still being able to operate in T network and
+    ///         earning rewards based on the liquid T staked. Can be called only
+    ///         by the delegation owner or the staking provider.
     /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
     ///         in NuCypher staking contract. Otherwise NU tokens can't be
     ///         unlocked.
-    /// @param stakingProvider Provider address.
-    /// @param amount Amount of NU to unstake in T denomination.
+    /// @param stakingProvider Staking provider address
+    /// @param amount Amount of NU to unstake in T denomination
     function unstakeNu(address stakingProvider, uint96 amount)
         external
         override
@@ -892,7 +895,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
     ///         amount to 0 and withdraws all liquid T from the stake to the
     ///         owner. Reverts if there is at least one non-zero authorization.
-    ///         Can be called only by the delegation owner and provider.
+    ///         Can be called only by the delegation owner or the staking
+    ///         provider.
     function unstakeAll(address stakingProvider)
         external
         override
@@ -936,12 +940,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
 
     /// @notice Notifies about the discrepancy between legacy KEEP active stake
-    ///         and the amount cached in T staking contract. Slashes the provider
-    ///         in case the amount cached is higher than the actual active stake
-    ///         amount in KEEP staking contract. Needs to update authorizations
-    ///         of all affected applications and execute an involuntary
-    ///         authorization decrease on all affected applications. Can be called
-    ///         by anyone, notifier receives a reward.
+    ///         and the amount cached in T staking contract. Slashes the staking
+    ///         provider in case the amount cached is higher than the actual
+    ///         active stake amount in KEEP staking contract. Needs to update
+    ///         authorizations of all affected applications and execute an
+    ///         involuntary authorization decrease on all affected applications.
+    ///         Can be called by anyone, notifier receives a reward.
     function notifyKeepStakeDiscrepancy(address stakingProvider)
         external
         override
@@ -991,9 +995,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Notifies about the discrepancy between legacy NU active stake
     ///         and the amount cached in T staking contract. Slashes the
-    ///         provider in case the amount cached is higher than the actual
-    ///         active stake amount in NU staking contract. Needs to update
-    ///         authorizations of all affected applications and execute an
+    ///         staking provider in case the amount cached is higher than the
+    ///         actual active stake amount in NU staking contract. Needs to
+    ///         update authorizations of all affected applications and execute an
     ///         involuntary authorization decrease on all affected applications.
     ///         Can be called by anyone, notifier receives a reward.
     /// @dev    Real discrepancy between T and Nu is impossible.
@@ -1039,7 +1043,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Sets the penalty amount for stake discrepancy and reward
     ///         multiplier for reporting it. The penalty is seized from the
-    ///         provider account, and 5% of the penalty, scaled by the
+    ///         delegated stake, and 5% of the penalty, scaled by the
     ///         multiplier, is given to the notifier. The rest of the tokens are
     ///         burned. Can only be called by the Governance. See `seize` function.
     function setStakeDiscrepancyPenalty(
@@ -1052,7 +1056,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Sets reward in T tokens for notification of misbehaviour
-    ///         of one provider. Can only be called by the governance.
+    ///         of one staking provider. Can only be called by the governance.
     function setNotificationReward(uint96 reward)
         external
         override
@@ -1084,9 +1088,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         token.safeTransfer(recipient, amount);
     }
 
-    /// @notice Adds providers to the slashing queue along with the amount that
-    ///         should be slashed from each one of them. Can only be called by
-    ///         application authorized for all providers in the array.
+    /// @notice Adds staking providers to the slashing queue along with the
+    ///         amount that should be slashed from each one of them. Can only be
+    ///         called by application authorized for all staking providers in
+    ///         the array.
     /// @dev    This method doesn't emit events for providers that are added to
     ///         the queue. If necessary  events can be added to the application
     ///         level.
@@ -1097,13 +1102,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         notify(amount, 0, address(0), _stakingProviders);
     }
 
-    /// @notice Adds providers to the slashing queue along with the amount.
-    ///         The notifier will receive reward per each provider from
+    /// @notice Adds staking providers to the slashing queue along with the
+    ///         amount. The notifier will receive reward per each provider from
     ///         notifiers treasury. Can only be called by application
-    ///         authorized for all providers in the array.
-    /// @dev    This method doesn't emit events for providers that are added to
-    ///         the queue. If necessary  events can be added to the application
-    ///         level.
+    ///         authorized for all staking providers in the array.
+    /// @dev    This method doesn't emit events for staking providers that are
+    ///         added to the queue. If necessary  events can be added to the
+    ///         application level.
     function seize(
         uint96 amount,
         uint256 rewardMultiplier,
@@ -1146,8 +1151,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Delegate voting power from the stake associated to the
-    ///         `stakingProvider` to a `delegatee` address. Caller must be the owner
-    ///         of this stake.
+    ///         `stakingProvider` to a `delegatee` address. Caller must be the
+    ///         owner of this stake.
     function delegateVoting(address stakingProvider, address delegatee)
         external
     {
@@ -1169,8 +1174,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
     //
 
-    /// @notice Returns the authorized stake amount of the provider for the
-    ///         application.
+    /// @notice Returns the authorized stake amount of the staking provider for
+    ///         the application.
     function authorizedStake(address stakingProvider, address application)
         external
         view
@@ -1184,7 +1189,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Returns staked amount of T, Keep and Nu for the specified
-    ///         provider.
+    ///         staking provider.
     /// @dev    All values are in T denomination
     function stakes(address stakingProvider)
         external
@@ -1217,7 +1222,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         return stakingProviders[stakingProvider].startStakingTimestamp;
     }
 
-    /// @notice Returns staked amount of NU for the specified provider
+    /// @notice Returns staked amount of NU for the specified staking provider.
     function stakedNu(address stakingProvider)
         external
         view
@@ -1231,7 +1236,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Gets the stake owner, the beneficiary and the authorizer
-    ///         for the specified provider address.
+    ///         for the specified staking provider address.
     /// @return owner Stake owner address.
     /// @return beneficiary Beneficiary address.
     /// @return authorizer Authorizer address.
@@ -1263,12 +1268,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         return slashingQueue.length;
     }
 
-    /// @notice Requests decrease of the authorization for the given provider on
-    ///         the given application by the provided amount.
+    /// @notice Requests decrease of the authorization for the given staking
+    ///         provider on the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When
     ///         it happens depends on the application. Can only be called by the
-    ///         given provider’s authorizer. Overwrites pending authorization
-    ///         decrease for the given provider and application.
+    ///         given staking provider’s authorizer. Overwrites pending
+    ///         authorization decrease for the given staking provider and
+    ///         application.
     /// @dev Calls `authorizationDecreaseRequested` callback on the given
     ///      application. See `IApplication`.
     function requestAuthorizationDecrease(
@@ -1310,10 +1316,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
-    /// @dev For example, suppose the given provider has 10 T, 20 T worth
+    /// @dev For example, suppose the given staking provider has 10 T, 20 T worth
     ///      of KEEP, and 30 T worth of NU all staked, and the maximum
     ///      application authorization is 40 T, then `getMinStaked` for
-    ///      that provider returns:
+    ///      that staking provider returns:
     ///          * 0 T if KEEP stake type specified i.e.
     ///            min = 40 T max - (10 T + 30 T worth of NU) = 0 T
     ///          * 10 T if NU stake type specified i.e.
@@ -1323,7 +1329,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///      In other words, the minimum stake amount for the specified
     ///      stake type is the minimum amount of stake of the given type
     ///      needed to satisfy the maximum application authorization given
-    ///      the staked amounts of the other stake types for that provider.
+    ///      the staked amounts of the other stake types for that staking
+    ///      provider.
     function getMinStaked(address stakingProvider, StakeType stakeTypes)
         public
         view
@@ -1372,7 +1379,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         return maxAuthorization.toUint96();
     }
 
-    /// @notice Returns available amount to authorize for the specified application
+    /// @notice Returns available amount to authorize for the specified
+    ///         application.
     function getAvailableToAuthorize(
         address stakingProvider,
         address application
@@ -1417,10 +1425,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         moveVotingPower(oldDelegatee, delegatee, stakingProviderBalance);
     }
 
-    /// @notice Adds providers to the slashing queue along with the amount.
-    ///         The notifier will receive reward per each provider from
-    ///         notifiers treasury. Can only be called by application
-    ///         authorized for all providers in the array.
+    /// @notice Adds staking providers to the slashing queue along with the
+    ///         amount. The notifier will receive reward per each staking
+    ///         provider from notifiers treasury. Can only be called by
+    ///         application authorized for all staking providers in the array.
     function notify(
         uint96 amount,
         uint256 rewardMultiplier,
@@ -1730,7 +1738,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Creates new checkpoints due to a change of stake amount
-    /// @param _delegator Address of the stake provider acting as delegator
+    /// @param _delegator Address of the staking provider acting as delegator
     /// @param _amount Amount of T to increment
     /// @param increase True if the change is an increase, false if a decrease
     function newStakeCheckpoint(
@@ -1758,7 +1766,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Creates new checkpoints due to an increment of a stakers' stake
-    /// @param _delegator Address of the stake provider acting as delegator
+    /// @param _delegator Address of the staking provider acting as delegator
     /// @param _amount Amount of T to increment
     function increaseStakeCheckpoint(address _delegator, uint96 _amount)
         internal
@@ -1775,7 +1783,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         newStakeCheckpoint(_delegator, _amount, false);
     }
 
-    /// @notice Returns amount of Nu stake in the NuCypher staking contract for the specified provider.
+    /// @notice Returns amount of Nu stake in the NuCypher staking contract for
+    ///         the specified staking provider.
     ///         Resulting value in T denomination
     function getNuAmountInT(address owner, address stakingProvider)
         internal
@@ -1795,7 +1804,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
-    /// @notice Returns amount of Keep stake in the Keep staking contract for the specified provider.
+    /// @notice Returns amount of Keep stake in the Keep staking contract for
+    ///         the specified staking provider.
     ///         Resulting value in T denomination
     function getKeepAmountInT(address stakingProvider)
         internal

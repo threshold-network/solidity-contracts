@@ -19,10 +19,11 @@ pragma solidity 0.8.9;
 /// @notice Generic interface for an application. Application is an external
 ///         smart contract or a set of smart contracts utilizing functionalities
 ///         offered by Threshold Network. Applications authorized for the given
-///         provider are eligible to slash the stake delegated to that provider.
+///         staking provider are eligible to slash the stake delegated to that
+///         staking provider.
 interface IApplication {
     /// @notice Used by T staking contract to inform the application that the
-    ///         authorized amount for the given provider increased.
+    ///         authorized amount for the given staking provider increased.
     ///         The application may do any necessary housekeeping.
     function authorizationIncreased(
         address stakingProvider,
@@ -31,9 +32,9 @@ interface IApplication {
     ) external;
 
     /// @notice Used by T staking contract to inform the application that the
-    ///         given provider requested to decrease the authorization amount.
-    ///         The application should mark the authorization as pending
-    ///         decrease and respond to the staking contract with
+    ///         authorization decrease for the given staking provider has been
+    ///         requested. The application should mark the authorization as
+    ///         pending decrease and respond to the staking contract with
     ///         `approveAuthorizationDecrease` at its discretion. It may
     ///         happen right away but it also may happen several months later.
     function authorizationDecreaseRequested(
@@ -43,7 +44,7 @@ interface IApplication {
     ) external;
 
     /// @notice Used by T staking contract to inform the application the
-    ///         authorization has been decreased for the given provider
+    ///         authorization has been decreased for the given staking provider
     ///         involuntarily, as a result of slashing. Lets the application to
     ///         do any housekeeping neccessary. Called with 250k gas limit and
     ///         does not revert the transaction if
