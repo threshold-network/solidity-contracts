@@ -508,6 +508,7 @@ describe("TokenStaking", () => {
       context("when stake is eligible", () => {
         const keepAmount = initialStakerBalance
         const tAmount = convertToT(keepAmount, keepRatio).result
+        let blockTimestamp
 
         beforeEach(async () => {
           const createdAt = 1
@@ -526,6 +527,7 @@ describe("TokenStaking", () => {
             true
           )
           tx = await tokenStaking.stakeKeep(stakingProvider.address)
+          blockTimestamp = await lastBlockTime()
         })
 
         it("should set roles equal to the Keep values", async () => {
@@ -547,10 +549,10 @@ describe("TokenStaking", () => {
           )
         })
 
-        it("should not start staking timestamp", async () => {
+        it("should start staking timestamp", async () => {
           expect(
             await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-          ).to.equal(0)
+          ).to.equal(blockTimestamp)
         })
 
         it("should increase available amount to authorize", async () => {
@@ -2757,6 +2759,7 @@ describe("TokenStaking", () => {
             amount
           )
         blockTimestamp = await lastBlockTime()
+
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
@@ -2777,10 +2780,13 @@ describe("TokenStaking", () => {
         ).to.deep.equal([expectedAmount, Zero, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([staker.address, staker.address, staker.address])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -2885,6 +2891,7 @@ describe("TokenStaking", () => {
       const topUpAmount = initialStakerBalance.mul(2)
       const expectedAmount = keepInTAmount.add(topUpAmount)
       let tx
+      let blockTimestamp
 
       beforeEach(async () => {
         await tokenStaking
@@ -2906,6 +2913,8 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(stakingProvider.address)
+        blockTimestamp = await lastBlockTime()
+
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
@@ -2922,7 +2931,7 @@ describe("TokenStaking", () => {
         ).to.deep.equal([topUpAmount, keepInTAmount, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -2930,9 +2939,12 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(0)
+        ).to.equal(blockTimestamp)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -2984,6 +2996,7 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stakeNu(stakingProvider.address, staker.address, staker.address)
         blockTimestamp = await lastBlockTime()
+
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
@@ -3004,10 +3017,13 @@ describe("TokenStaking", () => {
         ).to.deep.equal([topUpAmount, Zero, nuInTAmount])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([staker.address, staker.address, staker.address])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -3168,6 +3184,7 @@ describe("TokenStaking", () => {
       const newKeepAmount = initialStakerBalance.mul(2)
       const newKeepInTAmount = convertToT(newKeepAmount, keepRatio).result
       let tx
+      let blockTimestamp
 
       beforeEach(async () => {
         const createdAt = 1
@@ -3186,6 +3203,8 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(stakingProvider.address)
+        blockTimestamp = await lastBlockTime()
+
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
@@ -3201,7 +3220,7 @@ describe("TokenStaking", () => {
         ).to.deep.equal([Zero, newKeepInTAmount, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -3209,9 +3228,12 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(0)
+        ).to.equal(blockTimestamp)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -3351,10 +3373,13 @@ describe("TokenStaking", () => {
         ).to.deep.equal([tAmount, keepInTAmount, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([staker.address, staker.address, staker.address])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -3417,10 +3442,13 @@ describe("TokenStaking", () => {
         ).to.deep.equal([Zero, keepInTAmount, nuInTAmount])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([staker.address, staker.address, staker.address])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -3522,6 +3550,7 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stakeNu(stakingProvider.address, staker.address, staker.address)
         blockTimestamp = await lastBlockTime()
+
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
@@ -3538,10 +3567,13 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([staker.address, staker.address, staker.address])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -3609,6 +3641,7 @@ describe("TokenStaking", () => {
           .connect(staker)
           .stakeNu(stakingProvider.address, staker.address, staker.address)
         blockTimestamp = await lastBlockTime()
+
         const oneDay = 86400
         await ethers.provider.send("evm_increaseTime", [oneDay])
         await tokenStaking
@@ -3671,10 +3704,16 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([staker.address, staker.address, staker.address])
+        expect(
+          await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
+        ).to.equal(blockTimestamp)
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -3709,6 +3748,7 @@ describe("TokenStaking", () => {
       const conversion = convertToT(nuAmount, nuRatio)
       const nuInTAmount = conversion.result
       let tx
+      let blockTimestamp
 
       beforeEach(async () => {
         const createdAt = 1
@@ -3727,6 +3767,7 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(stakingProvider.address)
+        blockTimestamp = await lastBlockTime()
 
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
         tx = await tokenStaking
@@ -3743,7 +3784,7 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -3751,9 +3792,12 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(0)
+        ).to.equal(blockTimestamp)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -3956,7 +4000,7 @@ describe("TokenStaking", () => {
           ).to.deep.equal([minAmount, Zero, Zero])
         })
 
-        it("should not update roles and start staking timestamp", async () => {
+        it("should not update roles", async () => {
           expect(
             await tokenStaking.rolesOf(stakingProvider.address)
           ).to.deep.equal([
@@ -3964,6 +4008,9 @@ describe("TokenStaking", () => {
             beneficiary.address,
             authorizer.address,
           ])
+        })
+
+        it("should not update start staking timestamp", async () => {
           expect(
             await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
           ).to.equal(blockTimestamp)
@@ -4034,6 +4081,7 @@ describe("TokenStaking", () => {
             amount
           )
         blockTimestamp = await lastBlockTime()
+
         const oneDay = 86400
         await ethers.provider.send("evm_increaseTime", [oneDay])
 
@@ -4048,7 +4096,7 @@ describe("TokenStaking", () => {
         ).to.deep.equal([Zero, Zero, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -4056,6 +4104,9 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -4079,6 +4130,7 @@ describe("TokenStaking", () => {
       const keepAmount = initialStakerBalance
       const keepInTAmount = convertToT(keepAmount, keepRatio).result
       let tx
+      let blockTimestamp
 
       beforeEach(async () => {
         await tokenStaking.connect(deployer).setMinimumStakeAmount(minAmount)
@@ -4099,6 +4151,7 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(stakingProvider.address)
+        blockTimestamp = await lastBlockTime()
 
         await tokenStaking
           .connect(staker)
@@ -4119,7 +4172,7 @@ describe("TokenStaking", () => {
         ).to.deep.equal([Zero, keepInTAmount, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -4127,9 +4180,12 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(0)
+        ).to.equal(blockTimestamp)
       })
 
       it("should decrease the delegatee voting power", async () => {
@@ -4255,7 +4311,7 @@ describe("TokenStaking", () => {
   })
 
   describe("unstakeKeep", () => {
-    context("when stakig provider has no stake", () => {
+    context("when staking provider has no stake", () => {
       it("should revert", async () => {
         await expect(
           tokenStaking.unstakeKeep(deployer.address)
@@ -4362,6 +4418,7 @@ describe("TokenStaking", () => {
       const keepInTAmount = convertToT(keepAmount, keepRatio).result
       const authorized = tAmount
       let tx
+      let blockTimestamp
 
       beforeEach(async () => {
         await tokenStaking
@@ -4384,6 +4441,8 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(stakingProvider.address)
+        blockTimestamp = await lastBlockTime()
+
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
@@ -4412,7 +4471,7 @@ describe("TokenStaking", () => {
         ).to.deep.equal([tAmount, Zero, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -4420,9 +4479,12 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should not update start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(0)
+        ).to.equal(blockTimestamp)
       })
 
       it("should decrease available amount to authorize", async () => {
@@ -4674,6 +4736,7 @@ describe("TokenStaking", () => {
             authorizer.address
           )
         blockTimestamp = await lastBlockTime()
+
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
@@ -4704,7 +4767,7 @@ describe("TokenStaking", () => {
         )
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -4712,6 +4775,9 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)
@@ -5037,7 +5103,7 @@ describe("TokenStaking", () => {
         ).to.deep.equal([Zero, Zero, Zero])
       })
 
-      it("should not update roles and start staking timestamp", async () => {
+      it("should not update roles", async () => {
         expect(
           await tokenStaking.rolesOf(stakingProvider.address)
         ).to.deep.equal([
@@ -5045,6 +5111,9 @@ describe("TokenStaking", () => {
           beneficiary.address,
           authorizer.address,
         ])
+      })
+
+      it("should start staking timestamp", async () => {
         expect(
           await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
         ).to.equal(blockTimestamp)

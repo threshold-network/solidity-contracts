@@ -335,6 +335,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             stakingProvider
         );
 
+        /* solhint-disable-next-line not-rely-on-time */
+        stakingProviderStruct.startStakingTimestamp = block.timestamp;
+
         increaseStakeCheckpoint(stakingProvider, tAmount);
 
         emit Staked(
@@ -1213,10 +1216,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         nuInTStake = stakingProviderStruct.nuInTStake;
     }
 
-    /// @notice Returns start staking timestamp for T/NU stake.
-    /// @dev    This value is set at most once, and only when a stake is created
-    ///         with T or NU tokens. If a stake is created from a legacy KEEP
-    ///         stake, this value will remain as zero
+    /// @notice Returns start staking timestamp.
+    /// @dev    This value is set at most once.
     function getStartStakingTimestamp(address stakingProvider)
         external
         view
