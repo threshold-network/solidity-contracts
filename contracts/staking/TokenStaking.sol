@@ -115,7 +115,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     SlashingEvent[] public slashingQueue;
     uint256 public slashingQueueIndex;
 
-    event ProviderStaked(
+    event Staked(
         StakeType indexed stakeType,
         address indexed owner,
         address indexed stakingProvider,
@@ -295,7 +295,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
         increaseStakeCheckpoint(stakingProvider, amount);
 
-        emit ProviderStaked(
+        emit Staked(
             StakeType.T,
             msg.sender,
             stakingProvider,
@@ -337,7 +337,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
         increaseStakeCheckpoint(stakingProvider, tAmount);
 
-        emit ProviderStaked(
+        emit Staked(
             StakeType.KEEP,
             stakingProviderStruct.owner,
             stakingProvider,
@@ -385,7 +385,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
         increaseStakeCheckpoint(stakingProvider, tAmount);
 
-        emit ProviderStaked(
+        emit Staked(
             StakeType.NU,
             msg.sender,
             stakingProvider,
