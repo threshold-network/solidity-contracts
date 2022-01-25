@@ -310,6 +310,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         staking contract. No tokens are transferred. Caches the active
     ///         stake amount from KEEP staking contract. Can be called by
     ///         anyone.
+    /// @dev The staking provider in T staking contract is the legacy KEEP
+    ///      staking contract operator.
     function stakeKeep(address stakingProvider) external override {
         require(stakingProvider != address(0), "Parameters must be specified");
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
@@ -394,6 +396,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Refresh Keep stake owner. Can be called only by the old owner.
+    /// @dev The staking provider in T staking contract is the legacy KEEP
+    ///      staking contract operator.
     function refreshKeepStakeOwner(address stakingProvider) external override {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
