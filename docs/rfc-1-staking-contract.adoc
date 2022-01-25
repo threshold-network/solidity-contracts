@@ -439,7 +439,7 @@ staking provider.
 Sets cached legacy stake amount to 0, sets the liquid T stake amount to 0 and
 withdraws all liquid T from the stake to the owner. Reverts if there is at least one
 non-zero authorization. Can be called only by the delegation owner or the
-staking  provider.
+staking provider.
 
 === Keeping information in sync
 

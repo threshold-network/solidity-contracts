@@ -385,9 +385,9 @@ describe("TokenStaking", () => {
           ).to.equal(amount)
         })
 
-        it("should emit ProviderStaked event", async () => {
+        it("should emit Staked event", async () => {
           await expect(tx)
-            .to.emit(tokenStaking, "ProviderStaked")
+            .to.emit(tokenStaking, "Staked")
             .withArgs(
               StakeTypes.T,
               staker.address,
@@ -583,9 +583,9 @@ describe("TokenStaking", () => {
           ).to.equal(0)
         })
 
-        it("should emit ProviderStaked event", async () => {
+        it("should emit Staked event", async () => {
           await expect(tx)
-            .to.emit(tokenStaking, "ProviderStaked")
+            .to.emit(tokenStaking, "Staked")
             .withArgs(
               StakeTypes.KEEP,
               staker.address,
@@ -801,9 +801,9 @@ describe("TokenStaking", () => {
         ).to.equal(tAmount)
       })
 
-      it("should emit ProviderStaked event", async () => {
+      it("should emit Staked event", async () => {
         await expect(tx)
-          .to.emit(tokenStaking, "ProviderStaked")
+          .to.emit(tokenStaking, "Staked")
           .withArgs(
             StakeTypes.NU,
             staker.address,
