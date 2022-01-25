@@ -96,7 +96,7 @@ interface INuCypherStakingEscrow {
 
     /// @notice Request merge between NuCypher staking contract and T staking contract.
     ///         Returns amount of staked tokens
-    function requestMerge(address staker, address operator)
+    function requestMerge(address staker, address stakingProvider)
         external
         returns (uint256);
 
