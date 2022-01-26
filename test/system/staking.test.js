@@ -2,6 +2,7 @@ const { expect } = require("chai")
 
 const { helpers } = require("hardhat")
 const { impersonateAccount } = helpers.account
+const { increaseTime } = helpers.time
 const { to1e18 } = helpers.number
 const { resetFork } = helpers.forking
 
@@ -206,6 +207,7 @@ describeFn("SystemTests: TokenStaking", () => {
           .connect(authorizer)
           .authorizeOperatorContract(operatorAddress, tokenStaking.address)
         await tokenStaking.stakeKeep(operator.address)
+        await increaseTime(86400) // +24h
       })
 
       context("when I authorized and deauthorized application", () => {
