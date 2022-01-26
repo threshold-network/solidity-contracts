@@ -792,7 +792,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         authorization higher than the sum of the legacy stake and
     ///         remaining liquid T stake or if the unstake amount is higher than
     ///         the liquid T stake amount. Can be called only by the owner or
-    ///         the staking provider.
+    ///         the staking provider. Can only be called when 24h passed since
+    ///         the stake has been delegated.
     function unstakeT(address stakingProvider, uint96 amount)
         external
         override
@@ -807,16 +808,14 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 stakingProviderStruct.tStake,
             "Too much to unstake"
         );
-        stakingProviderStruct.tStake -= amount;
         require(
-            stakingProviderStruct.nuInTStake != 0 ||
-                stakingProviderStruct.keepInTStake != 0 ||
-                stakingProviderStruct.tStake >= minTStakeAmount ||
-                stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
+            stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
                 /* solhint-disable-next-line not-rely-on-time */
                 block.timestamp,
             "Can't unstake earlier than 24h"
         );
+
+        stakingProviderStruct.tStake -= amount;
         decreaseStakeCheckpoint(stakingProvider, amount);
         emit Unstaked(stakingProvider, amount);
         token.safeTransfer(stakingProviderStruct.owner, amount);
@@ -829,6 +828,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         KEEP staking contract and still being able to operate in T
     ///         network and earning rewards based on the liquid T staked. Can be
     ///         called only by the delegation owner or the staking provider.
+    ///         Can only be called when 24h passed since the stake has been
+    ///         delegated.
     /// @dev    This function (or `unstakeAll`) must be called before
     ///         `undelegate`/`undelegateAt` in Keep staking contract. Otherwise
     ///         provider can be slashed by `notifyKeepStakeDiscrepancy` method.
@@ -846,6 +847,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             getMinStaked(stakingProvider, StakeType.KEEP) == 0,
             "Keep stake still authorized"
         );
+        require(
+            stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
+                /* solhint-disable-next-line not-rely-on-time */
+                block.timestamp,
+            "Can't unstake earlier than 24h"
+        );
+
         emit Unstaked(stakingProvider, keepInTStake);
         stakingProviderStruct.keepInTStake = 0;
         decreaseStakeCheckpoint(stakingProvider, keepInTStake);
@@ -860,7 +868,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         contract. This function allows to unstake from NU staking
     ///         contract and still being able to operate in T network and
     ///         earning rewards based on the liquid T staked. Can be called only
-    ///         by the delegation owner or the staking provider.
+    ///         by the delegation owner or the staking provider. Can only be
+    ///         called when 24h passed since the stake has been delegated.
     /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
     ///         in NuCypher staking contract. Otherwise NU tokens can't be
     ///         unlocked.
@@ -884,17 +893,14 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 stakingProviderStruct.nuInTStake,
             "Too much to unstake"
         );
-        stakingProviderStruct.nuInTStake -= amount;
         require(
-            (stakingProviderStruct.tStake >= minTStakeAmount &&
-                minTStakeAmount != 0) ||
-                stakingProviderStruct.keepInTStake != 0 ||
-                stakingProviderStruct.nuInTStake > 0 ||
-                stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
+            stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
                 /* solhint-disable-next-line not-rely-on-time */
                 block.timestamp,
             "Can't unstake earlier than 24h"
         );
+
+        stakingProviderStruct.nuInTStake -= amount;
         decreaseStakeCheckpoint(stakingProvider, amount);
         emit Unstaked(stakingProvider, amount);
     }
@@ -903,7 +909,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         amount to 0 and withdraws all liquid T from the stake to the
     ///         owner. Reverts if there is at least one non-zero authorization.
     ///         Can be called only by the delegation owner or the staking
-    ///         provider.
+    ///         provider. Can only be called when 24h passed since the stake
+    ///         has been delegated.
     function unstakeAll(address stakingProvider)
         external
         override
@@ -917,9 +924,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             "Stake still authorized"
         );
         require(
-            ((stakingProviderStruct.tStake == 0 || minTStakeAmount == 0) &&
-                stakingProviderStruct.nuInTStake == 0) ||
-                stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
+            stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
                 /* solhint-disable-next-line not-rely-on-time */
                 block.timestamp,
             "Can't unstake earlier than 24h"
