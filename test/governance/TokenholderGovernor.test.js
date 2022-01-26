@@ -10,9 +10,6 @@ const ProposalStates = {
   Canceled: 2,
 }
 
-const secondsInADay = ethers.BigNumber.from(60 * 60 * 24)
-const averageBlockTime = 13
-
 describe("TokenholderGovernor", () => {
   let tToken
   let staker
@@ -80,7 +77,9 @@ describe("TokenholderGovernor", () => {
     timelock = await Timelock.deploy(minDelay, proposers, executors)
     await timelock.deployed()
 
-    const TestGovernor = await ethers.getContractFactory("TokenholderGovernor")
+    const TestGovernor = await ethers.getContractFactory(
+      "TestTokenholderGovernor"
+    )
     tGov = await TestGovernor.deploy(
       tToken.address,
       tStaking.address,
@@ -120,16 +119,12 @@ describe("TokenholderGovernor", () => {
       expect(await tGov.proposalThresholdNumerator()).to.equal(25)
     })
 
-    it("voting delay is 2 days", async () => {
-      expect(await tGov.votingDelay()).to.equal(
-        secondsInADay.mul(2).div(averageBlockTime)
-      )
+    it("voting delay is 2 blocks", async () => {
+      expect(await tGov.votingDelay()).to.equal(2)
     })
 
-    it("voting period is 10 days", async () => {
-      expect(await tGov.votingPeriod()).to.equal(
-        secondsInADay.mul(10).div(averageBlockTime)
-      )
+    it("voting period is 8 blocks", async () => {
+      expect(await tGov.votingPeriod()).to.equal(8)
     })
   })
 

@@ -40,17 +40,27 @@ contract TestStakerGovernor is StakerGovernor {
     }
 }
 
-contract TestTokenholderGovernor is TokenholderGovernor {
+contract TestTokenholderGovernor is BaseTokenholderGovernor {
+    uint256 private constant INITIAL_QUORUM_NUMERATOR = 150; // Defined in basis points, i.e., 1.5%
+    uint256 private constant INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25; // Defined in basis points, i.e., 0.25%
+    uint256 private constant INITIAL_VOTING_DELAY = 2;
+    uint256 private constant INITIAL_VOTING_PERIOD = 8;
+
     constructor(
         T _tToken,
         IVotesHistory _tStaking,
+        TimelockController _timelock,
         address _vetoer
     )
-        TokenholderGovernor(
+        BaseTokenholderGovernor(
             _tToken,
             _tStaking,
-            TimelockController(payable(0)),
-            _vetoer
+            _timelock,
+            _vetoer,
+            INITIAL_QUORUM_NUMERATOR,
+            INITIAL_PROPOSAL_THRESHOLD_NUMERATOR,
+            INITIAL_VOTING_DELAY,
+            INITIAL_VOTING_PERIOD
         )
     {}
 }
