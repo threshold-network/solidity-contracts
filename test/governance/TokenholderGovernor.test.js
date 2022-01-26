@@ -20,6 +20,7 @@ describe("TokenholderGovernor", () => {
   let holder
   let holderWhale
   let vetoer
+  let timelock
 
   let proposalThresholdFunction
 
@@ -41,19 +42,22 @@ describe("TokenholderGovernor", () => {
   const extraTokens = to1e18(1000)
 
   // Mock proposal
-  const mockDescription = "Mock Proposal"
-  const mockProposal = [[AddressZero], [42], [0xbebecafe]]
-  const mockProposalWithDescription = [...mockProposal, mockDescription]
-  const descriptionHash = ethers.utils.id(mockDescription)
-  const mockProposalWithHash = [...mockProposal, descriptionHash]
+  const description = "Mock Proposal"
+  const proposal = [[AddressZero], [42], [0xbebecafe]]
+  const proposalWithDescription = [...proposal, description]
+  const descriptionHash = ethers.utils.id(description)
+  const proposalWithHash = [...proposal, descriptionHash]
   const proposalID = ethers.utils.keccak256(
     defaultAbiCoder.encode(
       ["address[]", "uint256[]", "bytes[]", "bytes32"],
-      mockProposalWithHash
+      proposalWithHash
     )
   )
 
   beforeEach(async () => {
+    ;[deployer, staker, stakerWhale, holder, holderWhale, vetoer] =
+      await ethers.getSigners()
+
     const T = await ethers.getContractFactory("T")
     tToken = await T.deploy()
     await tToken.deployed()
@@ -63,22 +67,35 @@ describe("TokenholderGovernor", () => {
     )
     tStaking = await TestStaking.deploy(tToken.address)
     await tStaking.deployed()
-    ;[staker, stakerWhale, holder, holderWhale, vetoer] =
-      await ethers.getSigners()
+
     await tToken.mint(staker.address, stakerBalance)
     await tToken.mint(stakerWhale.address, stakerWhaleBalance)
     await tToken.mint(holder.address, holderBalance)
     await tToken.mint(holderWhale.address, holderWhaleBalance)
 
-    const TestGovernor = await ethers.getContractFactory(
-      "TestTokenholderGovernor"
-    )
+    const Timelock = await ethers.getContractFactory("TimelockController")
+    const minDelay = 1
+    const proposers = []
+    const executors = []
+    timelock = await Timelock.deploy(minDelay, proposers, executors)
+    await timelock.deployed()
+
+    const TestGovernor = await ethers.getContractFactory("TokenholderGovernor")
     tGov = await TestGovernor.deploy(
       tToken.address,
       tStaking.address,
+      timelock.address,
       vetoer.address
     )
     await tGov.deployed()
+
+    TIMELOCK_ADMIN_ROLE = await timelock.TIMELOCK_ADMIN_ROLE()
+    PROPOSER_ROLE = await timelock.PROPOSER_ROLE()
+
+    await timelock.grantRole(PROPOSER_ROLE, tGov.address)
+    await timelock.renounceRole(TIMELOCK_ADMIN_ROLE, deployer.address)
+
+    await tToken.mint(timelock.address, 1)
 
     lastBlock = (await mineBlocks(1)) - 1
 
@@ -123,16 +140,16 @@ describe("TokenholderGovernor", () => {
       })
       it("nobody can make a proposal", async () => {
         await expect(
-          tGov.connect(staker).propose(...mockProposalWithDescription)
+          tGov.connect(staker).propose(...proposalWithDescription)
         ).to.be.revertedWith("Proposal below threshold")
         await expect(
-          tGov.connect(stakerWhale).propose(...mockProposalWithDescription)
+          tGov.connect(stakerWhale).propose(...proposalWithDescription)
         ).to.be.revertedWith("Proposal below threshold")
         await expect(
-          tGov.connect(holder).propose(...mockProposalWithDescription)
+          tGov.connect(holder).propose(...proposalWithDescription)
         ).to.be.revertedWith("Proposal below threshold")
         await expect(
-          tGov.connect(holderWhale).propose(...mockProposalWithDescription)
+          tGov.connect(holderWhale).propose(...proposalWithDescription)
         ).to.be.revertedWith("Proposal below threshold")
       })
     })
@@ -152,22 +169,18 @@ describe("TokenholderGovernor", () => {
         })
         it("small fish can't make a proposal", async () => {
           await expect(
-            tGov.connect(staker).propose(...mockProposalWithDescription)
+            tGov.connect(staker).propose(...proposalWithDescription)
           ).to.be.revertedWith("Proposal below threshold")
           await expect(
-            tGov.connect(holder).propose(...mockProposalWithDescription)
+            tGov.connect(holder).propose(...proposalWithDescription)
           ).to.be.revertedWith("Proposal below threshold")
         })
 
         it("but whales can (1/2)", async () => {
-          await tGov
-            .connect(stakerWhale)
-            .propose(...mockProposalWithDescription)
+          await tGov.connect(stakerWhale).propose(...proposalWithDescription)
         })
         it("but whales can (2/2)", async () => {
-          await tGov
-            .connect(holderWhale)
-            .propose(...mockProposalWithDescription)
+          await tGov.connect(holderWhale).propose(...proposalWithDescription)
         })
       })
     })
@@ -192,12 +205,12 @@ describe("TokenholderGovernor", () => {
       })
 
       it("stakerWhale can make a proposal", async () => {
-        await tGov.connect(stakerWhale).propose(...mockProposalWithDescription)
+        await tGov.connect(stakerWhale).propose(...proposalWithDescription)
       })
 
       it("staker can't make a proposal", async () => {
         await expect(
-          tGov.connect(staker).propose(...mockProposalWithDescription)
+          tGov.connect(staker).propose(...proposalWithDescription)
         ).to.be.revertedWith("Proposal below threshold")
       })
     })
@@ -218,20 +231,18 @@ describe("TokenholderGovernor", () => {
         })
 
         it("stakerWhale still can make a proposal", async () => {
-          await tGov
-            .connect(stakerWhale)
-            .propose(...mockProposalWithDescription)
+          await tGov.connect(stakerWhale).propose(...proposalWithDescription)
         })
 
         it("staker can now make a proposal too", async () => {
-          await tGov.connect(staker).propose(...mockProposalWithDescription)
+          await tGov.connect(staker).propose(...proposalWithDescription)
         })
       }
     )
 
     context("when there's a proposal", () => {
       beforeEach(async () => {
-        await tGov.connect(stakerWhale).propose(...mockProposalWithDescription)
+        await tGov.connect(stakerWhale).propose(...proposalWithDescription)
       })
 
       it("proposal state is 'pending' initially", async () => {
@@ -239,14 +250,14 @@ describe("TokenholderGovernor", () => {
       })
 
       it("stakers can't cancel the proposal", async () => {
-        await expect(tGov.connect(stakerWhale).cancel(...mockProposalWithHash))
-          .to.be.reverted
-        await expect(tGov.connect(staker).cancel(...mockProposalWithHash)).to.be
+        await expect(tGov.connect(stakerWhale).cancel(...proposalWithHash)).to
+          .be.reverted
+        await expect(tGov.connect(staker).cancel(...proposalWithHash)).to.be
           .reverted
       })
 
       it("vetoer can cancel the proposal", async () => {
-        await tGov.connect(vetoer).cancel(...mockProposalWithHash)
+        await tGov.connect(vetoer).cancel(...proposalWithHash)
         expect(await tGov.state(proposalID)).to.equal(ProposalStates.Canceled)
       })
     })
