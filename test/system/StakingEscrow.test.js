@@ -12,22 +12,26 @@ const { initContracts } = require("./StakingEscrow-init-contracts")
 const {
   daoAgentAddress,
   stakingEscrowStartingBlock,
-  stakers,
+  stakerList,
 } = require("./constants")
 
 const describeFn =
-  process.env.NODE_ENV === "stakingescrow-test" ? describe : describe.skip
+  process.env.NODE_ENV === "system-test" ||
+  process.env.NODE_ENV === "stakingescrow-test"
+    ? describe
+    : describe.skip
 
 describeFn("System Tests: StakingEscrow", function () {
   // numRuns: is the number of runs of property-based tests. The max allowed
   // value is stakers.length, which implies an comprehensive testing (all
   // stakers of Staking Escrow contract are tested). Lower values speed up the
   // tests, but only that number of stakers (randomly selected) will be tested.
-  const numRuns = stakers.length
+  const numRuns = process.env.NODE_ENV === "system-test" ? 30 : stakers.length
 
   // Mocha tests timeout
   this.timeout(1200000)
 
+  let stakers
   let purse
   let daoAgent
   let floatingPointDivisor
@@ -58,12 +62,14 @@ describeFn("System Tests: StakingEscrow", function () {
   }
 
   before(async () => {
-    await resetFork(stakingEscrowStartingBlock)
     fc.configureGlobal({ numRuns: numRuns, skipEqualValues: true })
+    await resetFork(stakingEscrowStartingBlock)
     const contracts = await initContracts()
     nuCypherVendingMachine = contracts.nuCypherVendingMachine
     floatingPointDivisor = await nuCypherVendingMachine.FLOATING_POINT_DIVISOR()
     nuCypherRatio = await nuCypherVendingMachine.ratio()
+    // Take random sumbset of stakers with numRuns length
+    stakers = stakerList.sort(() => 0.5 - Math.random()).slice(0, numRuns)
   })
 
   beforeEach(async () => {
@@ -86,7 +92,7 @@ describeFn("System Tests: StakingEscrow", function () {
 
   describe("setup", () => {
     context("once proxy contract is upgraded", () => {
-      it("should dispatcher target address to new stakingEscrow", async () => {
+      it("should proxy address to new stakingEscrow", async () => {
         expect(await stakingEscrow.target()).to.equal(
           stakingEscrowImplementation.address
         )
