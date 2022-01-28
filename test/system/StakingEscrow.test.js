@@ -20,9 +20,9 @@ const describeFn =
 
 describeFn("System Tests: StakingEscrow", () => {
   // numRuns: is the number of runs of property-based tests. The max allowed
-  // value is stakers.length, which implies an exhaustive testing (all stakers
-  // of Staking Escrow contract are tested). Lower values speed up the tests,
-  // but only that number of stakers (randomly selected) will be tested.
+  // value is stakers.length, which implies an comprehensive testing (all
+  // stakers of Staking Escrow contract are tested). Lower values speed up the
+  // tests, but only that number of stakers (randomly selected) will be tested.
   const numRuns = stakers.length
 
   let purse
