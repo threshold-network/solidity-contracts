@@ -21,7 +21,7 @@ const describeFn =
     ? describe
     : describe.skip
 
-describeFn("System Tests: StakingEscrow", function () {
+describeFn("SystemTests: StakingEscrow", function () {
   // numRuns: is the number of runs of property-based tests. The max allowed
   // value is stakers.length, which implies an comprehensive testing (all
   // stakers of Staking Escrow contract are tested). Lower values speed up the
