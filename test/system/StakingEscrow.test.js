@@ -18,12 +18,15 @@ const {
 const describeFn =
   process.env.NODE_ENV === "stakingescrow-test" ? describe : describe.skip
 
-describeFn("System Tests: StakingEscrow", () => {
+describeFn("System Tests: StakingEscrow", function () {
   // numRuns: is the number of runs of property-based tests. The max allowed
   // value is stakers.length, which implies an comprehensive testing (all
   // stakers of Staking Escrow contract are tested). Lower values speed up the
   // tests, but only that number of stakers (randomly selected) will be tested.
   const numRuns = stakers.length
+
+  // Mocha tests timeout
+  this.timeout(1200000)
 
   let purse
   let daoAgent
@@ -308,7 +311,7 @@ describeFn("System Tests: StakingEscrow", () => {
             }
           )
         )
-      }).timeout(300000)
+      })
     })
 
     context("when operator partially stake NU", () => {
@@ -433,7 +436,7 @@ describeFn("System Tests: StakingEscrow", () => {
             }
           )
         )
-      }).timeout(300000)
+      })
     })
   })
 
