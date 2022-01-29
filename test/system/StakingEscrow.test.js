@@ -26,7 +26,7 @@ describeFn("SystemTests: StakingEscrow", function () {
   // value is stakers.length, which implies an comprehensive testing (all
   // stakers of Staking Escrow contract are tested). Lower values speed up the
   // tests, but only that number of stakers (randomly selected) will be tested.
-  const numRuns = process.env.NODE_ENV === "system-test" ? 30 : stakers.length
+  const numRuns = process.env.NODE_ENV === "system-test" ? 30 : stakerList.length
 
   // Mocha tests timeout
   this.timeout(1200000)
