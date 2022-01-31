@@ -43,4 +43,5 @@ func.dependencies = [
   "VendingMachineKeep",
   "VendingMachineNuCypher",
   "KeepStake",
+  "MintT",
 ]
