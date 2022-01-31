@@ -105,7 +105,7 @@ const config: HardhatUserConfig = {
   namedAccounts: {
     deployer: {
       default: 0, // take the first account as deployer
-      mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
+      // mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
     },
     thresholdCouncil: {
       mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
