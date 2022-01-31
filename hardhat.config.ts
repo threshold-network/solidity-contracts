@@ -62,6 +62,14 @@ const config: HardhatUserConfig = {
         : undefined,
       tags: ["tenderly"],
     },
+    mainnet: {
+      url: process.env.CHAIN_API_URL || "",
+      chainId: 1,
+      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
+        : undefined,
+      tags: ["tenderly"],
+    },
   },
   tenderly: {
     username: "thesis",
