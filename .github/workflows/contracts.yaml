@@ -181,6 +181,7 @@ jobs:
       - name: Prepare for verification on Etherscan
         run: |
           rm -rf ./node_modules/@keep-network/keep-core
+          rm -rf ./external/npm
 
       - name: Verify contracts on Etherscan
         env:
