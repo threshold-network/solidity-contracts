@@ -55,7 +55,7 @@ async function resolveNuCypherToken() {
 
 async function resolveKeepTokenStaking() {
   return await ethers.getContractAt(
-    "ITestKeepTokenStaking",
+    "IKeepTokenStaking",
     keepTokenStakingAddress
   )
 }
