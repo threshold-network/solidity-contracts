@@ -101,11 +101,11 @@ The vending machine contracts are not upgradeable.
 
 === Ropsten Testnet
 
-* NU<>T Vending Machine address: `0x504F1A207F8517161f1A3f816808C8B2F63F73C6`
-* KEEP<>T Vending Machine address: `0xB3FBf63e3CEAA66e2EfcFC03f36bE21bB10A99c3`
-* T token address: `0xcCdcF79F1a5786248F5C88259341F4B3a9399478`
-* NU token address: `0xbA84B4cA4ACA27B1d53Df96bad513028540De00D`
+* NU<>T Vending Machine address: `0x5FE3Ac98E44Fb1b14aA4780A74EeA495Aa3bfC34`
+* KEEP<>T Vending Machine address: `0xC28F92095574F244864a23aA78E0ebFdc9c241b6`
+* T token address: `0x8562d01c9C0F1A8173360E48F50F6b9879c98Dc6`
+* NU token address: `0x9E6f0bB61f235304522E5Fe3C27a6424f5182C3d`
 * KEEP token address: `0x29DDc999E81E585D500BcA2FD2A8bcA677680e72`
-* NU Staking Escrow address: `0xA0BFA83ADb6C53B1Df90A5b0a5e2213FBB52D2bE`
-* Keep Stake address: `0x2e62FD07dad85DBEf9661981E3Ac442b9D47c480`
-* Token Staking address: `0x5CBC9Df636553Cc42F408d728f3Daf96593274d2`
+* NU Staking Escrow address: `0x25C5aF106C04e17d7097617C5d74e23717Fb6286`
+* Keep Stake address: `0xE53eC3b651EEFA922dCc80c70426764aF4F7eFC0`
+* Token Staking address: `0x7149bC2d6f090fBcdc44303F0752ae34d77f6D71`
