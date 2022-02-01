@@ -3,12 +3,12 @@ import { HardhatUserConfig } from "hardhat/config"
 import "@keep-network/hardhat-helpers"
 import "@keep-network/hardhat-local-networks-config"
 import "@nomiclabs/hardhat-waffle"
-import "hardhat-gas-reporter"
-import "hardhat-deploy"
+import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
 
-require("hardhat-contract-sizer")
-require("@openzeppelin/hardhat-upgrades")
+import "hardhat-contract-sizer"
+import "hardhat-deploy"
+import "hardhat-gas-reporter"
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -62,6 +62,14 @@ const config: HardhatUserConfig = {
         : undefined,
       tags: ["tenderly"],
     },
+    mainnet: {
+      url: process.env.CHAIN_API_URL || "",
+      chainId: 1,
+      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
+        : undefined,
+      tags: ["tenderly"],
+    },
   },
   tenderly: {
     username: "thesis",
@@ -97,10 +105,10 @@ const config: HardhatUserConfig = {
   namedAccounts: {
     deployer: {
       default: 0, // take the first account as deployer
-      mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
+      // mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
     },
     thresholdCouncil: {
-      mainnet: "0x00", // FIXME: Provide value
+      mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
     },
   },
   mocha: {
