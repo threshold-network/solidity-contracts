@@ -58,7 +58,10 @@ const config: HardhatUserConfig = {
       url: process.env.CHAIN_API_URL || "",
       chainId: 3,
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
+        ? [
+            process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+          ]
         : undefined,
       tags: ["tenderly"],
     },
@@ -101,6 +104,10 @@ const config: HardhatUserConfig = {
     },
     thresholdCouncil: {
       mainnet: "0x00", // FIXME: Provide value
+    },
+    keepDeployer: {
+      default: 0,
+      ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
     },
   },
   mocha: {
