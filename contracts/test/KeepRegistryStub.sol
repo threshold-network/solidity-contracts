@@ -5,9 +5,9 @@ pragma solidity 0.8.9;
 import "./IKeepRegistry.sol";
 
 contract KeepRegistryStub is IKeepRegistry {
-    event OperatorContractApproved(address operatorContract);
-
     address public registryKeeper;
+
+    event OperatorContractApproved(address operatorContract);
 
     constructor() public {
         registryKeeper = msg.sender;
