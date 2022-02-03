@@ -24,3 +24,6 @@ export default func
 
 func.tags = ["ConfigureKeepRegistry"]
 func.dependencies = ["TokenStaking", "KeepRegistry"]
+func.skip = async function (hre: HardhatRuntimeEnvironment): Promise<boolean> {
+  return hre.network.name === "mainnet"
+}
