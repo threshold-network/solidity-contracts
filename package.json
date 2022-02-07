@@ -10,6 +10,7 @@
     "deploy/",
     "export/",
     "scripts/",
+    ".openzeppelin/mainnet.json",
     "export.json"
   ],
   "scripts": {
