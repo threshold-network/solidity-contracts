@@ -133,6 +133,7 @@ jobs:
         env:
           CHAIN_API_URL: ${{ secrets.ROPSTEN_ETH_HOSTNAME_HTTP }}
           CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.ROPSTEN_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.ROPSTEN_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
         run: yarn deploy --network ${{ github.event.inputs.environment }}
 
       - name: Bump up package version
@@ -147,6 +148,18 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }}
+
+      - name: Notify CI about completion of the workflow
+        uses: keep-network/ci/actions/notify-workflow-completed@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        with:
+          module: "github.com/threshold-network/solidity-contracts"
+          url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          environment: ${{ github.event.inputs.environment }}
+          upstream_builds: ${{ github.event.inputs.upstream_builds }}
+          upstream_ref: ${{ github.event.inputs.upstream_ref }}
+          version: ${{ steps.npm-version-bump.outputs.version }}
 
       - name: Upload files needed for etherscan verification
         uses: actions/upload-artifact@v2
