@@ -20,6 +20,10 @@ const Vote = {
   Yea: 1,
 }
 
+function missingRoleMessage(account, role) {
+  return `AccessControl: account ${account.toLowerCase()} is missing role ${role}`
+}
+
 describe("TokenholderGovernor", () => {
   let deployer
   let tToken
@@ -62,6 +66,8 @@ describe("TokenholderGovernor", () => {
     )
   )
 
+  let VETO_POWER
+
   beforeEach(async () => {
     ;[deployer, staker, stakerWhale, holder, holderWhale, vetoer] =
       await ethers.getSigners()
@@ -99,6 +105,7 @@ describe("TokenholderGovernor", () => {
     )
     await tGov.deployed()
 
+    VETO_POWER = await tGov.VETO_POWER()
     TIMELOCK_ADMIN_ROLE = await timelock.TIMELOCK_ADMIN_ROLE()
     PROPOSER_ROLE = await timelock.PROPOSER_ROLE()
 
@@ -275,10 +282,14 @@ describe("TokenholderGovernor", () => {
       })
 
       it("stakers can't cancel the proposal", async () => {
-        await expect(tGov.connect(stakerWhale).cancel(...proposalWithHash)).to
-          .be.reverted
-        await expect(tGov.connect(staker).cancel(...proposalWithHash)).to.be
-          .reverted
+        await expect(
+          tGov.connect(stakerWhale).cancel(...proposalWithHash)
+        ).to.be.revertedWith(
+          missingRoleMessage(stakerWhale.address, VETO_POWER)
+        )
+        await expect(
+          tGov.connect(staker).cancel(...proposalWithHash)
+        ).to.be.revertedWith(missingRoleMessage(staker.address, VETO_POWER))
       })
 
       it("vetoer can cancel the proposal", async () => {
@@ -302,10 +313,14 @@ describe("TokenholderGovernor", () => {
         })
 
         it("stakers can't cancel the proposal", async () => {
-          await expect(tGov.connect(stakerWhale).cancel(...proposalWithHash)).to
-            .be.reverted
-          await expect(tGov.connect(staker).cancel(...proposalWithHash)).to.be
-            .reverted
+          await expect(
+            tGov.connect(stakerWhale).cancel(...proposalWithHash)
+          ).to.be.revertedWith(
+            missingRoleMessage(stakerWhale.address, VETO_POWER)
+          )
+          await expect(
+            tGov.connect(staker).cancel(...proposalWithHash)
+          ).to.be.revertedWith(missingRoleMessage(staker.address, VETO_POWER))
         })
 
         it("vetoer can cancel the proposal", async () => {
@@ -331,10 +346,14 @@ describe("TokenholderGovernor", () => {
           })
 
           it("stakers can't cancel the proposal", async () => {
-            await expect(tGov.connect(stakerWhale).cancel(...proposalWithHash))
-              .to.be.reverted
-            await expect(tGov.connect(staker).cancel(...proposalWithHash)).to.be
-              .reverted
+            await expect(
+              tGov.connect(stakerWhale).cancel(...proposalWithHash)
+            ).to.be.revertedWith(
+              missingRoleMessage(stakerWhale.address, VETO_POWER)
+            )
+            await expect(
+              tGov.connect(staker).cancel(...proposalWithHash)
+            ).to.be.revertedWith(missingRoleMessage(staker.address, VETO_POWER))
           })
 
           it("vetoer still can cancel the proposal", async () => {
