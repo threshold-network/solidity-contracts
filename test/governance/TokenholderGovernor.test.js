@@ -10,7 +10,13 @@ const ProposalStates = {
   Canceled: 2,
 }
 
+const Vote = {
+  Nay: 0,
+  Yea: 1,
+}
+
 describe("TokenholderGovernor", () => {
+  let deployer
   let tToken
   let staker
   let stakerWhale
@@ -39,12 +45,12 @@ describe("TokenholderGovernor", () => {
   const extraTokens = to1e18(1000)
 
   // Mock proposal
-  const description = "Mock Proposal"
-  const proposal = [[AddressZero], [42], [0xbebecafe]]
-  const proposalWithDescription = [...proposal, description]
-  const descriptionHash = ethers.utils.id(description)
-  const proposalWithHash = [...proposal, descriptionHash]
-  const proposalID = ethers.utils.keccak256(
+  let description = "Mock Proposal"
+  let proposal = [[AddressZero], [42], [0xbebecafe]]
+  let proposalWithDescription = [...proposal, description]
+  let descriptionHash = ethers.utils.id(description)
+  let proposalWithHash = [...proposal, descriptionHash]
+  let proposalID = ethers.utils.keccak256(
     defaultAbiCoder.encode(
       ["address[]", "uint256[]", "bytes[]", "bytes32"],
       proposalWithHash
@@ -237,6 +243,25 @@ describe("TokenholderGovernor", () => {
 
     context("when there's a proposal", () => {
       beforeEach(async () => {
+        description = "Proposal to transfer some T"
+
+        // Proposal to transfer 1 T unit to the deployer
+        transferTx = await tToken.populateTransaction.transfer(
+          deployer.address,
+          1
+        )
+
+        proposal = [[tToken.address], [0], [transferTx.data]]
+        proposalWithDescription = [...proposal, description]
+        descriptionHash = ethers.utils.id(description)
+        proposalWithHash = [...proposal, descriptionHash]
+        proposalID = ethers.utils.keccak256(
+          defaultAbiCoder.encode(
+            ["address[]", "uint256[]", "bytes[]", "bytes32"],
+            proposalWithHash
+          )
+        )
+
         await tGov.connect(stakerWhale).propose(...proposalWithDescription)
       })
 
@@ -254,6 +279,38 @@ describe("TokenholderGovernor", () => {
       it("vetoer can cancel the proposal", async () => {
         await tGov.connect(vetoer).cancel(...proposalWithHash)
         expect(await tGov.state(proposalID)).to.equal(ProposalStates.Canceled)
+      })
+
+      it("participants can't vote while proposal is 'pending'", async () => {
+        await expect(
+          tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+        ).to.be.revertedWith("Governor: vote not currently active")
+      })
+
+      context("when voting delay has passed", () => {
+        beforeEach(async () => {
+          await mineBlocks(3)
+        })
+
+        it("proposal state becomes 'active'", async () => {
+          expect(await tGov.state(proposalID)).to.equal(ProposalStates.Active)
+        })
+
+        it("stakers can't cancel the proposal", async () => {
+          await expect(tGov.connect(stakerWhale).cancel(...proposalWithHash)).to
+            .be.reverted
+          await expect(tGov.connect(staker).cancel(...proposalWithHash)).to.be
+            .reverted
+        })
+
+        it("vetoer can cancel the proposal", async () => {
+          await tGov.connect(vetoer).cancel(...proposalWithHash)
+          expect(await tGov.state(proposalID)).to.equal(ProposalStates.Canceled)
+        })
+
+        it("participants can vote", async () => {
+          await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+        })
       })
     })
   })
