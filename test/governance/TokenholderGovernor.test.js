@@ -8,6 +8,11 @@ const ProposalStates = {
   Pending: 0,
   Active: 1,
   Canceled: 2,
+  Defeated: 3,
+  Succeeded: 4,
+  Queued: 5,
+  Expired: 6,
+  Executed: 7,
 }
 
 const Vote = {
@@ -310,6 +315,38 @@ describe("TokenholderGovernor", () => {
 
         it("participants can vote", async () => {
           await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+        })
+
+        context("when quorum is reached and voting period ends", () => {
+          beforeEach(async () => {
+            await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+            await tGov.connect(stakerWhale).castVote(proposalID, Vote.Yea)
+            await mineBlocks(8)
+          })
+
+          it("proposal state becomes 'succeeded'", async () => {
+            expect(await tGov.state(proposalID)).to.equal(
+              ProposalStates.Succeeded
+            )
+          })
+
+          it("stakers can't cancel the proposal", async () => {
+            await expect(tGov.connect(stakerWhale).cancel(...proposalWithHash))
+              .to.be.reverted
+            await expect(tGov.connect(staker).cancel(...proposalWithHash)).to.be
+              .reverted
+          })
+
+          it("vetoer still can cancel the proposal", async () => {
+            await tGov.connect(vetoer).cancel(...proposalWithHash)
+            expect(await tGov.state(proposalID)).to.equal(
+              ProposalStates.Canceled
+            )
+          })
+
+          it("participants can't vote anymore", async () => {
+            await tGov.connect(staker).castVote(proposalID, Vote.Yea)
+          })
         })
       })
     })
