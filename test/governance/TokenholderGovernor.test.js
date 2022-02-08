@@ -1,8 +1,8 @@
 const { expect } = require("chai")
 const { defaultAbiCoder } = require("@ethersproject/abi")
-const { mineBlocks } = helpers.time
+const { mineBlocks, increaseTime, lastBlockTime } = helpers.time
 const { to1e18 } = helpers.number
-const { AddressZero } = ethers.constants
+const { AddressZero, HashZero } = ethers.constants
 
 const ProposalStates = {
   Pending: 0,
@@ -32,6 +32,7 @@ describe("TokenholderGovernor", () => {
   let holder
   let holderWhale
   let vetoer
+  let bystander
   let timelock
 
   let proposalThresholdFunction
@@ -65,11 +66,12 @@ describe("TokenholderGovernor", () => {
       proposalWithHash
     )
   )
+  let timelockProposalID
 
   let VETO_POWER
 
   beforeEach(async () => {
-    ;[deployer, staker, stakerWhale, holder, holderWhale, vetoer] =
+    ;[deployer, staker, stakerWhale, holder, holderWhale, vetoer, bystander] =
       await ethers.getSigners()
 
     const T = await ethers.getContractFactory("T")
@@ -267,10 +269,17 @@ describe("TokenholderGovernor", () => {
         proposalWithDescription = [...proposal, description]
         descriptionHash = ethers.utils.id(description)
         proposalWithHash = [...proposal, descriptionHash]
+        proposalForTimelock = [...proposal, HashZero, descriptionHash]
         proposalID = ethers.utils.keccak256(
           defaultAbiCoder.encode(
             ["address[]", "uint256[]", "bytes[]", "bytes32"],
             proposalWithHash
+          )
+        )
+        timelockProposalID = ethers.utils.keccak256(
+          defaultAbiCoder.encode(
+            ["address[]", "uint256[]", "bytes[]", "bytes32", "bytes32"],
+            proposalForTimelock
           )
         )
 
@@ -364,7 +373,89 @@ describe("TokenholderGovernor", () => {
           })
 
           it("participants can't vote anymore", async () => {
-            await tGov.connect(staker).castVote(proposalID, Vote.Yea)
+            await expect(
+              tGov.connect(staker).castVote(proposalID, Vote.Yea)
+            ).to.be.revertedWith("Governor: vote not currently active")
+          })
+
+          it("anyone can queue the proposal to the Timelock", async () => {
+            await tGov.connect(bystander).queue(...proposalWithHash)
+            expect(await tGov.state(proposalID)).to.equal(ProposalStates.Queued)
+          })
+
+          context("when proposal is queued", () => {
+            let tx
+            let queueTimestamp
+            beforeEach(async () => {
+              tx = await tGov.connect(bystander).queue(...proposalWithHash)
+              queueTimestamp = await lastBlockTime()
+            })
+
+            it("proposal state becomes 'Queued'", async () => {
+              expect(await tGov.state(proposalID)).to.equal(
+                ProposalStates.Queued
+              )
+            })
+
+            it("stakers can't cancel the proposal", async () => {
+              await expect(
+                tGov.connect(stakerWhale).cancel(...proposalWithHash)
+              ).to.be.revertedWith(
+                missingRoleMessage(stakerWhale.address, VETO_POWER)
+              )
+              await expect(
+                tGov.connect(staker).cancel(...proposalWithHash)
+              ).to.be.revertedWith(
+                missingRoleMessage(staker.address, VETO_POWER)
+              )
+            })
+
+            it("vetoer still can cancel the proposal", async () => {
+              await tGov.connect(vetoer).cancel(...proposalWithHash)
+              expect(await tGov.state(proposalID)).to.equal(
+                ProposalStates.Canceled
+              )
+            })
+
+            it("participants can't vote anymore", async () => {
+              await expect(
+                tGov.connect(staker).castVote(proposalID, Vote.Yea)
+              ).to.be.revertedWith("Governor: vote not currently active")
+            })
+
+            it("Timelock is aware of the proposal", async () => {
+              expect(await timelock.isOperation(timelockProposalID)).to.be.true
+            })
+
+            it("Proposal state in Timelock is pending; not ready nor done", async () => {
+              expect(await timelock.isOperationPending(timelockProposalID)).to
+                .be.true
+              expect(await timelock.isOperationReady(timelockProposalID)).to.be
+                .false
+              expect(await timelock.isOperationDone(timelockProposalID)).to.be
+                .false
+            })
+
+            it("Proposal activation timestamp in Timelock is as expected", async () => {
+              expect(
+                await timelock.getTimestamp(timelockProposalID)
+              ).to.be.equal(queueTimestamp + 1)
+            })
+
+            it("Timelock emits a CallScheduled event", async () => {
+              // CallScheduled(id, i, targets[i], values[i], datas[i], predecessor, delay);
+              await expect(tx)
+                .to.emit(timelock, "CallScheduled")
+                .withArgs(
+                  timelockProposalID,
+                  0,
+                  proposal[0][0],
+                  proposal[1][0],
+                  proposal[2][0],
+                  HashZero,
+                  1
+                )
+            })
           })
         })
       })
