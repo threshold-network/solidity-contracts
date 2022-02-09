@@ -33,6 +33,7 @@ describe("TokenholderGovernor", () => {
   let holderWhale
   let vetoer
   let bystander
+  let recipient
   let timelock
 
   let proposalThresholdFunction
@@ -71,8 +72,16 @@ describe("TokenholderGovernor", () => {
   let VETO_POWER
 
   beforeEach(async () => {
-    ;[deployer, staker, stakerWhale, holder, holderWhale, vetoer, bystander] =
-      await ethers.getSigners()
+    ;[
+      deployer,
+      staker,
+      stakerWhale,
+      holder,
+      holderWhale,
+      vetoer,
+      bystander,
+      recipient,
+    ] = await ethers.getSigners()
 
     const T = await ethers.getContractFactory("T")
     tToken = await T.deploy()
@@ -110,8 +119,10 @@ describe("TokenholderGovernor", () => {
     VETO_POWER = await tGov.VETO_POWER()
     TIMELOCK_ADMIN_ROLE = await timelock.TIMELOCK_ADMIN_ROLE()
     PROPOSER_ROLE = await timelock.PROPOSER_ROLE()
+    EXECUTOR_ROLE = await timelock.EXECUTOR_ROLE()
 
     await timelock.grantRole(PROPOSER_ROLE, tGov.address)
+    await timelock.grantRole(EXECUTOR_ROLE, tGov.address)
     await timelock.renounceRole(TIMELOCK_ADMIN_ROLE, deployer.address)
 
     await tToken.mint(timelock.address, 1)
@@ -259,9 +270,9 @@ describe("TokenholderGovernor", () => {
       beforeEach(async () => {
         description = "Proposal to transfer some T"
 
-        // Proposal to transfer 1 T unit to the deployer
+        // Proposal to transfer 1 T unit to some recipient
         transferTx = await tToken.populateTransaction.transfer(
-          deployer.address,
+          recipient.address,
           1
         )
 
@@ -455,6 +466,55 @@ describe("TokenholderGovernor", () => {
                   HashZero,
                   1
                 )
+            })
+            context("after Timelock duration", () => {
+              let recipientBalance
+              let tx
+
+              beforeEach(async () => {
+                await increaseTime(2)
+                recipientBalance = await tToken.balanceOf(recipient.address)
+                tx = await tGov.connect(bystander).execute(...proposalWithHash)
+              })
+
+              it("proposal state becomes 'Executed'", async () => {
+                expect(await tGov.state(proposalID)).to.equal(
+                  ProposalStates.Executed
+                )
+              })
+
+              it("proposal to send 1 T unit executes successfully", async () => {
+                expect(await tToken.balanceOf(recipient.address)).to.equal(
+                  recipientBalance.add(1)
+                )
+              })
+
+              it("TokenholderGovernor emits a ProposalExecuted event", async () => {
+                // ProposalExecuted(id);
+                await expect(tx)
+                  .to.emit(tGov, "ProposalExecuted")
+                  .withArgs(proposalID)
+              })
+
+              it("Timelock emits a CallExecuted event", async () => {
+                // CallExecuted(id, index, target, value, data);
+                await expect(tx)
+                  .to.emit(timelock, "CallExecuted")
+                  .withArgs(
+                    timelockProposalID,
+                    0,
+                    proposal[0][0],
+                    proposal[1][0],
+                    proposal[2][0]
+                  )
+              })
+
+              it("T emits a Transfer event", async () => {
+                // Transfer(from, to, amount);
+                await expect(tx)
+                  .to.emit(tToken, "Transfer")
+                  .withArgs(timelock.address, recipient.address, 1)
+              })
             })
           })
         })
