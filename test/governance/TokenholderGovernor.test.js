@@ -323,6 +323,12 @@ describe("TokenholderGovernor", () => {
         ).to.be.revertedWith("Governor: vote not currently active")
       })
 
+      it("proposal can't be executed yet", async () => {
+        await expect(
+          tGov.connect(bystander).execute(...proposalWithHash)
+        ).to.be.revertedWith("Governor: proposal not successful")
+      })
+
       context("when voting delay has passed", () => {
         beforeEach(async () => {
           await mineBlocks(3)
@@ -350,6 +356,12 @@ describe("TokenholderGovernor", () => {
 
         it("participants can vote", async () => {
           await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+        })
+
+        it("proposal can't be executed yet", async () => {
+          await expect(
+            tGov.connect(bystander).execute(...proposalWithHash)
+          ).to.be.revertedWith("Governor: proposal not successful")
         })
 
         context("when quorum is reached and voting period ends", () => {
@@ -392,6 +404,12 @@ describe("TokenholderGovernor", () => {
           it("anyone can queue the proposal to the Timelock", async () => {
             await tGov.connect(bystander).queue(...proposalWithHash)
             expect(await tGov.state(proposalID)).to.equal(ProposalStates.Queued)
+          })
+
+          it("proposal can't be executed yet", async () => {
+            await expect(
+              tGov.connect(bystander).execute(...proposalWithHash)
+            ).to.be.revertedWith("TimelockController: operation is not ready")
           })
 
           context("when proposal is queued", () => {
@@ -467,6 +485,22 @@ describe("TokenholderGovernor", () => {
                   minDelay
                 )
             })
+
+            it("proposal can't be executed yet", async () => {
+              await expect(
+                tGov.connect(bystander).execute(...proposalWithHash)
+              ).to.be.revertedWith("TimelockController: operation is not ready")
+            })
+
+            it("but with enough time, anyone can execute it", async () => {
+              await increaseTime(minDelay + 1)
+              expect(await timelock.isOperationReady(timelockProposalID)).to.be
+                .true
+              await tGov.connect(bystander).execute(...proposalWithHash)
+              expect(await timelock.isOperationDone(timelockProposalID)).to.be
+                .true
+            })
+
             context("after Timelock duration", () => {
               let recipientBalance
               let tx
