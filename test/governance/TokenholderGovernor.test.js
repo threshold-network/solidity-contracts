@@ -37,6 +37,7 @@ describe("TokenholderGovernor", () => {
   let timelock
 
   let proposalThresholdFunction
+  const minDelay = 1000
 
   // Initial scenario has a total of 100,000 tokens
   // - 2 stakers, whose total amount is 60,000 tokens and it's initially liquid
@@ -99,7 +100,6 @@ describe("TokenholderGovernor", () => {
     await tToken.mint(holderWhale.address, holderWhaleBalance)
 
     const Timelock = await ethers.getContractFactory("TimelockController")
-    const minDelay = 1
     const proposers = []
     const executors = []
     timelock = await Timelock.deploy(minDelay, proposers, executors)
@@ -450,7 +450,7 @@ describe("TokenholderGovernor", () => {
             it("Proposal activation timestamp in Timelock is as expected", async () => {
               expect(
                 await timelock.getTimestamp(timelockProposalID)
-              ).to.be.equal(queueTimestamp + 1)
+              ).to.be.equal(queueTimestamp + minDelay)
             })
 
             it("Timelock emits a CallScheduled event", async () => {
@@ -464,7 +464,7 @@ describe("TokenholderGovernor", () => {
                   proposal[1][0],
                   proposal[2][0],
                   HashZero,
-                  1
+                  minDelay
                 )
             })
             context("after Timelock duration", () => {
@@ -472,7 +472,7 @@ describe("TokenholderGovernor", () => {
               let tx
 
               beforeEach(async () => {
-                await increaseTime(2)
+                await increaseTime(minDelay + 1)
                 recipientBalance = await tToken.balanceOf(recipient.address)
                 tx = await tGov.connect(bystander).execute(...proposalWithHash)
               })
