@@ -80,7 +80,7 @@ async function resolveKeepToken() {
 }
 
 async function resolveNuCypherToken() {
-  return await ethers.getContractAt("IERC20", nuCypherTokenAddress)
+  return await ethers.getContractAt("NuCypherToken", nuCypherTokenAddress)
 }
 
 async function resolveKeepTokenStaking() {

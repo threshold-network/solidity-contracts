@@ -20,3 +20,4 @@ yarn-error.log
 
 # OpenZeppelin
 .openzeppelin/unknown-*.json
+.mocharc.json

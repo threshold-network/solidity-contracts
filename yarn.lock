@@ -611,6 +611,10 @@
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-4.4.0.tgz#85161d87c840c5bce2b6ed0c727b407e774852ae"
   integrity sha512-hIEyWJHu7bDTv6ckxOaV+K3+7mVzhjtyvp3QSaz56Rk5PscXtPAbkiNTb3yz6UJCWHPWpxVyULVgZ6RubuFEZg==
 
+"@nucypher/nucypher-contracts@github:manumonti/nucypher-contracts#threshold-network":
+  version "0.0.2"
+  resolved "https://codeload.github.com/manumonti/nucypher-contracts/tar.gz/30b44aac615b13244f6c8fd4305ad5dc8fe2b074"
+
 "@openzeppelin/contracts@^4.1.0", "@openzeppelin/contracts@^4.4":
   version "4.4.0"
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.4.0.tgz#4a1df71f736c31230bbbd634dfb006a756b51e6b"
@@ -2433,6 +2437,13 @@ cbor@^8.0.0:
   integrity sha512-DwGjNW9omn6EwP70aXsn7FQJx5kO12tX0bZkaTjzdVFM6/7nhA4t0EENocKGx6D2Bch9PE2KzCUf5SceBdeijg==
   dependencies:
     nofilter "^3.1.0"
+
+chai-as-promised@^7.1.1:
+  version "7.1.1"
+  resolved "https://registry.yarnpkg.com/chai-as-promised/-/chai-as-promised-7.1.1.tgz#08645d825deb8696ee61725dbf590c012eb00ca0"
+  integrity sha512-azL6xMoi+uxu6z4rhWQ1jbdUhOMhis2PvscD/xjLqNMkv3BPPp2JyyuTHOrf9BOosGpNQ11v6BKv/g57RXbiaA==
+  dependencies:
+    check-error "^1.0.2"
 
 chai@^4.3.4:
   version "4.3.4"
@@ -4312,6 +4323,13 @@ fake-merkle-patricia-tree@^1.0.1:
   dependencies:
     checkpoint-store "^1.1.0"
 
+fast-check@^2.21.0:
+  version "2.21.0"
+  resolved "https://registry.yarnpkg.com/fast-check/-/fast-check-2.21.0.tgz#0d2e20bc65343ee67ec0f58373358140c08a1217"
+  integrity sha512-hkTRytqMceXfnSwPnryIqKkxKJjfcvtVqJrWRb8tgmfyUsGajIgQqDFxCJ+As+l9VLUCcmx6XIYoXeQe2Ih0UA==
+  dependencies:
+    pure-rand "^5.0.0"
+
 fast-deep-equal@^3.1.1, fast-deep-equal@^3.1.3:
   version "3.1.3"
   resolved "https://registry.yarnpkg.com/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz#3a7d56b559d6cbc3eb512325244e619a65c6c525"
@@ -4943,6 +4961,11 @@ hardhat-contract-sizer@^2.1.1:
   dependencies:
     cli-table3 "^0.6.0"
     colors "^1.4.0"
+
+hardhat-dependency-compiler@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/hardhat-dependency-compiler/-/hardhat-dependency-compiler-1.1.2.tgz#02867b7c6dd3de4924d9d3d6593feab8408f1eeb"
+  integrity sha512-LVnsPSZnGvzWVvlpewlkPKlPtFP/S9V41RC1fd/ygZc4jkG8ubNlfE82nwiGw5oPueHSmFi6TACgmyrEOokK8w==
 
 hardhat-deploy@^0.9.4:
   version "0.9.14"
@@ -7521,6 +7544,11 @@ punycode@^2.1.0, punycode@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-2.1.1.tgz#b58b010ac40c22c5657616c8d2c2c02c7bf479ec"
   integrity sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==
+
+pure-rand@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/pure-rand/-/pure-rand-5.0.0.tgz#87f5bdabeadbd8904e316913a5c0b8caac517b37"
+  integrity sha512-lD2/y78q+7HqBx2SaT6OT4UcwtvXNRfEpzYEzl0EQ+9gZq2Qi3fa0HDnYPeqQwhlHJFBUhT7AO3mLU3+8bynHA==
 
 qs@6.7.0:
   version "6.7.0"

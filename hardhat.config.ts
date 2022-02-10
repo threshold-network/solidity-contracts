@@ -5,6 +5,7 @@ import "@keep-network/hardhat-local-networks-config"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
+import 'hardhat-dependency-compiler'
 
 import "hardhat-contract-sizer"
 import "hardhat-deploy"
@@ -38,6 +39,9 @@ const config: HardhatUserConfig = {
         blockNumber: process.env.FORKING_BLOCK
           ? parseInt(process.env.FORKING_BLOCK)
           : undefined,
+      },
+      accounts: {
+        accountsBalance: "1000000000000000000000000"
       },
       tags: ["local"],
     },
@@ -120,6 +124,16 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 60000,
+  },
+  dependencyCompiler: {
+    // These contracts will be compiled and added to HardHat artifacts, avoiding
+    // the need to add them in contracts folder.
+    paths: [
+      '@nucypher/nucypher-contracts/contracts/contracts/NuCypherToken.sol',
+      '@nucypher/nucypher-contracts/contracts/contracts/StakingEscrow.sol',
+      '@nucypher/nucypher-contracts/contracts/contracts/WorkLock.sol',
+      '@nucypher/nucypher-contracts/contracts/contracts/proxy/Dispatcher.sol',
+    ],
   },
 }
 

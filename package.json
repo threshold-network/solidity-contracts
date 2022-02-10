@@ -26,6 +26,7 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
+    "test:stakingescrow": "NODE_ENV=stakingescrow-test hardhat test ./test/system/StakingEscrow.test.js",
     "postinstall": "./scripts/prepare-dependencies.sh $INIT_CWD",
     "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
     "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network"
@@ -46,8 +47,13 @@
     "eslint-config-keep": "github:keep-network/eslint-config-keep#0c27ade",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.1",
+    "fast-check": "^2.21.0",
     "hardhat": "^2.6.8",
+<<<<<<< HEAD
     "hardhat-contract-sizer": "^2.1.1",
+=======
+    "hardhat-dependency-compiler": "^1.1.2",
+>>>>>>> bbbad62 (Add nucypher-contracts as dependency of compiler)
     "hardhat-deploy": "^0.9.4",
     "hardhat-gas-reporter": "^1.0.4",
     "hardhat-local-networks-config-plugin": "^0.0.6",
@@ -61,6 +67,7 @@
   },
   "dependencies": {
     "@keep-network/keep-core": ">1.8.0-dev <1.8.0-pre",
+    "@nucypher/nucypher-contracts": "github:manumonti/nucypher-contracts#threshold-network",
     "@openzeppelin/contracts": "^4.4",
     "@openzeppelin/contracts-upgradeable": "^4.4",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
