@@ -125,9 +125,8 @@ describe("TokenholderGovernor", () => {
     await timelock.grantRole(EXECUTOR_ROLE, tGov.address)
     await timelock.renounceRole(TIMELOCK_ADMIN_ROLE, deployer.address)
 
+    // Let's mint 1 T Unit to the timelock so we can test later that it can transfer
     await tToken.mint(timelock.address, 1)
-
-    lastBlock = (await mineBlocks(1)) - 1
 
     // ethers.js can't resolve overloaded functions so we need to specify the
     // fully qualified signature of the function to call it. This is the case of
@@ -221,8 +220,6 @@ describe("TokenholderGovernor", () => {
 
       await tToken.connect(staker).approve(tStaking.address, stakerBalance)
       await tStaking.connect(staker).deposit(stakerBalance)
-
-      lastBlock = (await mineBlocks(1)) - 1
     })
 
     context("only stakerWhale has enough stake to propose", () => {
@@ -249,7 +246,6 @@ describe("TokenholderGovernor", () => {
           await tToken
             .connect(holderWhale)
             .transfer(staker.address, extraTokens)
-          lastBlock = (await mineBlocks(1)) - 1
         })
 
         it("proposal threshold remains as expected", async () => {
