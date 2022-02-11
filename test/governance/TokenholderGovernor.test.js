@@ -616,4 +616,217 @@ describe("TokenholderGovernor", () => {
       })
     })
   })
+
+  describe("when migrating TokenholderGovernor", () => {
+    let grantRoleTx
+    let revokeRoleTx
+
+    beforeEach(async () => {
+      const TestGovernor = await ethers.getContractFactory(
+        "TestTokenholderGovernor"
+      )
+
+      tGovDest = await TestGovernor.deploy(
+        tToken.address,
+        tStaking.address,
+        timelock.address,
+        vetoer.address
+      )
+      await tGovDest.deployed()
+
+      const description = "Proposal to migrate to new Tokenholder Governor"
+      grantRoleTx = await timelock.populateTransaction.grantRole(
+        PROPOSER_ROLE,
+        tGovDest.address
+      )
+      revokeRoleTx = await timelock.populateTransaction.revokeRole(
+        PROPOSER_ROLE,
+        tGov.address
+      )
+
+      const proposal = [
+        [timelock.address, timelock.address],
+        [0, 0],
+        [grantRoleTx.data, revokeRoleTx.data],
+      ]
+      const proposalWithDescription = [...proposal, description]
+      const descriptionHash = ethers.utils.id(description)
+      proposalWithHash = [...proposal, descriptionHash]
+      proposalID = ethers.utils.keccak256(
+        defaultAbiCoder.encode(
+          ["address[]", "uint256[]", "bytes[]", "bytes32"],
+          proposalWithHash
+        )
+      )
+      proposalForTimelock = [...proposal, HashZero, descriptionHash]
+      timelockProposalID = ethers.utils.keccak256(
+        defaultAbiCoder.encode(
+          ["address[]", "uint256[]", "bytes[]", "bytes32", "bytes32"],
+          proposalForTimelock
+        )
+      )
+
+      await tToken.connect(holderWhale).delegate(holderWhale.address)
+      await tGov.connect(holderWhale).propose(...proposalWithDescription)
+    })
+
+    it("Timelock only answers to the original Governor, for now)", async () => {
+      expect(await timelock.hasRole(PROPOSER_ROLE, tGov.address)).to.be.true
+    })
+
+    it("Timelock doesn't care for the new Governor, yet", async () => {
+      expect(await timelock.hasRole(PROPOSER_ROLE, tGovDest.address)).to.be
+        .false
+    })
+
+    context("once the migration proposal is executed", () => {
+      let tx
+
+      beforeEach(async () => {
+        // Skip vote delay
+        await mineBlocks(3)
+        // Vote!
+        await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+        // Skip voting period
+        await mineBlocks(8)
+        // Queue the proposal in Timelock
+        await tGov.connect(bystander).queue(...proposalWithHash)
+        // Skip Timelock delay
+        await increaseTime(minDelay + 1)
+        // Execute
+        tx = await tGov.connect(bystander).execute(...proposalWithHash)
+      })
+
+      it("Timelock now only allows proposals from new Governor", async () => {
+        expect(await timelock.hasRole(PROPOSER_ROLE, tGovDest.address)).to.be
+          .true
+      })
+
+      it("Timelock doesn't listen to the old Governor anymore", async () => {
+        expect(await timelock.hasRole(PROPOSER_ROLE, tGov.address)).to.be.false
+      })
+
+      it("Timelock emited a CallExecuted event for the grant role step", async () => {
+        // CallExecuted(id, index, target, value, data);
+        await expect(tx)
+          .to.emit(timelock, "CallExecuted")
+          .withArgs(
+            timelockProposalID,
+            0,
+            timelock.address,
+            0,
+            grantRoleTx.data
+          )
+      })
+
+      it("Timelock emited a CallExecuted event for the revoke role step", async () => {
+        // CallExecuted(id, index, target, value, data);
+        await expect(tx)
+          .to.emit(timelock, "CallExecuted")
+          .withArgs(
+            timelockProposalID,
+            1,
+            timelock.address,
+            0,
+            revokeRoleTx.data
+          )
+      })
+
+      it("Timelock emits a RoleGranted event for the grant role step", async () => {
+        // RoleGranted(bytes32 role, address account, address sender);
+        await expect(tx)
+          .to.emit(timelock, "RoleGranted")
+          .withArgs(PROPOSER_ROLE, tGovDest.address, timelock.address)
+      })
+
+      it("Timelock emits a RoleRevoked event for the revoke role step", async () => {
+        // RoleRevoked(bytes32 role, address account, address sender);
+        await expect(tx)
+          .to.emit(timelock, "RoleRevoked")
+          .withArgs(PROPOSER_ROLE, tGov.address, timelock.address)
+      })
+
+      context("when using the new Governor", () => {
+        beforeEach(async () => {
+          // Proposal to transfer 1 T unit to some recipient
+          transferTx = await tToken.populateTransaction.transfer(
+            recipient.address,
+            1
+          )
+
+          description = "Proposal for new Governor"
+          proposal = [[tToken.address], [0], [transferTx.data]]
+          proposalWithDescription = [...proposal, description]
+          descriptionHash = ethers.utils.id(description)
+          proposalWithHash = [...proposal, descriptionHash]
+          proposalForTimelock = [...proposal, HashZero, descriptionHash]
+          proposalID = ethers.utils.keccak256(
+            defaultAbiCoder.encode(
+              ["address[]", "uint256[]", "bytes[]", "bytes32"],
+              proposalWithHash
+            )
+          )
+          timelockProposalID = ethers.utils.keccak256(
+            defaultAbiCoder.encode(
+              ["address[]", "uint256[]", "bytes[]", "bytes32", "bytes32"],
+              proposalForTimelock
+            )
+          )
+        })
+
+        it("Old governor can't queue proposals in the timelock anymore", async () => {
+          await tGov.connect(holderWhale).propose(...proposalWithDescription)
+
+          // Skip vote delay
+          await mineBlocks(3)
+          // Vote!
+          await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+          // Skip voting period
+          await mineBlocks(8)
+          await expect(
+            tGov.connect(bystander).queue(...proposalWithHash)
+          ).to.be.revertedWith(missingRoleMessage(tGov.address, PROPOSER_ROLE))
+        })
+
+        it("New governor can queue and execute proposals in the timelock", async () => {
+          await tGovDest
+            .connect(holderWhale)
+            .propose(...proposalWithDescription)
+
+          // Skip vote delay
+          await mineBlocks(3)
+          // Vote!
+          await tGovDest.connect(holderWhale).castVote(proposalID, Vote.Yea)
+          // Skip voting period
+          await mineBlocks(8)
+          await tGovDest.connect(bystander).queue(...proposalWithHash)
+
+          // Skip Timelock delay
+          await increaseTime(minDelay + 1)
+          // Execute
+          tx = await tGovDest.connect(bystander).execute(...proposalWithHash)
+
+          expect(await tGovDest.state(proposalID)).to.equal(
+            ProposalStates.Executed
+          )
+
+          // ProposalExecuted(id);
+          await expect(tx)
+            .to.emit(tGovDest, "ProposalExecuted")
+            .withArgs(proposalID)
+
+          // CallExecuted(id, index, target, value, data);
+          await expect(tx)
+            .to.emit(timelock, "CallExecuted")
+            .withArgs(
+              timelockProposalID,
+              0,
+              proposal[0][0],
+              proposal[1][0],
+              proposal[2][0]
+            )
+        })
+      })
+    })
+  })
 })
