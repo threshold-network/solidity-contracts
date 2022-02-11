@@ -121,8 +121,11 @@ describe("TokenholderGovernor", () => {
     PROPOSER_ROLE = await timelock.PROPOSER_ROLE()
     EXECUTOR_ROLE = await timelock.EXECUTOR_ROLE()
 
+    // TokenholderGovernor must be the only authorized to propose to the Timelock
     await timelock.grantRole(PROPOSER_ROLE, tGov.address)
-    await timelock.grantRole(EXECUTOR_ROLE, tGov.address)
+    // With the zero address as executor, anyone can execute proposals in the Timelock
+    await timelock.grantRole(EXECUTOR_ROLE, AddressZero)
+    // The deployer renounces to admin roles in the Timelock
     await timelock.renounceRole(TIMELOCK_ADMIN_ROLE, deployer.address)
 
     // Let's mint 1 T Unit to the timelock so we can test later that it can transfer
@@ -493,6 +496,17 @@ describe("TokenholderGovernor", () => {
               expect(await timelock.isOperationReady(timelockProposalID)).to.be
                 .true
               await tGov.connect(bystander).execute(...proposalWithHash)
+              expect(await timelock.isOperationDone(timelockProposalID)).to.be
+                .true
+            })
+
+            it("...it should be possible to execute from the Timelock directly too", async () => {
+              await increaseTime(minDelay + 1)
+              expect(await timelock.isOperationReady(timelockProposalID)).to.be
+                .true
+              await timelock
+                .connect(bystander)
+                .executeBatch(...proposalForTimelock)
               expect(await timelock.isOperationDone(timelockProposalID)).to.be
                 .true
             })
