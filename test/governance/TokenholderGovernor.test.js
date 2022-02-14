@@ -18,6 +18,7 @@ const ProposalStates = {
 const Vote = {
   Nay: 0,
   Yea: 1,
+  Meh: 2,
 }
 
 function missingRoleMessage(account, role) {
@@ -293,6 +294,9 @@ describe("TokenholderGovernor", () => {
           )
         )
 
+        await tToken.connect(holder).delegate(holder.address)
+        await tToken.connect(holderWhale).delegate(holderWhale.address)
+
         await tGov.connect(stakerWhale).propose(...proposalWithDescription)
       })
 
@@ -337,6 +341,17 @@ describe("TokenholderGovernor", () => {
           expect(await tGov.state(proposalID)).to.equal(ProposalStates.Active)
         })
 
+        it("proposal voting counters are on zero", async () => {
+          votes = await tGov.proposalVotes(proposalID)
+          againstVotes = votes[0]
+          forVotes = votes[1]
+          abstainVotes = votes[2]
+
+          expect(againstVotes).to.equal(0)
+          expect(forVotes).to.equal(0)
+          expect(abstainVotes).to.equal(0)
+        })
+
         it("stakers can't cancel the proposal", async () => {
           await expect(
             tGov.connect(stakerWhale).cancel(...proposalWithHash)
@@ -353,21 +368,57 @@ describe("TokenholderGovernor", () => {
           expect(await tGov.state(proposalID)).to.equal(ProposalStates.Canceled)
         })
 
-        it("participants can vote", async () => {
-          await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
-        })
-
         it("proposal can't be executed yet", async () => {
           await expect(
             tGov.connect(bystander).execute(...proposalWithHash)
           ).to.be.revertedWith("Governor: proposal not successful")
         })
 
+        context("participants can vote", () => {
+          let againstVotes
+          let forVotes
+          let abstainVotes
+
+          beforeEach(async () => {
+            await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+            await tGov.connect(stakerWhale).castVote(proposalID, Vote.Nay)
+            await tGov.connect(holder).castVote(proposalID, Vote.Yea)
+            await tGov.connect(staker).castVote(proposalID, Vote.Meh)
+
+            votes = await tGov.proposalVotes(proposalID)
+            againstVotes = votes[0]
+            forVotes = votes[1]
+            abstainVotes = votes[2]
+          })
+
+          it("for votes count is as expected", async () => {
+            expect(forVotes).to.equal(holderWhaleBalance.add(holderBalance))
+          })
+
+          it("against votes count is as expected", async () => {
+            expect(againstVotes).to.equal(stakerWhaleBalance)
+          })
+
+          it("abstain votes count is as expected", async () => {
+            expect(abstainVotes).to.equal(stakerBalance)
+          })
+        })
+
         context("when quorum is reached and voting period ends", () => {
           beforeEach(async () => {
             await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
-            await tGov.connect(stakerWhale).castVote(proposalID, Vote.Yea)
             await mineBlocks(8)
+          })
+
+          it("proposal voting counters are as expected", async () => {
+            votes = await tGov.proposalVotes(proposalID)
+            againstVotes = votes[0]
+            forVotes = votes[1]
+            abstainVotes = votes[2]
+
+            expect(againstVotes).to.equal(0)
+            expect(forVotes).to.equal(holderWhaleBalance)
+            expect(abstainVotes).to.equal(0)
           })
 
           it("proposal state becomes 'succeeded'", async () => {
