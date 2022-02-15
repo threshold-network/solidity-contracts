@@ -102,7 +102,8 @@ describe("TokenholderGovernor", () => {
 
     const Timelock = await ethers.getContractFactory("TimelockController")
     const proposers = []
-    const executors = []
+    // With the zero address as executor, anyone can execute proposals in the Timelock
+    const executors = [AddressZero]
     timelock = await Timelock.deploy(minDelay, proposers, executors)
     await timelock.deployed()
 
@@ -120,12 +121,9 @@ describe("TokenholderGovernor", () => {
     VETO_POWER = await tGov.VETO_POWER()
     TIMELOCK_ADMIN_ROLE = await timelock.TIMELOCK_ADMIN_ROLE()
     PROPOSER_ROLE = await timelock.PROPOSER_ROLE()
-    EXECUTOR_ROLE = await timelock.EXECUTOR_ROLE()
 
     // TokenholderGovernor must be the only authorized to propose to the Timelock
     await timelock.grantRole(PROPOSER_ROLE, tGov.address)
-    // With the zero address as executor, anyone can execute proposals in the Timelock
-    await timelock.grantRole(EXECUTOR_ROLE, AddressZero)
     // The deployer renounces to admin roles in the Timelock
     await timelock.renounceRole(TIMELOCK_ADMIN_ROLE, deployer.address)
 
