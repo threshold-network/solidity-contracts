@@ -829,4 +829,84 @@ describe("TokenholderGovernor", () => {
       })
     })
   })
+
+  describe("when someone accidentally sends assets to the Governor contract", () => {
+    beforeEach(async () => {
+      // Someone sends tokens to the Governor contract by mistake:
+      await tToken.connect(holder).transfer(tGov.address, 1)
+
+      await tToken.connect(holderWhale).delegate(holderWhale.address)
+    })
+
+    it("Governor contract now has a token balance of 1", async () => {
+      expect(await tToken.balanceOf(tGov.address)).to.be.equal(1)
+    })
+
+    it("Holder has 1 token less", async () => {
+      expect(await tToken.balanceOf(holder.address)).to.be.equal(
+        holderBalance.sub(1)
+      )
+    })
+
+    describe("The DAO can pass a proposal to send back the tokens", () => {
+      beforeEach(async () => {
+        // Let's prepare the token transfer calldata
+        transferTx = await tToken.populateTransaction.transfer(
+          holder.address,
+          1
+        )
+
+        // We need use the Governor.relay() method to relay the token transfer
+        relayTx = await tGov.populateTransaction.relay(
+          transferTx.to,
+          0,
+          transferTx.data
+        )
+
+        description = "Send 1 token back to holder"
+        const proposal = [[relayTx.to], [0], [relayTx.data]]
+        const proposalWithDescription = [...proposal, description]
+        const descriptionHash = ethers.utils.id(description)
+        proposalWithHash = [...proposal, descriptionHash]
+        proposalID = ethers.utils.keccak256(
+          defaultAbiCoder.encode(
+            ["address[]", "uint256[]", "bytes[]", "bytes32"],
+            proposalWithHash
+          )
+        )
+        proposalForTimelock = [...proposal, HashZero, descriptionHash]
+        timelockProposalID = ethers.utils.keccak256(
+          defaultAbiCoder.encode(
+            ["address[]", "uint256[]", "bytes[]", "bytes32", "bytes32"],
+            proposalForTimelock
+          )
+        )
+
+        await tGov.connect(holderWhale).propose(...proposalWithDescription)
+
+        // Skip vote delay
+        await mineBlocks(3)
+        // Vote!
+        await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+        // Skip voting period
+        await mineBlocks(8)
+        // Queue the proposal in Timelock
+        await tGov.connect(bystander).queue(...proposalWithHash)
+        // Skip Timelock delay
+        await increaseTime(minDelay + 1)
+        // Execute
+        tx = await tGov.connect(bystander).execute(...proposalWithHash)
+      })
+
+      it("Governor contract now has a token balance of 0", async () => {
+        expect(await tToken.balanceOf(tGov.address)).to.be.equal(0)
+      })
+
+      it("Holder has their original balance", async () => {
+        expect(await tToken.balanceOf(holder.address)).to.be.equal(
+          holderBalance
+        )
+      })
+    })
+  })
 })
