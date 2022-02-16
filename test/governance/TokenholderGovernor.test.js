@@ -166,18 +166,20 @@ describe("TokenholderGovernor", () => {
         expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
       })
       it("nobody can make a proposal", async () => {
+        errorMessage =
+          "GovernorCompatibilityBravo: proposer votes below proposal threshold"
         await expect(
           tGov.connect(staker).propose(...proposalWithDescription)
-        ).to.be.revertedWith("Proposal below threshold")
+        ).to.be.revertedWith(errorMessage)
         await expect(
           tGov.connect(stakerWhale).propose(...proposalWithDescription)
-        ).to.be.revertedWith("Proposal below threshold")
+        ).to.be.revertedWith(errorMessage)
         await expect(
           tGov.connect(holder).propose(...proposalWithDescription)
-        ).to.be.revertedWith("Proposal below threshold")
+        ).to.be.revertedWith(errorMessage)
         await expect(
           tGov.connect(holderWhale).propose(...proposalWithDescription)
-        ).to.be.revertedWith("Proposal below threshold")
+        ).to.be.revertedWith(errorMessage)
       })
     })
 
@@ -195,12 +197,14 @@ describe("TokenholderGovernor", () => {
           expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
         })
         it("small fish can't make a proposal", async () => {
+          errorMessage =
+            "GovernorCompatibilityBravo: proposer votes below proposal threshold"
           await expect(
             tGov.connect(staker).propose(...proposalWithDescription)
-          ).to.be.revertedWith("Proposal below threshold")
+          ).to.be.revertedWith(errorMessage)
           await expect(
             tGov.connect(holder).propose(...proposalWithDescription)
-          ).to.be.revertedWith("Proposal below threshold")
+          ).to.be.revertedWith(errorMessage)
         })
 
         it("but whales can (1/2)", async () => {
@@ -236,7 +240,9 @@ describe("TokenholderGovernor", () => {
       it("staker can't make a proposal", async () => {
         await expect(
           tGov.connect(staker).propose(...proposalWithDescription)
-        ).to.be.revertedWith("Proposal below threshold")
+        ).to.be.revertedWith(
+          "GovernorCompatibilityBravo: proposer votes below proposal threshold"
+        )
       })
     })
 

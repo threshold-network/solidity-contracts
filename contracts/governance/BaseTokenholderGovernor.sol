@@ -20,7 +20,6 @@ import "../token/T.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 
 contract BaseTokenholderGovernor is
@@ -71,11 +70,6 @@ contract BaseTokenholderGovernor is
         bytes[] memory calldatas,
         string memory description
     ) public override(Governor, IGovernor) returns (uint256) {
-        uint256 atLastBlock = block.number - 1;
-        require(
-            getVotes(msg.sender, atLastBlock) >= proposalThreshold(atLastBlock),
-            "Proposal below threshold"
-        );
         return super.propose(targets, values, calldatas, description);
     }
 
