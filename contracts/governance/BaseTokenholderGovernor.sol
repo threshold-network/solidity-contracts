@@ -35,23 +35,23 @@ contract BaseTokenholderGovernor is
         T _token,
         IVotesHistory _staking,
         TimelockController _timelock,
-        address vetoer,
-        uint256 quorumNumerator,
-        uint256 proposalThresholdNumerator,
+        address _vetoer,
+        uint256 _quorumNumerator,
+        uint256 _proposalThresholdNumerator,
         uint256 votingDelay,
         uint256 votingPeriod
     )
         Governor("TokenholderGovernor")
         GovernorParameters(
-            quorumNumerator,
-            proposalThresholdNumerator,
+            _quorumNumerator,
+            _proposalThresholdNumerator,
             votingDelay,
             votingPeriod
         )
         TokenholderGovernorVotes(_token, _staking)
         GovernorTimelockControl(_timelock)
     {
-        _setupRole(VETO_POWER, vetoer);
+        _setupRole(VETO_POWER, _vetoer);
         _setupRole(DEFAULT_ADMIN_ROLE, address(_timelock));
     }
 
