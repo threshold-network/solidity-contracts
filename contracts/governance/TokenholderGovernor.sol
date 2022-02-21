@@ -24,6 +24,8 @@ contract TokenholderGovernor is BaseTokenholderGovernor {
         2 days / AVERAGE_BLOCK_TIME_IN_SECONDS;
     uint256 private constant INITIAL_VOTING_PERIOD =
         10 days / AVERAGE_BLOCK_TIME_IN_SECONDS;
+    uint64 private constant INITIAL_VOTING_EXTENSION =
+        uint64(2 days) / AVERAGE_BLOCK_TIME_IN_SECONDS;
 
     constructor(
         T _token,
@@ -39,7 +41,8 @@ contract TokenholderGovernor is BaseTokenholderGovernor {
             INITIAL_QUORUM_NUMERATOR,
             INITIAL_PROPOSAL_THRESHOLD_NUMERATOR,
             INITIAL_VOTING_DELAY,
-            INITIAL_VOTING_PERIOD
+            INITIAL_VOTING_PERIOD,
+            INITIAL_VOTING_EXTENSION
         )
     {}
 }

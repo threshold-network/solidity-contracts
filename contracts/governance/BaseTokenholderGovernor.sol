@@ -20,12 +20,14 @@ import "../token/T.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
+import "@openzeppelin/contracts/governance/extensions/GovernorPreventLateQuorum.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 
 contract BaseTokenholderGovernor is
     AccessControl,
     GovernorCountingSimple,
     TokenholderGovernorVotes,
+    GovernorPreventLateQuorum,
     GovernorTimelockControl
 {
     bytes32 public constant VETO_POWER =
@@ -39,7 +41,8 @@ contract BaseTokenholderGovernor is
         uint256 _quorumNumerator,
         uint256 _proposalThresholdNumerator,
         uint256 votingDelay,
-        uint256 votingPeriod
+        uint256 votingPeriod,
+        uint64 votingExtension
     )
         Governor("TokenholderGovernor")
         GovernorParameters(
@@ -48,6 +51,7 @@ contract BaseTokenholderGovernor is
             votingDelay,
             votingPeriod
         )
+        GovernorPreventLateQuorum(votingExtension)
         TokenholderGovernorVotes(_token, _staking)
         GovernorTimelockControl(_timelock)
     {
@@ -144,5 +148,29 @@ contract BaseTokenholderGovernor is
         returns (address)
     {
         return super._executor();
+    }
+
+    function proposalDeadline(uint256 proposalId)
+        public
+        view
+        virtual
+        override(IGovernor, Governor, GovernorPreventLateQuorum)
+        returns (uint256)
+    {
+        return super.proposalDeadline(proposalId);
+    }
+
+    function _castVote(
+        uint256 proposalId,
+        address account,
+        uint8 support,
+        string memory reason
+    )
+        internal
+        virtual
+        override(Governor, GovernorPreventLateQuorum)
+        returns (uint256)
+    {
+        return super._castVote(proposalId, account, support, reason);
     }
 }

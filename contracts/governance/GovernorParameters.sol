@@ -25,7 +25,7 @@ import "@openzeppelin/contracts/governance/Governor.sol";
 ///      GovernorVotes and GovernorSettings for reference.
 abstract contract GovernorParameters is Governor {
     uint256 public constant FRACTION_DENOMINATOR = 10000;
-    uint256 internal constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
+    uint64 internal constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
 
     uint256 public quorumNumerator;
     uint256 public proposalThresholdNumerator;

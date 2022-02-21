@@ -45,6 +45,7 @@ contract TestTokenholderGovernor is BaseTokenholderGovernor {
     uint256 private constant INITIAL_PROPOSAL_THRESHOLD_NUMERATOR = 25; // Defined in basis points, i.e., 0.25%
     uint256 private constant INITIAL_VOTING_DELAY = 2;
     uint256 private constant INITIAL_VOTING_PERIOD = 8;
+    uint64 private constant INITIAL_VOTING_EXTENSION = 4;
 
     constructor(
         T _tToken,
@@ -60,7 +61,8 @@ contract TestTokenholderGovernor is BaseTokenholderGovernor {
             INITIAL_QUORUM_NUMERATOR,
             INITIAL_PROPOSAL_THRESHOLD_NUMERATOR,
             INITIAL_VOTING_DELAY,
-            INITIAL_VOTING_PERIOD
+            INITIAL_VOTING_PERIOD,
+            INITIAL_VOTING_EXTENSION
         )
     {}
 }

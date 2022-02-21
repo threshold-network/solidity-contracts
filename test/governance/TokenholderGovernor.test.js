@@ -408,6 +408,28 @@ describe("TokenholderGovernor", () => {
           })
         })
 
+        context("when quorum is reached late", () => {
+          let proposalDeadline
+
+          beforeEach(async () => {
+            proposalDeadline = await tGov.proposalDeadline(proposalID)
+            await mineBlocks(6)
+            await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
+          })
+
+          it("the deadline is extended ...", async () => {
+            extendedDeadline = await tGov.proposalDeadline(proposalID)
+            expect(extendedDeadline).to.equal(proposalDeadline.add(4))
+          })
+
+          it("... and it's possible to vote past the original deadline", async () => {
+            currentBlock = await mineBlocks(2)
+            proposalDeadlineAlreadyPast = proposalDeadline.lt(currentBlock)
+            expect(proposalDeadlineAlreadyPast).to.be.true
+            await tGov.connect(stakerWhale).castVote(proposalID, Vote.Yea)
+          })
+        })
+
         context("when quorum is reached and voting period ends", () => {
           beforeEach(async () => {
             await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
