@@ -3950,9 +3950,10 @@ describe("TokenStaking", () => {
     })
 
     context("when unstake before minimum staking time passes", () => {
-      it("should revert", async () => {
-        const amount = initialStakerBalance
-        const minAmount = initialStakerBalance.div(3)
+      const amount = initialStakerBalance
+      const minAmount = initialStakerBalance.div(3)
+
+      beforeEach(async () => {
         await tToken.connect(staker).approve(tokenStaking.address, amount)
         await tokenStaking
           .connect(staker)
@@ -3963,10 +3964,54 @@ describe("TokenStaking", () => {
             amount
           )
         await tokenStaking.connect(deployer).setMinimumStakeAmount(minAmount)
+      })
 
-        await expect(
-          tokenStaking.connect(staker).unstakeT(stakingProvider.address, amount)
-        ).to.be.revertedWith("Can't unstake earlier than 24h")
+      context("when the stake left would be above the minimum", () => {
+        it("should revert", async () => {
+          const amountToUnstake = amount.sub(minAmount).sub(1)
+          await expect(
+            tokenStaking
+              .connect(staker)
+              .unstakeT(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
+      })
+
+      context("when the stake left would be the minimum", () => {
+        it("should revert", async () => {
+          const amountToUnstake = amount.sub(minAmount)
+          await expect(
+            tokenStaking
+              .connect(staker)
+              .unstakeT(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
+      })
+
+      context("when the stake left would be below the minimum", () => {
+        it("should revert", async () => {
+          const amountToUnstake = amount.sub(minAmount).add(1)
+          await expect(
+            tokenStaking
+              .connect(staker)
+              .unstakeT(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
+      })
+
+      context("when another stake type was topped-up", () => {
+        it("should revert", async () => {
+          const nuAmount = initialStakerBalance
+          await nucypherStakingMock.setStaker(staker.address, nuAmount)
+          await tokenStaking.connect(staker).topUpNu(stakingProvider.address)
+
+          const amountToUnstake = amount
+          await expect(
+            tokenStaking
+              .connect(staker)
+              .unstakeT(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
       })
     })
 
@@ -4134,13 +4179,8 @@ describe("TokenStaking", () => {
     })
 
     context("when unstake before minimum staking time passes", () => {
-      it("should revert", async () => {
+      beforeEach(async () => {
         const keepAmount = initialStakerBalance
-
-        await tokenStaking
-          .connect(deployer)
-          .approveApplication(application1Mock.address)
-
         const createdAt = 1
         await keepStakingMock.setOperator(
           stakingProvider.address,
@@ -4157,10 +4197,28 @@ describe("TokenStaking", () => {
           true
         )
         await tokenStaking.stakeKeep(stakingProvider.address)
+      })
 
-        await expect(
-          tokenStaking.connect(staker).unstakeKeep(stakingProvider.address)
-        ).to.be.revertedWith("Can't unstake earlier than 24h")
+      context("when Keep was the only stake type", () => {
+        it("should revert", async () => {
+          await expect(
+            tokenStaking.connect(staker).unstakeKeep(stakingProvider.address)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
+      })
+
+      context("when another stake type was topped-up", () => {
+        it("should revert", async () => {
+          const tAmount = initialStakerBalance
+          await tToken.connect(staker).approve(tokenStaking.address, tAmount)
+          await tokenStaking
+            .connect(staker)
+            .topUp(stakingProvider.address, tAmount)
+
+          await expect(
+            tokenStaking.connect(staker).unstakeKeep(stakingProvider.address)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
       })
     })
 
@@ -4326,8 +4384,9 @@ describe("TokenStaking", () => {
     context("when unstake before minimum staking time passes", () => {
       const nuAmount = initialStakerBalance
       const nuInTAmount = convertToT(nuAmount, nuRatio).result
+      const minTAmount = nuInTAmount.div(5)
 
-      it("should revert", async () => {
+      beforeEach(async () => {
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
         await tokenStaking
           .connect(staker)
@@ -4336,12 +4395,55 @@ describe("TokenStaking", () => {
             beneficiary.address,
             authorizer.address
           )
+      })
 
-        await expect(
-          tokenStaking
-            .connect(stakingProvider)
-            .unstakeNu(stakingProvider.address, nuInTAmount)
-        ).to.be.revertedWith("Can't unstake earlier than 24h")
+      context("when the stake left would be above the minimum", () => {
+        it("should revert", async () => {
+          const amountToUnstake = nuInTAmount.sub(minTAmount).sub(1)
+          await expect(
+            tokenStaking
+              .connect(stakingProvider)
+              .unstakeNu(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
+      })
+
+      context("when the stake left would be the minimum", () => {
+        it("should revert", async () => {
+          const amountToUnstake = nuInTAmount.sub(minTAmount)
+          await expect(
+            tokenStaking
+              .connect(stakingProvider)
+              .unstakeNu(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
+      })
+
+      context("when the stake left would be below the minimum", () => {
+        it("should revert", async () => {
+          const amountToUnstake = nuInTAmount.sub(minTAmount).add(1)
+          await expect(
+            tokenStaking
+              .connect(stakingProvider)
+              .unstakeNu(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
+      })
+
+      context("when another stake type was topped-up", () => {
+        it("should revert", async () => {
+          await tToken.connect(staker).approve(tokenStaking.address, minTAmount)
+          await tokenStaking
+            .connect(staker)
+            .topUp(stakingProvider.address, minTAmount)
+
+          const amountToUnstake = nuInTAmount
+          await expect(
+            tokenStaking
+              .connect(stakingProvider)
+              .unstakeNu(stakingProvider.address, amountToUnstake)
+          ).to.be.revertedWith("Can't unstake earlier than 24h")
+        })
       })
     })
 
