@@ -6454,12 +6454,10 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           stakingProvider.address,
           amount,
-          application1Mock.address,
         ])
         expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
-          application1Mock.address,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
@@ -6520,12 +6518,10 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           stakingProvider.address,
           amountToSlash,
-          application1Mock.address,
         ])
         expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
-          application1Mock.address,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
@@ -6603,12 +6599,10 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
-          application1Mock.address,
         ])
         expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
           stakingProvider.address,
           amountToSlash,
-          application1Mock.address,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
@@ -6643,8 +6637,7 @@ describe("TokenStaking", () => {
       it("should add one slashing event", async () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           stakingProvider.address,
-          amountToSlash,
-          application1Mock.address,
+          amountToSlash
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(1)
       })
@@ -6687,7 +6680,6 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           otherStaker.address,
           amountToSlash,
-          application1Mock.address,
         ])
       })
 
@@ -7001,7 +6993,7 @@ describe("TokenStaking", () => {
           ).to.equal(0)
         })
 
-        it("should decrease authorized amount only for one application", async () => {
+        it("should decrease authorized amounts only for one provider", async () => {
           expect(
             await tokenStaking.authorizedStake(
               stakingProvider.address,
@@ -7013,7 +7005,7 @@ describe("TokenStaking", () => {
               stakingProvider.address,
               application2Mock.address
             )
-          ).to.equal(provider1Authorized2)
+          ).to.equal(provider1Authorized2.sub(amountToSlash))
           expect(
             await tokenStaking.authorizedStake(
               otherStaker.address,
@@ -7045,13 +7037,13 @@ describe("TokenStaking", () => {
           ).to.be.revertedWith("Too many applications")
         })
 
-        it("should inform only one application", async () => {
+        it("should inform all applications", async () => {
           expect(
             await application1Mock.stakingProviders(stakingProvider.address)
           ).to.deep.equal([provider1Authorized1.sub(amountToSlash), Zero])
           expect(
             await application2Mock.stakingProviders(stakingProvider.address)
-          ).to.deep.equal([provider1Authorized2, Zero])
+          ).to.deep.equal([provider1Authorized2.sub(amountToSlash), Zero])
           expect(
             await application1Mock.stakingProviders(otherStaker.address)
           ).to.deep.equal([provider2Authorized1, Zero])
@@ -7269,7 +7261,7 @@ describe("TokenStaking", () => {
     })
 
     context(
-      "when decrease authorized amount to zero for one application",
+      "when decrease authorized amount to zero",
       () => {
         const tAmount = initialStakerBalance
 
@@ -7326,7 +7318,7 @@ describe("TokenStaking", () => {
               stakingProvider.address,
               application2Mock.address
             )
-          ).to.equal(authorized)
+          ).to.equal(0)
         })
 
         it("should allow to authorize one more application", async () => {
