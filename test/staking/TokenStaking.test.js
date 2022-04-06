@@ -6637,7 +6637,7 @@ describe("TokenStaking", () => {
       it("should add one slashing event", async () => {
         expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
           stakingProvider.address,
-          amountToSlash
+          amountToSlash,
         ])
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(1)
       })
@@ -7260,99 +7260,96 @@ describe("TokenStaking", () => {
       })
     })
 
-    context(
-      "when decrease authorized amount to zero",
-      () => {
-        const tAmount = initialStakerBalance
+    context("when decrease authorized amount to zero", () => {
+      const tAmount = initialStakerBalance
 
-        const amountToSlash = tAmount.div(3)
-        const authorized = amountToSlash
+      const amountToSlash = tAmount.div(3)
+      const authorized = amountToSlash
 
-        beforeEach(async () => {
-          await tokenStaking.connect(deployer).setAuthorizationCeiling(2)
-          await tokenStaking
-            .connect(deployer)
-            .approveApplication(application1Mock.address)
-          await tokenStaking
-            .connect(deployer)
-            .approveApplication(application2Mock.address)
+      beforeEach(async () => {
+        await tokenStaking.connect(deployer).setAuthorizationCeiling(2)
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application2Mock.address)
 
-          await tToken.connect(staker).approve(tokenStaking.address, tAmount)
-          await tokenStaking
-            .connect(staker)
-            .stake(
-              stakingProvider.address,
-              staker.address,
-              staker.address,
-              tAmount
-            )
-          await tokenStaking
+        await tToken.connect(staker).approve(tokenStaking.address, tAmount)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            stakingProvider.address,
+            staker.address,
+            staker.address,
+            tAmount
+          )
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application2Mock.address,
+            authorized
+          )
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            authorized
+          )
+
+        await application1Mock.slash(amountToSlash, [stakingProvider.address])
+
+        await tokenStaking.processSlashing(1)
+      })
+
+      it("should decrease authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(0)
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application2Mock.address
+          )
+        ).to.equal(0)
+      })
+
+      it("should allow to authorize one more application", async () => {
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            authorized
+          )
+
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application2Mock.address,
+            authorized
+          )
+
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(auxiliaryAccount.address)
+        await expect(
+          tokenStaking
             .connect(staker)
             .increaseAuthorization(
               stakingProvider.address,
-              application2Mock.address,
+              auxiliaryAccount.address,
               authorized
             )
-          await tokenStaking
-            .connect(staker)
-            .increaseAuthorization(
-              stakingProvider.address,
-              application1Mock.address,
-              authorized
-            )
-
-          await application1Mock.slash(amountToSlash, [stakingProvider.address])
-
-          await tokenStaking.processSlashing(1)
-        })
-
-        it("should decrease authorized amount", async () => {
-          expect(
-            await tokenStaking.authorizedStake(
-              stakingProvider.address,
-              application1Mock.address
-            )
-          ).to.equal(0)
-          expect(
-            await tokenStaking.authorizedStake(
-              stakingProvider.address,
-              application2Mock.address
-            )
-          ).to.equal(0)
-        })
-
-        it("should allow to authorize one more application", async () => {
-          await tokenStaking
-            .connect(staker)
-            .increaseAuthorization(
-              stakingProvider.address,
-              application1Mock.address,
-              authorized
-            )
-
-          await tokenStaking
-            .connect(staker)
-            .increaseAuthorization(
-              stakingProvider.address,
-              application2Mock.address,
-              authorized
-            )
-
-          await tokenStaking
-            .connect(deployer)
-            .approveApplication(auxiliaryAccount.address)
-          await expect(
-            tokenStaking
-              .connect(staker)
-              .increaseAuthorization(
-                stakingProvider.address,
-                auxiliaryAccount.address,
-                authorized
-              )
-          ).to.be.revertedWith("Too many applications")
-        })
-      }
-    )
+        ).to.be.revertedWith("Too many applications")
+      })
+    })
   })
 
   describe("cleanAuthorizedApplications", () => {
