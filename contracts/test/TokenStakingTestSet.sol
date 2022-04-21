@@ -271,6 +271,10 @@ contract ApplicationMock is IApplication {
         }
         stakingProviderStruct.authorized = toAmount;
     }
+
+    function minimumAuthorization() external view returns (uint96) {
+        return 0;
+    } 
 }
 
 contract BrokenApplicationMock is ApplicationMock {
