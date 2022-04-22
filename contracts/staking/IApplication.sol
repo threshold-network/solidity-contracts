@@ -24,7 +24,9 @@ pragma solidity 0.8.9;
 interface IApplication {
     /// @notice Used by T staking contract to inform the application that the
     ///         authorized amount for the given staking provider increased.
-    ///         The application may do any necessary housekeeping.
+    ///         The application may do any necessary housekeeping. The
+    ///         application must revert the transaction in case the
+    ///         authorization is below the minimum required.
     function authorizationIncreased(
         address stakingProvider,
         uint96 fromAmount,
@@ -54,4 +56,8 @@ interface IApplication {
         uint96 fromAmount,
         uint96 toAmount
     ) external;
+
+    /// @notice The minimum authorization amount required for the staking
+    ///         provider so that they can participate in the application.
+    function minimumAuthorization() external view returns (uint96);
 }
