@@ -25,8 +25,8 @@ interface IApplication {
     /// @notice Used by T staking contract to inform the application that the
     ///         authorized amount for the given staking provider increased.
     ///         The application may do any necessary housekeeping. The
-    ///         application may revert the transaction in case the authorization
-    ///         is below the minimum required.
+    ///         application must revert the transaction in case the
+    ///         authorization is below the minimum required.
     function authorizationIncreased(
         address stakingProvider,
         uint96 fromAmount,

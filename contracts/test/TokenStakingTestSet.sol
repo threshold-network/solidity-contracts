@@ -274,7 +274,7 @@ contract ApplicationMock is IApplication {
 
     function minimumAuthorization() external view returns (uint96) {
         return 0;
-    } 
+    }
 }
 
 contract BrokenApplicationMock is ApplicationMock {
