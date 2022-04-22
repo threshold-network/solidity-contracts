@@ -77,7 +77,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     struct SlashingEvent {
         address stakingProvider;
         uint96 amount;
-        address application;
     }
 
     uint256 internal constant SLASHING_REWARD_PERCENT = 5;
@@ -1000,8 +999,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         authorizationDecrease(
             stakingProvider,
             stakingProviderStruct,
-            slashedAmount,
-            address(0)
+            slashedAmount
         );
     }
 
@@ -1044,8 +1042,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         authorizationDecrease(
             stakingProvider,
             stakingProviderStruct,
-            slashedAmount,
-            address(0)
+            slashedAmount
         );
         decreaseStakeCheckpoint(
             stakingProvider,
@@ -1472,11 +1469,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 continue;
             }
             slashingQueue.push(
-                SlashingEvent(
-                    stakingProvider,
-                    amountToSlash.toUint96(),
-                    msg.sender
-                )
+                SlashingEvent(stakingProvider, amountToSlash.toUint96())
             );
         }
 
@@ -1548,8 +1541,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         authorizationDecrease(
             slashing.stakingProvider,
             stakingProviderStruct,
-            slashedAmount,
-            slashing.application
+            slashedAmount
         );
         uint96 newStake = stakingProviderStruct.tStake +
             stakingProviderStruct.keepInTStake +
@@ -1561,8 +1553,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     function authorizationDecrease(
         address stakingProvider,
         StakingProviderInfo storage stakingProviderStruct,
-        uint96 slashedAmount,
-        address application
+        uint96 slashedAmount
     ) internal {
         uint96 totalStake = stakingProviderStruct.tStake +
             stakingProviderStruct.nuInTStake +
@@ -1578,16 +1569,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             AppAuthorization storage authorization = stakingProviderStruct
                 .authorizations[authorizedApplication];
             uint96 fromAmount = authorization.authorized;
-            if (
-                application == address(0) ||
-                authorizedApplication == application
-            ) {
-                authorization.authorized -= MathUpgradeable
-                    .min(fromAmount, slashedAmount)
-                    .toUint96();
-            } else if (fromAmount <= totalStake) {
-                continue;
-            }
+
+            authorization.authorized -= MathUpgradeable
+                .min(fromAmount, slashedAmount)
+                .toUint96();
+
             if (authorization.authorized > totalStake) {
                 authorization.authorized = totalStake;
             }
