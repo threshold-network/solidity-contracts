@@ -3,14 +3,14 @@ import { DeployFunction } from "hardhat-deploy/types"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments } = hre
-  const { keepRegistryKeeper } = await getNamedAccounts()
+  const { keepRegistryKeeper, deployer } = await getNamedAccounts()
   const { execute, log } = deployments
 
   const TokenStaking = await deployments.get("TokenStaking")
 
   await execute(
     "KeepRegistry",
-    { from: keepRegistryKeeper },
+    { from: keepRegistryKeeper || deployer },
     "approveOperatorContract",
     TokenStaking.address
   )
