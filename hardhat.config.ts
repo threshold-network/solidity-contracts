@@ -113,8 +113,8 @@ const config: HardhatUserConfig = {
     thresholdCouncil: {
       mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
     },
-    keepDeployer: {
-      default: 0,
+    keepRegistryKeeper: {
+      default: 0, // same as the deployer
       ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
     },
   },
