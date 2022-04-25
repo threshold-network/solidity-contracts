@@ -4,7 +4,7 @@ import { DeployFunction } from "hardhat-deploy/types"
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments, helpers } = hre
   const { log } = deployments
-  const { keepDeployer } = await getNamedAccounts()
+  const { deployer } = await getNamedAccounts()
 
   const KeepRegistry = await deployments.getOrNull("KeepRegistry")
 
@@ -20,7 +20,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     await deployments.deploy("KeepRegistry", {
       contract: "KeepRegistryStub",
-      from: keepDeployer,
+      from: deployer,
       log: true,
     })
   }
