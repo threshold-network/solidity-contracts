@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "contracts/**"
+      - "deploy/**"
+      - "hardhat.config.ts"
       - "package.json"
       - "yarn.lock"
   workflow_dispatch:
