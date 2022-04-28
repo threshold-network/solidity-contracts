@@ -1281,7 +1281,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         it happens depends on the application. Can only be called by the
     ///         given staking provider’s authorizer. Overwrites pending
     ///         authorization decrease for the given staking provider and
-    ///         application.
+    ///         application if the application agrees for that. If the
+    ///         application does not agree for overwriting, the function
+    ///         reverts.
     /// @dev Calls `authorizationDecreaseRequested` callback on the given
     ///      application. See `IApplication`.
     function requestAuthorizationDecrease(
