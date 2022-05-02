@@ -1,8 +1,13 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
 
+// FIXME: As a workaround for a bug in hardhat-gas-reporter #86 we import
+// ethers here instead of using the one defined in `hre`.
+// #86: https://github.com/cgewecke/hardhat-gas-reporter/issues/86
+import { ethers } from "ethers"
+
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments, ethers } = hre
+  const { getNamedAccounts, deployments } = hre
   const { deployer } = await getNamedAccounts()
 
   const proposers = []
