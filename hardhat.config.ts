@@ -1,7 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config"
 
 import "@keep-network/hardhat-helpers"
-import "@keep-network/hardhat-local-networks-config"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
@@ -81,8 +80,6 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
-  // // Define local networks configuration file path to load networks from the file.
-  // localNetworksConfig: "./.hardhat/networks.ts",
   external: {
     contracts: [
       {
