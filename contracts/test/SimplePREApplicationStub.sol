@@ -14,12 +14,16 @@ contract SimplePREApplicationStub {
         uint256 operatorStartTimestamp;
     }
 
-    mapping (address => StakingProviderInfo) public stakingProviderInfo;
+    mapping(address => StakingProviderInfo) public stakingProviderInfo;
 
     function confirmOperatorAddress(address stakingProvider) external {
         StakingProviderInfo storage info = stakingProviderInfo[stakingProvider];
-        require(!info.operatorConfirmed, "Operator address is already confirmed");
+        require(
+            !info.operatorConfirmed,
+            "Operator address is already confirmed"
+        );
         info.operator = msg.sender;
+        /* solhint-disable-next-line not-rely-on-time */
         info.operatorStartTimestamp = block.timestamp;
         info.operatorConfirmed = true;
         emit OperatorConfirmed(stakingProvider, msg.sender);
