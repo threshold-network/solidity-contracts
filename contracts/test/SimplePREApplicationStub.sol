@@ -22,14 +22,22 @@ contract SimplePREApplicationStub {
 
     mapping(address => StakingProviderInfo) public stakingProviderInfo;
 
-
-    function bondOperator(address _stakingProvider, address _operator) external {
-        StakingProviderInfo storage info = stakingProviderInfo[_stakingProvider];
-        require(_operator != info.operator, "Specified operator is already bonded with this provider");
+    function bondOperator(address _stakingProvider, address _operator)
+        external
+    {
+        StakingProviderInfo storage info = stakingProviderInfo[
+            _stakingProvider
+        ];
+        require(
+            _operator != info.operator,
+            "Specified operator is already bonded with this provider"
+        );
         // Bond new operator (or unbond if _operator == address(0))
         info.operator = _operator;
+        /* solhint-disable-next-line not-rely-on-time */
         info.operatorStartTimestamp = block.timestamp;
         info.operatorConfirmed = false;
+        /* solhint-disable-next-line not-rely-on-time */
         emit OperatorBonded(_stakingProvider, _operator, block.timestamp);
     }
 
