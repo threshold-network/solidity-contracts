@@ -22,9 +22,20 @@ pragma solidity 0.8.9;
 ///         staking provider are eligible to slash the stake delegated to that
 ///         staking provider.
 interface IApplication {
+    /// @dev Event emitted by `withdrawRewards` function.
+    event RewardsWithdrawn(address indexed stakingProvider, uint96 amount);
+
+    /// @notice Withdraws application rewards for the given staking provider.
+    ///         Rewards are withdrawn to the staking provider's beneficiary
+    ///         address set in the staking contract.
+    /// @dev Emits `RewardsWithdrawn` event.
+    function withdrawRewards(address stakingProvider) external;
+
     /// @notice Used by T staking contract to inform the application that the
     ///         authorized amount for the given staking provider increased.
-    ///         The application may do any necessary housekeeping.
+    ///         The application may do any necessary housekeeping. The
+    ///         application must revert the transaction in case the
+    ///         authorization is below the minimum required.
     function authorizationIncreased(
         address stakingProvider,
         uint96 fromAmount,
@@ -54,4 +65,15 @@ interface IApplication {
         uint96 fromAmount,
         uint96 toAmount
     ) external;
+
+    /// @notice Returns the amount of application rewards available for
+    ///         withdrawal for the given staking provider.
+    function availableRewards(address stakingProvider)
+        external
+        view
+        returns (uint96);
+
+    /// @notice The minimum authorization amount required for the staking
+    ///         provider so that they can participate in the application.
+    function minimumAuthorization() external view returns (uint96);
 }

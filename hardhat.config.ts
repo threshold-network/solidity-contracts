@@ -1,7 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config"
 
 import "@keep-network/hardhat-helpers"
-import "@keep-network/hardhat-local-networks-config"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
@@ -81,8 +80,6 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
-  // // Define local networks configuration file path to load networks from the file.
-  // localNetworksConfig: "./.hardhat/networks.ts",
   external: {
     contracts: [
       {
@@ -113,8 +110,8 @@ const config: HardhatUserConfig = {
     thresholdCouncil: {
       mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
     },
-    keepDeployer: {
-      default: 0,
+    keepRegistryKeeper: {
+      default: 0, // same as the deployer
       ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
     },
   },

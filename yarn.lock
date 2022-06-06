@@ -569,18 +569,10 @@
   resolved "https://registry.yarnpkg.com/@keep-network/hardhat-helpers/-/hardhat-helpers-0.4.1-pre.2.tgz#4c03b7bf52d28378383dbcbd94d9fd3dc3bfbf70"
   integrity sha512-Mkgy4yD3ZVvyDshejFLTJU2+APX0w1RL9CFDH5P8ulhlzuSfwr07oo7VO2Bqw4WUuM879Rmfnmy1Ffwn/tnzyQ==
 
-"@keep-network/hardhat-local-networks-config@^0.1.0-pre.4":
-  version "0.1.0-pre.4"
-  resolved "https://registry.yarnpkg.com/@keep-network/hardhat-local-networks-config/-/hardhat-local-networks-config-0.1.0-pre.4.tgz#cc0c8ac1f5e30f33378e7451f696ab17d504ab86"
-  integrity sha512-HSQv1xXMUoJCJKrjDJg2Afxj5VmCxEshWZUGNxk1d6D5p5+GBpakb/m6COwMkdwa6cVIcZqUMEBEAnf0fKLWog==
-  dependencies:
-    deepmerge "^4.2.2"
-    untildify "^4.0.0"
-
-"@keep-network/keep-core@>1.8.0-dev <1.8.0-pre":
-  version "1.8.0-dev.5"
-  resolved "https://registry.yarnpkg.com/@keep-network/keep-core/-/keep-core-1.8.0-dev.5.tgz#8b4d08ec437f29c94723ee54fcf76456ba5408c3"
-  integrity sha512-QVkpO5X28Vczj/xHezV0z2UuMw8QFaR3C8x/d6+3adedsL3nCxgveIGTUcXSuYpBqfx0v4/xT+9bIK7BwLkGPw==
+"@keep-network/keep-core@>1.8.1-dev <1.8.1-pre":
+  version "1.8.1-dev.0"
+  resolved "https://registry.yarnpkg.com/@keep-network/keep-core/-/keep-core-1.8.1-dev.0.tgz#d95864b25800214de43d8840376a68336cb12055"
+  integrity sha512-gFXkgN4PYOYCZ14AskL7fZHEFW5mu3BDd+TJKBuKZc1q9CgRMOK+dxpJnSctxmSH1tV+Ln9v9yqlSkfPCoiBHw==
   dependencies:
     "@openzeppelin/upgrades" "^2.7.2"
     openzeppelin-solidity "2.4.0"
@@ -617,12 +609,12 @@
     "@types/sinon-chai" "^3.2.3"
     "@types/web3" "1.0.19"
 
-"@openzeppelin/contracts-upgradeable@^4.5":
-  version "4.5.1"
-  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-4.5.1.tgz#dc354082460eb34f5833afdecfab46538b208c4f"
-  integrity sha512-xcKycsSyFauIGMhSeeTJW/Jzz9jZUJdiFNP9Wo/9VhMhw8t5X0M92RY6x176VfcIWsxURMHFWOJVTlFA78HI/w==
+"@openzeppelin/contracts-upgradeable@~4.5.2":
+  version "4.5.2"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-4.5.2.tgz#90d9e47bacfd8693bfad0ac8a394645575528d05"
+  integrity sha512-xgWZYaPlrEOQo3cBj97Ufiuv79SPd8Brh4GcFYhPgb6WvAq4ppz8dWKL6h+jLAK01rUqMRp/TS9AdXgAeNvCLA==
 
-"@openzeppelin/contracts@^4.1.0", "@openzeppelin/contracts@^4.5":
+"@openzeppelin/contracts@^4.1.0", "@openzeppelin/contracts@~4.5.0":
   version "4.5.0"
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.5.0.tgz#3fd75d57de172b3743cdfc1206883f56430409cc"
   integrity sha512-fdkzKPYMjrRiPK6K4y64e6GzULR7R7RwxSigHS8DDp7aWDeoReqsQI+cxHV1UuhAqX69L1lAaWDxenfP+xiqzA==
@@ -3051,11 +3043,6 @@ deep-is@^0.1.3, deep-is@~0.1.3:
   resolved "https://registry.yarnpkg.com/deep-is/-/deep-is-0.1.4.tgz#a6f2dce612fadd2ef1f519b73551f17e85199831"
   integrity sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==
 
-deepmerge@^4.2.2:
-  version "4.2.2"
-  resolved "https://registry.yarnpkg.com/deepmerge/-/deepmerge-4.2.2.tgz#44d2ea3679b8f4d4ffba33f03d865fc1e7bf4955"
-  integrity sha512-FJ3UgI4gIl+PHZm53knsuSFpE+nESMr7M4v9QcgB7S63Kj/6WqMiFQJpBBYz1Pt+66bZpP3Q7Lye0Oo9MPKEdg==
-
 defer-to-connect@^1.0.1:
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/defer-to-connect/-/defer-to-connect-1.1.3.tgz#331ae050c08dcf789f8c83a7b81f0ed94f4ac591"
@@ -4929,13 +4916,6 @@ hardhat-gas-reporter@^1.0.4:
     array-uniq "1.0.3"
     eth-gas-reporter "^0.2.24"
     sha1 "^1.1.1"
-
-hardhat-local-networks-config-plugin@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/hardhat-local-networks-config-plugin/-/hardhat-local-networks-config-plugin-0.0.6.tgz#bffa9706026f07fc5f7fccf0ad65009b2617868f"
-  integrity sha512-Ala+n7+KtAKXakDAyR4GhgTvgalnP2OK8mte9cqvV47AJIQWCdtBAKeGdAdUvsGyvGVTW1f6mYK2PJQyEmOE5w==
-  dependencies:
-    deepmerge "^4.2.2"
 
 hardhat@^2.6.8:
   version "2.8.4"
@@ -9136,11 +9116,6 @@ unset-value@^1.0.0:
   dependencies:
     has-value "^0.3.1"
     isobject "^3.0.0"
-
-untildify@^4.0.0:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/untildify/-/untildify-4.0.0.tgz#2bc947b953652487e4600949fb091e3ae8cd919b"
-  integrity sha512-KK8xQ1mkzZeg9inewmFVDNkg3l5LUhoq9kN6iWYB/CC9YMG8HA+c1Q8HwDe6dEX7kErrEVNVBO3fWsVq5iDgtw==
 
 uri-js@^4.2.2:
   version "4.4.1"

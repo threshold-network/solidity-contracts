@@ -209,6 +209,10 @@ contract ApplicationMock is IApplication {
         tokenStaking = _tokenStaking;
     }
 
+    function withdrawRewards(address) external {
+        // does nothing
+    }
+
     function authorizationIncreased(
         address stakingProvider,
         uint96,
@@ -270,6 +274,14 @@ contract ApplicationMock is IApplication {
             stakingProviderStruct.deauthorizingTo = 0;
         }
         stakingProviderStruct.authorized = toAmount;
+    }
+
+    function availableRewards(address) external pure returns (uint96) {
+        return 0;
+    }
+
+    function minimumAuthorization() external pure returns (uint96) {
+        return 0;
     }
 }
 
