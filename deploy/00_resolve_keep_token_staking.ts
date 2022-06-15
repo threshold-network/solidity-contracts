@@ -11,7 +11,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (KeepTokenStaking && helpers.address.isValid(KeepTokenStaking.address)) {
     log(`using existing KeepTokenStaking at ${KeepTokenStaking.address}`)
   } else if (
-    hre.network.name !== "hardhat" ||
+    !hre.network.tags.local ||
     (hre.network.config as HardhatNetworkConfig).forking.enabled
   ) {
     throw new Error("deployed KeepTokenStaking contract not found")
