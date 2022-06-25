@@ -389,11 +389,11 @@ protect against DoSing slashing queue. Can only be called by the governance.
 
 === Stake top-up
 
-==== `topUp(address stakingProvider, uint96 amount) external onlyOwnerOrStakingProvider(stakingProvider)`
+==== `topUp(address stakingProvider, uint96 amount) external`
 
 Increases the amount of the stake for the given staking provider. The sender of this
 transaction needs to have the amount approved to transfer to the staking
-contract. Can be called only by the owner or staking provider.
+contract.
 
 ==== `topUpKeep(address stakingProvider) external onlyOwnerOrStakingProvider(stakingProvider)`
 

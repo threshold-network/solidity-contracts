@@ -180,7 +180,6 @@ interface IStaking {
     //
 
     /// @notice Increases the amount of the stake for the given staking provider.
-    ///         Can be called only by the owner or the staking provider.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
     function topUp(address stakingProvider, uint96 amount) external;
