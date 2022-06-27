@@ -1,6 +1,6 @@
 {
   "name": "@threshold-network/solidity-contracts",
-  "version": "1.2.0-dev",
+  "version": "1.2.1-dev",
   "license": "GPL-3.0-or-later",
   "files": [
     "artifacts/",
@@ -26,7 +26,7 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
-    "postinstall": "./scripts/prepare-dependencies.sh $INIT_CWD",
+    "postinstall": "echo $(pwd) && ls -l . && ls -l ./scripts/ && ./scripts/prepare-dependencies.sh $INIT_CWD",
     "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
     "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network"
   },
