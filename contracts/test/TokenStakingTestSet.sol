@@ -182,6 +182,14 @@ contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
     {
         return stakers[staker].value;
     }
+
+    function stakerInfo(address staker)
+        public
+        view
+        returns (StakerStruct memory)
+    {
+        return stakers[staker];
+    }
 }
 
 contract VendingMachineMock {
