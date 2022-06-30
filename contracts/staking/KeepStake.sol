@@ -28,12 +28,13 @@ interface IManagedGrant {
 ///         KEEP stakers to use their stakes in T network and weights them based
 ///         on KEEP<>T token ratio. KEEP stake owner is cached in T staking
 ///         contract and used to restrict access to all functions only owner or
-///         operator should call. To cache KEEP staking contract in T staking
-///         contract, it fitst needs to resolve the owner. Resolving liquid
-///         KEEP stake owner is easy. Resolving token grant stake owner is
-///         complicated and not possible to do on-chain from a contract external
-///         to KEEP TokenStaking contract. Keep TokenStaking knows the grant ID
-///         but does not expose it externally.
+///         operator should call. To cache KEEP stake owner in T staking
+///         contract, T staking contract first needs to resolve the owner.
+///
+///         Resolving liquid KEEP stake owner is easy. Resolving token grant
+///         stake owner is complicated and not possible to do on-chain from
+///         a contract external to KEEP TokenStaking contract. Keep TokenStaking
+///         knows the grant ID but does not expose it externally.
 ///
 ///         KeepStake contract addresses this problem by exposing
 ///         operator-owner mappings snapshotted off-chain based on events and

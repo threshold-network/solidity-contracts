@@ -70,7 +70,8 @@ interface IStaking {
         address authorizer
     ) external;
 
-    /// @notice Refresh Keep stake owner. Can be called only by the old owner.
+    /// @notice Refresh Keep stake owner. Can be called only by the old owner
+    ///         or their staking provider.
     /// @dev The staking provider in T staking contract is the legacy KEEP
     ///      staking contract operator.
     function refreshKeepStakeOwner(address stakingProvider) external;

@@ -397,17 +397,18 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
     }
 
-    /// @notice Refresh Keep stake owner. Can be called only by the old owner.
+    /// @notice Refresh Keep stake owner. Can be called only by the old owner
+    ///         or their staking provider.
     /// @dev The staking provider in T staking contract is the legacy KEEP
     ///      staking contract operator.
-    function refreshKeepStakeOwner(address stakingProvider) external override {
+    function refreshKeepStakeOwner(address stakingProvider)
+        external
+        override
+        onlyOwnerOrStakingProvider(stakingProvider)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        require(
-            stakingProviderStruct.owner == msg.sender,
-            "Caller is not owner"
-        );
         address newOwner = keepStake.resolveOwner(stakingProvider);
 
         emit OwnerRefreshed(
