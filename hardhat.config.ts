@@ -38,12 +38,12 @@ const config: HardhatUserConfig = {
           ? parseInt(process.env.FORKING_BLOCK)
           : undefined,
       },
-      tags: ["local"],
+      tags: ["allowStubs"],
     },
     development: {
       url: "http://localhost:8545",
       chainId: 1101,
-      tags: ["local"],
+      tags: ["allowStubs"],
     },
     rinkeby: {
       url: process.env.CHAIN_API_URL || "",

@@ -16,8 +16,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     // Save deployment artifact of external contract to include it in the package.
     await deployments.save("KeepToken", KeepToken)
   } else if (
-    (hre.network.config as HardhatNetworkConfig)?.forking.enabled ||
-    (hre.network.name !== "hardhat" && hre.network.name !== "development")
+    (!hre.network.tags.allowStubs) ||
+    (hre.network.config as HardhatNetworkConfig)?.forking.enabled
   ) {
     throw new Error("deployed KeepToken contract not found")
   } else {
