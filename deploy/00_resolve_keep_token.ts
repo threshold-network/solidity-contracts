@@ -17,7 +17,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await deployments.save("KeepToken", KeepToken)
   } else if (
     !hre.network.tags.allowStubs ||
-    (hre.network.config as HardhatNetworkConfig)?.forking.enabled
+    (hre.network.config as HardhatNetworkConfig)?.forking?.enabled
   ) {
     throw new Error("deployed KeepToken contract not found")
   } else {

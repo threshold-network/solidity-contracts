@@ -28,7 +28,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     // switching to an actual contract.
     hre.network.name !== "ropsten" &&
     (!hre.network.tags.allowStubs ||
-      (hre.network.config as HardhatNetworkConfig).forking?.enabled)
+      (hre.network.config as HardhatNetworkConfig)?.forking?.enabled)
   ) {
     throw new Error("deployed NuCypherStakingEscrow contract not found")
   } else {
