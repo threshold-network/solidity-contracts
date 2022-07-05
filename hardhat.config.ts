@@ -64,6 +64,17 @@ const config: HardhatUserConfig = {
         : undefined,
       tags: ["tenderly"],
     },
+    goerli: {
+      url: process.env.CHAIN_API_URL || "",
+      chainId: 5,
+      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+        ? [
+            process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+          ]
+        : undefined,
+      tags: ["tenderly"],
+    },
     mainnet: {
       url: process.env.CHAIN_API_URL || "",
       chainId: 1,
@@ -100,6 +111,7 @@ const config: HardhatUserConfig = {
       // dependencies.
       // development: ["external/npm/@keep-network/keep-core/artifacts"],
       ropsten: ["external/npm/@keep-network/keep-core/artifacts"],
+      goerli: ["external/npm/@keep-network/keep-core/artifacts"],
       mainnet: ["./external/mainnet"],
     },
   },
@@ -114,6 +126,7 @@ const config: HardhatUserConfig = {
     keepRegistryKeeper: {
       default: 0, // same as the deployer
       ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
+      goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc"
     },
   },
   mocha: {
