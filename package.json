@@ -14,6 +14,7 @@
     "export.json"
   ],
   "scripts": {
+    "clean": "hardhat clean && rm -rf cache/ deployments/ export/ external/npm export.json",
     "build": "hardhat compile",
     "deploy": "hardhat deploy --export export.json",
     "format": "npm run lint && prettier --check .",
