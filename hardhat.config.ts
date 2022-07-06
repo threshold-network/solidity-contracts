@@ -126,7 +126,7 @@ const config: HardhatUserConfig = {
     keepRegistryKeeper: {
       default: 0, // same as the deployer
       ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
-      goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc"
+      goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
     },
   },
   mocha: {
