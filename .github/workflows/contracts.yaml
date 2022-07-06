@@ -113,29 +113,36 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Get upstream packages versions
-        uses: keep-network/ci/actions/upstream-builds-query@v1
-        id: upstream-builds-query
-        with:
-          upstream-builds: ${{ github.event.inputs.upstream_builds }}
-          query: keep-core-contracts-version = github.com/keep-network/keep-core/solidity-v1#version
+      # Ultimately, we want to get rid of steps deploying on Ropsten (as it will
+      # be shut down in Q4 2022) and switch to deployment on Goerli. We're
+      # leaving both deployment options for the transition period.
+      - name: Resolve latest contracts on Ropsten
+        if: github.event.inputs.environment == 'ropsten'
+        run: yarn upgrade @keep-network/keep-core@1.8.0-ropsten.16
 
-      - name: Resolve latest contracts
-        run: |
-          yarn upgrade \
-            @keep-network/keep-core@${{ steps.upstream-builds-query.outputs.keep-core-contracts-version }}
+      - name: Resolve latest contracts on Goerli
+        if: github.event.inputs.environment == 'goerli'
+        run: yarn upgrade @keep-network/keep-core@1.8.1-goerli.0
 
       - name: Configure tenderly
-        if: github.event.inputs.environment == 'ropsten'
         env:
           TENDERLY_TOKEN: ${{ secrets.TENDERLY_TOKEN }}
         run: ./config_tenderly.sh
 
-      - name: Deploy contracts
+      - name: Deploy contracts on Ropsten
+        if: github.event.inputs.environment == 'ropsten'
         env:
           CHAIN_API_URL: ${{ secrets.ROPSTEN_ETH_HOSTNAME_HTTP }}
           CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.ROPSTEN_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
           KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.ROPSTEN_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+        run: yarn deploy --network ${{ github.event.inputs.environment }}
+      
+      - name: Deploy contracts on Goerli
+        if: github.event.inputs.environment == 'goerli'
+        env:
+          CHAIN_API_URL: ${{ secrets.GOERLI_ETH_HOSTNAME_HTTP }}
+          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
         run: yarn deploy --network ${{ github.event.inputs.environment }}
 
       - name: Bump up package version
@@ -149,10 +156,13 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }}
+        # TODO: remove `--dry-run` before merge to main
+        run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }} --dry-run
 
+      # TODO: restore commented out `uses` config before merge to `main``
       - name: Notify CI about completion of the workflow
-        uses: keep-network/ci/actions/notify-workflow-completed@v1
+        # uses: keep-network/ci/actions/notify-workflow-completed@v1
+        uses: keep-network/ci/actions/notify-workflow-completed@ci-goerli
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         with:
