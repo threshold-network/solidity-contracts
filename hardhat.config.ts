@@ -45,6 +45,17 @@ const config: HardhatUserConfig = {
       chainId: 1101,
       tags: ["allowStubs"],
     },
+    goerli: {
+      url: process.env.CHAIN_API_URL || "",
+      chainId: 5,
+      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+        ? [
+            process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+          ]
+        : undefined,
+      tags: ["tenderly"],
+    },
     rinkeby: {
       url: process.env.CHAIN_API_URL || "",
       chainId: 4,
@@ -56,17 +67,6 @@ const config: HardhatUserConfig = {
     ropsten: {
       url: process.env.CHAIN_API_URL || "",
       chainId: 3,
-      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [
-            process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-          ]
-        : undefined,
-      tags: ["tenderly"],
-    },
-    goerli: {
-      url: process.env.CHAIN_API_URL || "",
-      chainId: 5,
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
         ? [
             process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
