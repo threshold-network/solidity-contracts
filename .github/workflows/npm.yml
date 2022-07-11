@@ -26,7 +26,8 @@ jobs:
 
       - name: Resolve latest contracts
         run: |
-          yarn upgrade @keep-network/keep-core
+          yarn upgrade --exact \
+            @keep-network/keep-core
 
       # Deploy contracts to a local network to generate deployment artifacts that
       # are required by dashboard compilation.
