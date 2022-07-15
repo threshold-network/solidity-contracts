@@ -44,20 +44,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # TODO: uncomment below block of code before merge to main
-      # - uses: actions/setup-node@v2
-      #   with:
-      #     node-version: "14.x"
-      #     cache: "yarn"
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+          cache: "yarn"
 
-      # - name: Install dependencies
-      #   run: yarn install
+      - name: Install dependencies
+        run: yarn install
 
-      # - name: Build contracts
-      #   run: yarn build
+      - name: Build contracts
+        run: yarn build
 
-      # - name: Run tests
-      #   run: yarn test
+      - name: Run tests
+        run: yarn test
 
   contracts-system-tests:
     needs: contracts-detect-changes
@@ -105,50 +104,45 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # TODO: uncomment below block of code before merge to main
-      # - uses: actions/setup-node@v2
-      #   with:
-      #     node-version: "14.x"
-      #     cache: "yarn"
-      #     registry-url: "https://registry.npmjs.org"
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+          cache: "yarn"
+          registry-url: "https://registry.npmjs.org"
 
-      # - name: Install dependencies
-      #   run: yarn install --frozen-lockfile
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
 
-      # - name: Resolve latest contracts
-      #   run: yarn upgrade @keep-network/keep-core@1.8.1-goerli.0
+      - name: Resolve latest contracts
+        run: yarn upgrade @keep-network/keep-core@1.8.1-goerli.0
 
-      # - name: Configure tenderly
-      #   env:
-      #     TENDERLY_TOKEN: ${{ secrets.TENDERLY_TOKEN }}
-      #   run: ./config_tenderly.sh
+      - name: Configure tenderly
+        env:
+          TENDERLY_TOKEN: ${{ secrets.TENDERLY_TOKEN }}
+        run: ./config_tenderly.sh
 
-      # - name: Deploy contracts
-      #   env:
-      #     CHAIN_API_URL: ${{ secrets.GOERLI_ETH_HOSTNAME_HTTP }}
-      #     CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
-      #     KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
-      #   run: yarn deploy --network ${{ github.event.inputs.environment }}
+      - name: Deploy contracts
+        env:
+          CHAIN_API_URL: ${{ secrets.GOERLI_ETH_HOSTNAME_HTTP }}
+          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+        run: yarn deploy --network ${{ github.event.inputs.environment }}
 
-      # - name: Bump up package version
-      #   id: npm-version-bump
-      #   uses: keep-network/npm-version-bump@v2
-      #   with:
-      #     environment: ${{ github.event.inputs.environment }}
-      #     branch: ${{ github.ref }}
-      #     commit: ${{ github.sha }}
+      - name: Bump up package version
+        id: npm-version-bump
+        uses: keep-network/npm-version-bump@v2
+        with:
+          environment: ${{ github.event.inputs.environment }}
+          branch: ${{ github.ref }}
+          commit: ${{ github.sha }}
 
-      # - name: Publish to npm
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #   # TODO: remove `--dry-run` before merge to main
-      #   run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }} --dry-run
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }}
 
-      # TODO: restore commented out `uses` config before merge to `main``
       - name: Notify CI about completion of the workflow
-        # uses: keep-network/ci/actions/notify-workflow-completed@v1
-        uses: keep-network/ci/actions/notify-workflow-completed@main
-        continue-on-error: true # TODO: remove before merge to main
+        uses: keep-network/ci/actions/notify-workflow-completed@v2
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         with:
