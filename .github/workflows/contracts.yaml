@@ -114,7 +114,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Resolve latest contracts
-        run: yarn upgrade @keep-network/keep-core@1.8.1-goerli.0
+        run: yarn upgrade @keep-network/keep-core@${{ github.event.inputs.environment }}
 
       - name: Configure tenderly
         env:
