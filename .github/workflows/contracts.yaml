@@ -7,10 +7,24 @@ on:
     branches:
       - main
   pull_request:
+  # We intend to use `workflow dispatch` in two different situations/paths:
+  # 1. If a workflow will be manually dspatched from branch named
+  #    `dapp-development`, workflow will deploy the contracts on the selected
+  #    testnet and publish them to NPM registry with `dappdev<environment>`
+  #    suffix and `dapp-development-<environment>` tag. Such packages are meant
+  #    to be used locally by the team developing Threshold Token dApp and may
+  #    contain contracts that have different values from the ones used on
+  #    mainnet.
+  # 2. If a workflow will be manually dspatched from a branch which name is not
+  #    `dapp-development`, the workflow will deploy the contracts on the
+  #    selected testnet and publish them to NPM registry with `<environment>`
+  #    suffix and tag. Such packages will be used later to deploy public
+  #    Threshold Token dApp on a testnet, with contracts resembling those used
+  #    on mainnet.
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment for workflow execution"
+        description: "Environment (network) for workflow execution, e.g. `goerli`"
         required: false
         default: "dev"
       upstream_builds:
@@ -56,11 +70,14 @@ jobs:
         run: yarn build
 
       - name: Run tests
+        if: github.ref != 'refs/heads/dapp-development'
         run: yarn test
 
   contracts-system-tests:
     needs: contracts-detect-changes
-    if: needs.contracts-detect-changes.outputs.system-tests == 'true'
+    if: |
+      needs.contracts-detect-changes.outputs.system-tests == 'true'
+        && github.ref != 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -99,7 +116,10 @@ jobs:
 
   contracts-deployment-testnet:
     needs: [contracts-build-and-test]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'goerli'
+    if: |
+      github.event_name == 'workflow_dispatch'
+        && github.event.inputs.environment == 'goerli'
+        && github.ref != 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -195,6 +215,67 @@ jobs:
         run: |
           yarn run hardhat --network ${{ github.event.inputs.environment }} \
             etherscan-verify --license GPL-3.0 --force-license
+
+  # This job is responsible for publishing packages from `dapp-development`
+  # branch, which are slightly modified to help with the process of testing some
+  # features on the Threshold Token dApp. The job starts only if workflow gets
+  # triggered by the `workflow_dispatch` event on the branch `dapp-development`.
+  contracts-dapp-development-deployment-testnet:
+    needs: [contracts-build-and-test]
+    if: |
+      github.event_name == 'workflow_dispatch'
+        && github.event.inputs.environment == 'goerli'
+        && github.ref == 'refs/heads/dapp-development'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+          cache: "yarn"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Resolve latest contracts
+        run: yarn upgrade @keep-network/keep-core@${{ github.event.inputs.environment }}
+
+      - name: Deploy contracts
+        env:
+          CHAIN_API_URL: ${{ secrets.GOERLI_ETH_HOSTNAME_HTTP }}
+          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+        run: yarn deploy --network ${{ github.event.inputs.environment }}
+
+      - name: Bump up package version
+        id: npm-version-bump
+        uses: keep-network/npm-version-bump@v2
+        with:
+          environment: dappdev${{ github.event.inputs.environment }}
+          branch: ${{ github.ref }}
+          commit: ${{ github.sha }}
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish --access=public \
+            --network=${{ github.event.inputs.environment }} \
+            --tag dapp-development-${{ github.event.inputs.environment }}
+
+      - name: Notify CI about completion of the workflow
+        uses: keep-network/ci/actions/notify-workflow-completed@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        with:
+          module: "github.com/threshold-network/solidity-contracts"
+          url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          environment: ${{ github.event.inputs.environment }}
+          upstream_builds: ${{ github.event.inputs.upstream_builds }}
+          upstream_ref: dapp-development
+          version: ${{ steps.npm-version-bump.outputs.version }}
 
   contracts-slither:
     runs-on: ubuntu-latest
