@@ -118,7 +118,6 @@ jobs:
     needs: [contracts-build-and-test]
     if: |
       github.event_name == 'workflow_dispatch'
-        && github.event.inputs.environment == 'goerli'
         && github.ref != 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     steps:
@@ -224,7 +223,6 @@ jobs:
     needs: [contracts-build-and-test]
     if: |
       github.event_name == 'workflow_dispatch'
-        && github.event.inputs.environment == 'goerli'
         && github.ref == 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     steps:
