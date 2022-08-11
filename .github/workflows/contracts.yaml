@@ -70,14 +70,16 @@ jobs:
         run: yarn build
 
       - name: Run tests
-        if: github.ref != 'refs/heads/dapp-development'
+        # TODO: Remove && github.ref != 'refs/heads/ci-dapp-dev-test'
+        if: github.ref != 'refs/heads/dapp-development' && github.ref != 'refs/heads/ci-dapp-dev-test'
         run: yarn test
 
   contracts-system-tests:
     needs: contracts-detect-changes
+    # TODO: Remove && github.ref != 'refs/heads/ci-dapp-dev-test'
     if: |
       needs.contracts-detect-changes.outputs.system-tests == 'true'
-        && github.ref != 'refs/heads/dapp-development'
+        && github.ref != 'refs/heads/dapp-development' && github.ref != 'refs/heads/ci-dapp-dev-test'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -116,9 +118,10 @@ jobs:
 
   contracts-deployment-testnet:
     needs: [contracts-build-and-test]
+    # TODO: Remove && github.ref != 'refs/heads/ci-dapp-dev-test'
     if: |
       github.event_name == 'workflow_dispatch'
-        && github.ref != 'refs/heads/dapp-development'
+        && github.ref != 'refs/heads/dapp-development' && github.ref != 'refs/heads/ci-dapp-dev-test'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -221,9 +224,10 @@ jobs:
   # triggered by the `workflow_dispatch` event on the branch `dapp-development`.
   contracts-dapp-development-deployment-testnet:
     needs: [contracts-build-and-test]
+    # TODO: remove || github.ref == 'refs/heads/ci-dapp-dev-test'
     if: |
       github.event_name == 'workflow_dispatch'
-        && github.ref == 'refs/heads/dapp-development'
+        && (github.ref == 'refs/heads/dapp-development' || github.ref == 'refs/heads/ci-dapp-dev-test')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -258,10 +262,11 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # TODO: remove --dry-run
         run: |
           npm publish --access=public \
             --network=${{ github.event.inputs.environment }} \
-            --tag dapp-development-${{ github.event.inputs.environment }}
+            --tag dapp-development-${{ github.event.inputs.environment }}  --dry-run
 
       - name: Notify CI about completion of the workflow
         uses: keep-network/ci/actions/notify-workflow-completed@v2
@@ -272,7 +277,8 @@ jobs:
           url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           environment: ${{ github.event.inputs.environment }}
           upstream_builds: ${{ github.event.inputs.upstream_builds }}
-          upstream_ref: dapp-development
+          # TODO: replace with upstream_ref: dapp-development
+          upstream_ref: non-existing-branch
           version: ${{ steps.npm-version-bump.outputs.version }}
 
   contracts-slither:
