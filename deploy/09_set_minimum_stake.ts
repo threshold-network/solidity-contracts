@@ -9,7 +9,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts()
 
   const minStakeAmount = "39999999999999999999999"
-  await execute("TokenStaking", { from: deployer }, "setMinimumStakeAmount")
+  await execute(
+    "TokenStaking",
+    { from: deployer },
+    "setMinimumStakeAmount",
+    minStakeAmount
+  )
 
   log(`Set minimum stake amount to ${minStakeAmount}`)
 }
