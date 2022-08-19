@@ -1,7 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config"
 
 import "@keep-network/hardhat-helpers"
-import "@keep-network/hardhat-local-networks-config"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
@@ -39,12 +38,23 @@ const config: HardhatUserConfig = {
           ? parseInt(process.env.FORKING_BLOCK)
           : undefined,
       },
-      tags: ["local"],
+      tags: ["allowStubs"],
     },
     development: {
       url: "http://localhost:8545",
       chainId: 1101,
-      tags: ["local"],
+      tags: ["allowStubs"],
+    },
+    goerli: {
+      url: process.env.CHAIN_API_URL || "",
+      chainId: 5,
+      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+        ? [
+            process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+          ]
+        : undefined,
+      tags: ["tenderly"],
     },
     rinkeby: {
       url: process.env.CHAIN_API_URL || "",
@@ -81,12 +91,10 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
-  // // Define local networks configuration file path to load networks from the file.
-  // localNetworksConfig: "./.hardhat/networks.ts",
   external: {
     contracts: [
       {
-        // Due to a limitation of `hardhat-deploy` plugin limitation, we have
+        // Due to a limitation of `hardhat-deploy` plugin, we have
         // to modify the artifacts imported from NPM. Please see
         // `scripts/prepare-dependencies.sh` for details.
         artifacts: "external/npm/@keep-network/keep-core/artifacts",
@@ -99,23 +107,27 @@ const config: HardhatUserConfig = {
       // to the contract artifacts.
       hardhat: process.env.FORKING_URL ? ["./external/mainnet"] : [],
       // For development environment we expect the local dependencies to be linked
-      // with `yarn link` command.
-      development: ["external/npm/@keep-network/keep-core/artifacts"],
+      // with `yarn link` command, uncomment the line below to use the linked
+      // dependencies.
+      // development: ["external/npm/@keep-network/keep-core/artifacts"],
       ropsten: ["external/npm/@keep-network/keep-core/artifacts"],
+      goerli: ["external/npm/@keep-network/keep-core/artifacts"],
       mainnet: ["./external/mainnet"],
     },
   },
   namedAccounts: {
     deployer: {
-      default: 0, // take the first account as deployer
+      default: 1, // take the first account as deployer
+      goerli: 0,
       // mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
     },
     thresholdCouncil: {
       mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
     },
     keepRegistryKeeper: {
-      default: 0, // same as the deployer
+      default: 1, // same as the deployer
       ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
+      goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
     },
   },
   mocha: {
