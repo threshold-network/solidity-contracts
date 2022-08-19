@@ -11,8 +11,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (KeepRegistry && helpers.address.isValid(KeepRegistry.address)) {
     log(`using existing KeepRegistry contract at ${KeepRegistry.address}`)
   } else if (
-    hre.network.name !== "hardhat" ||
-    (hre.network.config as HardhatNetworkConfig).forking.enabled
+    !hre.network.tags.allowStubs ||
+    (hre.network.config as HardhatNetworkConfig)?.forking?.enabled
   ) {
     throw new Error("deployed KeepRegistry contract not found")
   } else {

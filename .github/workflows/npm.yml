@@ -16,9 +16,9 @@ jobs:
   npm-compile-publish-contracts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: "14.x"
           registry-url: "https://registry.npmjs.org"
@@ -26,7 +26,8 @@ jobs:
 
       - name: Resolve latest contracts
         run: |
-          yarn upgrade @keep-network/keep-core
+          yarn upgrade --exact \
+            @keep-network/keep-core
 
       # Deploy contracts to a local network to generate deployment artifacts that
       # are required by dashboard compilation.

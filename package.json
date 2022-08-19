@@ -14,6 +14,7 @@
     "export.json"
   ],
   "scripts": {
+    "clean": "hardhat clean && rm -rf cache/ deployments/ export/ external/npm export.json",
     "build": "hardhat compile",
     "deploy": "hardhat deploy --export export.json",
     "format": "npm run lint && prettier --check .",
@@ -28,10 +29,10 @@
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
     "postinstall": "./scripts/prepare-dependencies.sh $INIT_CWD",
     "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
-    "prepublishOnly": "./scripts/prepare-artifacts.sh --network $npm_config_network"
+    "prepublishOnly": "hardhat prepare-artifacts --network $npm_config_network"
   },
   "devDependencies": {
-    "@keep-network/hardhat-helpers": "^0.4.1-pre.2",
+    "@keep-network/hardhat-helpers": "^0.6.0-pre.8",
     "@keep-network/prettier-config-keep": "github:keep-network/prettier-config-keep#d6ec02e",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
@@ -58,12 +59,12 @@
     "typescript": "^4.4.4"
   },
   "dependencies": {
-    "@keep-network/keep-core": ">1.8.0-dev <1.8.0-pre",
+    "@keep-network/keep-core": ">1.8.1-dev <1.8.1-goerli",
     "@openzeppelin/contracts": "~4.5.0",
     "@openzeppelin/contracts-upgradeable": "~4.5.2",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
   },
   "peerDependencies": {
-    "@keep-network/keep-core": ">1.8.0-dev <1.8.0-pre"
+    "@keep-network/keep-core": ">1.8.1-dev <1.8.1-goerli"
   }
 }
