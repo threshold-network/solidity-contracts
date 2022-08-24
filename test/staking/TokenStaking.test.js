@@ -335,6 +335,9 @@ describe("TokenStaking", () => {
         let blockTimestamp
 
         beforeEach(async () => {
+          await tokenStaking
+            .connect(deployer)
+            .setMinimumStakeAmount(initialStakerBalance)
           await tToken.connect(staker).approve(tokenStaking.address, amount)
           tx = await tokenStaking
             .connect(staker)

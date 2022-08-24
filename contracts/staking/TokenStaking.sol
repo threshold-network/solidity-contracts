@@ -283,7 +283,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             createdAt == 0 && stakingProviderStruct.owner == address(0),
             "Provider is already in use"
         );
-        require(amount > minTStakeAmount, "Amount is less than minimum");
+        require(
+            amount > 0 && amount >= minTStakeAmount,
+            "Amount is less than minimum"
+        );
         stakingProviderStruct.owner = msg.sender;
         stakingProviderStruct.authorizer = authorizer;
         stakingProviderStruct.beneficiary = beneficiary;
