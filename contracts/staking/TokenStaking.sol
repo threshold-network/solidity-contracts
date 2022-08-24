@@ -714,14 +714,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
 
     /// @notice Increases the amount of the stake for the given staking provider.
-    ///         Can be called only by the owner or the staking provider.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
-    function topUp(address stakingProvider, uint96 amount)
-        external
-        override
-        onlyOwnerOrStakingProvider(stakingProvider)
-    {
+    function topUp(address stakingProvider, uint96 amount) external override {
+        require(
+            stakingProviders[stakingProvider].owner != address(0),
+            "Nothing to top-up"
+        );
         require(amount > 0, "Parameters must be specified");
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider

@@ -2730,28 +2730,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(stakingProvider)
             .topUp(stakingProvider.address, initialStakerBalance)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when caller is not owner or staking provider", () => {
-      it("should revert", async () => {
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            stakingProvider.address,
-            staker.address,
-            staker.address,
-            initialStakerBalance
-          )
-        await expect(
-          tokenStaking
-            .connect(authorizer)
-            .topUp(stakingProvider.address, initialStakerBalance)
-        ).to.be.revertedWith("Not owner or provider")
+        ).to.be.revertedWith("Nothing to top-up")
       })
     })
 
@@ -2938,10 +2917,12 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
-        await tToken.connect(deployer).transfer(staker.address, topUpAmount)
-        await tToken.connect(staker).approve(tokenStaking.address, topUpAmount)
+        await tToken.connect(deployer).transfer(authorizer.address, topUpAmount)
+        await tToken
+          .connect(authorizer)
+          .approve(tokenStaking.address, topUpAmount)
         tx = await tokenStaking
-          .connect(staker)
+          .connect(authorizer)
           .topUp(stakingProvider.address, topUpAmount)
       })
 
