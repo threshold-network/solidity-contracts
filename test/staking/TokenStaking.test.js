@@ -864,11 +864,11 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(stakingProvider)
             .refreshKeepStakeOwner(stakingProvider.address)
-        ).to.be.revertedWith("Caller is not owner")
+        ).to.be.revertedWith("Not owner or provider")
       })
     })
 
-    context("when caller is not old owner", () => {
+    context("when caller is neither old owner nor staking provider", () => {
       it("should revert", async () => {
         await tToken
           .connect(staker)
@@ -883,108 +883,122 @@ describe("TokenStaking", () => {
           )
         await expect(
           tokenStaking
-            .connect(stakingProvider)
+            .connect(authorizer)
             .refreshKeepStakeOwner(stakingProvider.address)
-        ).to.be.revertedWith("Caller is not owner")
+        ).to.be.revertedWith("Not owner or provider")
       })
     })
 
-    context("when grantee was not changed", () => {
-      let tx
+    const contextRefreshKeepStakeOwner = (getCaller) => {
+      context("when grantee was not changed", () => {
+        let tx
 
-      beforeEach(async () => {
-        const createdAt = 1
-        await keepStakingMock.setOperator(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-          createdAt,
-          0,
-          initialStakerBalance
-        )
-        await keepStakingMock.setEligibility(
-          stakingProvider.address,
-          tokenStaking.address,
-          true
-        )
-        await tokenStaking.stakeKeep(stakingProvider.address)
+        beforeEach(async () => {
+          const createdAt = 1
+          await keepStakingMock.setOperator(
+            stakingProvider.address,
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            createdAt,
+            0,
+            initialStakerBalance
+          )
+          await keepStakingMock.setEligibility(
+            stakingProvider.address,
+            tokenStaking.address,
+            true
+          )
+          await tokenStaking.stakeKeep(stakingProvider.address)
 
-        tx = await tokenStaking
-          .connect(staker)
-          .refreshKeepStakeOwner(stakingProvider.address)
+          tx = await tokenStaking
+            .connect(getCaller())
+            .refreshKeepStakeOwner(stakingProvider.address)
+        })
+
+        it("should not update owner", async () => {
+          expect(
+            await tokenStaking.rolesOf(stakingProvider.address)
+          ).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
+        })
+
+        it("should emit OwnerRefreshed", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "OwnerRefreshed")
+            .withArgs(stakingProvider.address, staker.address, staker.address)
+        })
       })
 
-      it("should not update owner", async () => {
-        expect(
-          await tokenStaking.rolesOf(stakingProvider.address)
-        ).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
-      })
+      context("when grantee was changed", () => {
+        let tx
 
-      it("should emit OwnerRefreshed", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "OwnerRefreshed")
-          .withArgs(stakingProvider.address, staker.address, staker.address)
-      })
-    })
-
-    context("when grantee was changed", () => {
-      let tx
-
-      beforeEach(async () => {
-        const createdAt = 1
-        await keepStakingMock.setOperator(
-          stakingProvider.address,
-          otherStaker.address,
-          beneficiary.address,
-          authorizer.address,
-          createdAt,
-          0,
-          initialStakerBalance
-        )
-        await keepStakingMock.setEligibility(
-          stakingProvider.address,
-          tokenStaking.address,
-          true
-        )
-        await tokenStaking.stakeKeep(stakingProvider.address)
-
-        await keepStakingMock.setOperator(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-          createdAt,
-          0,
-          initialStakerBalance
-        )
-        tx = await tokenStaking
-          .connect(otherStaker)
-          .refreshKeepStakeOwner(stakingProvider.address)
-      })
-
-      it("should update owner", async () => {
-        expect(
-          await tokenStaking.rolesOf(stakingProvider.address)
-        ).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
-      })
-
-      it("should emit OwnerRefreshed", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "OwnerRefreshed")
-          .withArgs(
+        beforeEach(async () => {
+          const createdAt = 1
+          await keepStakingMock.setOperator(
             stakingProvider.address,
             otherStaker.address,
-            staker.address
+            beneficiary.address,
+            authorizer.address,
+            createdAt,
+            0,
+            initialStakerBalance
           )
+          await keepStakingMock.setEligibility(
+            stakingProvider.address,
+            tokenStaking.address,
+            true
+          )
+          await tokenStaking.stakeKeep(stakingProvider.address)
+
+          await keepStakingMock.setOperator(
+            stakingProvider.address,
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+            createdAt,
+            0,
+            initialStakerBalance
+          )
+          tx = await tokenStaking
+            .connect(otherStaker)
+            .refreshKeepStakeOwner(stakingProvider.address)
+        })
+
+        it("should update owner", async () => {
+          expect(
+            await tokenStaking.rolesOf(stakingProvider.address)
+          ).to.deep.equal([
+            staker.address,
+            beneficiary.address,
+            authorizer.address,
+          ])
+        })
+
+        it("should emit OwnerRefreshed", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "OwnerRefreshed")
+            .withArgs(
+              stakingProvider.address,
+              otherStaker.address,
+              staker.address
+            )
+        })
+      })
+    }
+
+    context("when caller is the old owner", () => {
+      contextRefreshKeepStakeOwner(() => {
+        return staker
+      })
+    })
+
+    context("when caller is the staking provider", () => {
+      contextRefreshKeepStakeOwner(() => {
+        return stakingProvider
       })
     })
   })
