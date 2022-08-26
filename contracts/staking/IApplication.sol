@@ -48,6 +48,9 @@ interface IApplication {
     ///         pending decrease and respond to the staking contract with
     ///         `approveAuthorizationDecrease` at its discretion. It may
     ///         happen right away but it also may happen several months later.
+    ///         If there is already a pending authorization decrease request
+    ///         for the application, and the application does not agree for
+    ///         overwriting it, the function should revert.
     function authorizationDecreaseRequested(
         address stakingProvider,
         uint96 fromAmount,
