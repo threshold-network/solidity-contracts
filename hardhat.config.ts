@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config"
 
 import "@keep-network/hardhat-helpers"
+import "@nomiclabs/hardhat-etherscan"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
