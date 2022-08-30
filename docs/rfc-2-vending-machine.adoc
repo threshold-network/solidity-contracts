@@ -115,15 +115,15 @@ The vending machine contracts are not upgradeable.
 The most recent package deployed to Görli is published to the npm Registry
 and tagged with _goerli_ (`@threshold-network/solidity-contracts@goerli`).
 
-Currently it is: `@threshold-network/solidity-contracts@1.2.0-goerli.0`.
+Currently it is: `@threshold-network/solidity-contracts@1.2.0-goerli.1`.
 
 Contracts addresses:
 
-* NU<>T Vending Machine address: `0x413ff6Bb6E12df17d99C1b12CbeD276c51EAc900`
-* KEEP<>T Vending Machine address: `0xBb9b1E617d739ec3034537A48f8cB62f80a181C5`
-* T token address: `0x0f092E3bd92751FDAe3765BCE3F6AeBe5881C499`
-* NU token address: `0x805336B10809e945302F6DdcDD07E61ecDfB2E08`
+* NU<>T Vending Machine address: `0x54Ce8dB3B05783C01Cc24471e9B0692ac971131b`
+* KEEP<>T Vending Machine address: `0x6Fa363E7864E922D6B2b0a5941DB4b51FfcEdA42`
+* T token address: `0x04821baABb8564305042CAe6b58b47Bd0370ce57`
+* NU token address: `0x6D1fd71e1752c61D45206E244B76fCF157dfA635`
 * KEEP token address: `0x22647FfAe391540d584599818CA22fdF18890753`
-* NU Staking Escrow address: `0xAD83f62aD063B5af9F9E3F2F6772108473C0F03B`
-* Keep Stake address: `0xe65E4C75df3c446F477A0f1F2909Fc2c49d5e238`
-* Token Staking address: `0x0754935436b7DC24b62Bc8a01054A108A784d0f8`
+* NU Staking Escrow address: `0x5C23eDa6306d433C0b87Cc248194D70563257132`
+* Keep Stake address: `0x349e80083C8911244E53e99793c5E648098A1f66`
+* Token Staking address: `0x69f962a0fbA5635e84eC94131f9072108E2E4F24`
