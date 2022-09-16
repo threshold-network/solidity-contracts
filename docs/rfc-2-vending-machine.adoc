@@ -88,42 +88,5 @@ The vending machine contracts are not upgradeable.
 
 == Deployments and contract addresses
 
-=== Ethereum Mainnet
-
-* NU<>T Vending Machine address: `0x1CCA7E410eE41739792eA0A24e00349Dd247680e`
-* KEEP<>T Vending Machine address: `0xE47c80e8c23f6B4A1aE41c34837a0599D5D16bb0`
-* T token address: `0xCdF7028ceAB81fA0C6971208e83fa7872994beE5`
-* NU token address: `0x4fE83213D56308330EC302a8BD641f1d0113A4Cc`
-* KEEP token address: `0x85Eee30c52B0b379b046Fb0F85F4f3Dc3009aFEC`
-* NU Staking Escrow address: `0xbbD3C0C794F40c4f993B03F65343aCC6fcfCb2e2`
-* Keep Stake address: TBD
-* Token Staking address: TBD
-
-=== Ropsten Testnet
-
-* NU<>T Vending Machine address: `0x8341bb65F18190FD089634D605E53E0C24DEebba`
-* KEEP<>T Vending Machine address: `0x88aa5b66211177b499206968a4ab5E44635D3533`
-* T token address: `0x52ee64D42eFFB3c341dd161E363Dc537A3a76fcF`
-* NU token address: `0x9E6E730fD479221E195f8396C3166557f04aCDe2`
-* KEEP token address: `0x29DDc999E81E585D500BcA2FD2A8bcA677680e72`
-* NU Staking Escrow address: `0x0f68fa233e72fdD1189BC4D0E444f11E8B9a69C7`
-* Keep Stake address: `0x9A1859D0B1908d35da441f889A1F79EC7DbB753c`
-* Token Staking address: `0x71325369eE1F0744B77FA285Eb5569906a19b0ce`
-
-=== Görli Testnet
-
-The most recent package deployed to Görli is published to the npm Registry
-and tagged with _goerli_ (`@threshold-network/solidity-contracts@goerli`).
-
-Currently it is: `@threshold-network/solidity-contracts@1.2.0-goerli.1`.
-
-Contracts addresses:
-
-* NU<>T Vending Machine address: `0x54Ce8dB3B05783C01Cc24471e9B0692ac971131b`
-* KEEP<>T Vending Machine address: `0x6Fa363E7864E922D6B2b0a5941DB4b51FfcEdA42`
-* T token address: `0x04821baABb8564305042CAe6b58b47Bd0370ce57`
-* NU token address: `0x6D1fd71e1752c61D45206E244B76fCF157dfA635`
-* KEEP token address: `0x22647FfAe391540d584599818CA22fdF18890753`
-* NU Staking Escrow address: `0x5C23eDa6306d433C0b87Cc248194D70563257132`
-* Keep Stake address: `0x349e80083C8911244E53e99793c5E648098A1f66`
-* Token Staking address: `0x69f962a0fbA5635e84eC94131f9072108E2E4F24`
+Information about latest deployments and addresses of the contracts on Mainnet
+and Testnets can be found link:https://docs.keep.network/deployments.html[here].
