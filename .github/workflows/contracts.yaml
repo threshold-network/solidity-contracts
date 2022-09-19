@@ -52,51 +52,50 @@ jobs:
               - './contracts/staking/**'
               - './test/system/**'
 
-  # TODO: Uncomment before merge to `main`
-  # contracts-build-and-test:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
+  contracts-build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: "14.x"
-  #         cache: "yarn"
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "14.x"
+          cache: "yarn"
 
-  #     - name: Install dependencies
-  #       run: yarn install
+      - name: Install dependencies
+        run: yarn install
 
-  #     - name: Build contracts
-  #       run: yarn build
+      - name: Build contracts
+        run: yarn build
 
-  #     - name: Run tests
-  #       if: github.ref != 'refs/heads/dapp-development'
-  #       run: yarn test
+      - name: Run tests
+        if: github.ref != 'refs/heads/dapp-development'
+        run: yarn test
 
-  # contracts-system-tests:
-  #   needs: contracts-detect-changes
-  #   if: |
-  #     needs.contracts-detect-changes.outputs.system-tests == 'true'
-  #       && github.ref != 'refs/heads/dapp-development'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
+  contracts-system-tests:
+    needs: contracts-detect-changes
+    if: |
+      needs.contracts-detect-changes.outputs.system-tests == 'true'
+        && github.ref != 'refs/heads/dapp-development'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: "14.x"
-  #         cache: "yarn"
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "14.x"
+          cache: "yarn"
 
-  #     - name: Install dependencies
-  #       run: yarn install
+      - name: Install dependencies
+        run: yarn install
 
-  #     - name: Build contracts
-  #       run: yarn build
+      - name: Build contracts
+        run: yarn build
 
-  #     - name: Run system tests
-  #       env:
-  #         FORKING_URL: ${{ secrets.MAINNET_ETH_HOSTNAME_HTTP }}
-  #       run: yarn test:system
+      - name: Run system tests
+        env:
+          FORKING_URL: ${{ secrets.MAINNET_ETH_HOSTNAME_HTTP }}
+        run: yarn test:system
 
   contracts-deployment-dry-run:
     runs-on: ubuntu-latest
@@ -115,8 +114,7 @@ jobs:
         run: yarn deploy
 
   contracts-deployment-testnet:
-    # TODO: Uncomment before merge to `main`
-    # needs: [contracts-build-and-test]
+    needs: [contracts-build-and-test]
     if: |
       github.event_name == 'workflow_dispatch'
         && github.ref != 'refs/heads/dapp-development'
@@ -160,8 +158,7 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        # TODO: Remove `--dry-run` before merge to `main`
-        run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }} --dry-run
+        run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }}
 
       - name: Notify CI about completion of the workflow
         uses: keep-network/ci/actions/notify-workflow-completed@v2
@@ -180,8 +177,7 @@ jobs:
   # features on the Threshold Token dApp. The job starts only if workflow gets
   # triggered by the `workflow_dispatch` event on the branch `dapp-development`.
   contracts-dapp-development-deployment-testnet:
-    # TODO: Uncomment before merge to `main`
-    # needs: [contracts-build-and-test]
+    needs: [contracts-build-and-test]
     if: |
       github.event_name == 'workflow_dispatch'
         && github.ref == 'refs/heads/dapp-development'
