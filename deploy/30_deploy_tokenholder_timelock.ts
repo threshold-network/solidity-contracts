@@ -7,7 +7,7 @@ import { DeployFunction } from "hardhat-deploy/types"
 import { ethers } from "ethers"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments } = hre
+  const { getNamedAccounts, deployments, helpers } = hre
   const { deployer } = await getNamedAccounts()
 
   const proposers = []
@@ -20,6 +20,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     args: [minDelay, proposers, executors],
     log: true,
   })
+
+  if (hre.network.tags.etherscan) {
+    await helpers.etherscan.verify(timelock)
+  }
 
   if (hre.network.tags.tenderly) {
     await hre.tenderly.verify({

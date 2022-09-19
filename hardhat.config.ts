@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config"
 
+import "@nomiclabs/hardhat-etherscan"
 import "@keep-network/hardhat-helpers"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
@@ -54,7 +55,7 @@ const config: HardhatUserConfig = {
             process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
           ]
         : undefined,
-      tags: ["tenderly"],
+      tags: ["etherscan", "tenderly"],
     },
     rinkeby: {
       url: process.env.CHAIN_API_URL || "",
@@ -81,7 +82,7 @@ const config: HardhatUserConfig = {
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
         ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
         : undefined,
-      tags: ["tenderly"],
+      tags: ["etherscan", "tenderly"],
     },
   },
   tenderly: {

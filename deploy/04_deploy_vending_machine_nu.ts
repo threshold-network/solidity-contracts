@@ -25,6 +25,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
   })
 
+  if (hre.network.tags.etherscan) {
+    await helpers.etherscan.verify(vendingMachine)
+  }
+
   if (hre.network.tags.tenderly) {
     await hre.tenderly.verify({
       name: "VendingMachineNuCypher",

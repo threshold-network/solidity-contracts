@@ -4,7 +4,7 @@ import { DeployFunction } from "hardhat-deploy/types"
 import { ethers, upgrades } from "hardhat"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments } = hre
+  const { getNamedAccounts, deployments, helpers } = hre
   const { execute, log } = deployments
   const { deployer } = await getNamedAccounts()
 
@@ -69,6 +69,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     await execute("TokenStaking", { from: deployer }, "initialize")
     log("Initialized TokenStaking.")
+
+    if (hre.network.tags.etherscan) {
+      await helpers.etherscan.verify(TokenStaking)
+    }
   }
 
   if (hre.network.tags.tenderly) {

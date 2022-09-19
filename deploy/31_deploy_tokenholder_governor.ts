@@ -2,7 +2,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments } = hre
+  const { getNamedAccounts, deployments, helpers } = hre
   const { deployer, thresholdCouncil } = await getNamedAccounts()
 
   // TODO: fail if thresholdCouncil is undefined on mainnet
@@ -22,6 +22,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     ],
     log: true,
   })
+
+  if (hre.network.tags.etherscan) {
+    await helpers.etherscan.verify(timelock)
+  }
 
   if (hre.network.tags.tenderly) {
     await hre.tenderly.verify({
