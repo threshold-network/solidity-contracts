@@ -52,7 +52,7 @@ jobs:
               - './contracts/staking/**'
               - './test/system/**'
 
-# TODO: Uncomment before merge to `main`
+  # TODO: Uncomment before merge to `main`
   # contracts-build-and-test:
   #   runs-on: ubuntu-latest
   #   steps:
@@ -115,7 +115,7 @@ jobs:
         run: yarn deploy
 
   contracts-deployment-testnet:
-  # TODO: Uncomment before merge to `main`
+    # TODO: Uncomment before merge to `main`
     # needs: [contracts-build-and-test]
     if: |
       github.event_name == 'workflow_dispatch'
@@ -180,7 +180,7 @@ jobs:
   # features on the Threshold Token dApp. The job starts only if workflow gets
   # triggered by the `workflow_dispatch` event on the branch `dapp-development`.
   contracts-dapp-development-deployment-testnet:
-  # TODO: Uncomment before merge to `main`
+    # TODO: Uncomment before merge to `main`
     # needs: [contracts-build-and-test]
     if: |
       github.event_name == 'workflow_dispatch'

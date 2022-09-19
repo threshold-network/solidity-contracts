@@ -24,7 +24,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   if (hre.network.tags.etherscan) {
-    await helpers.etherscan.verify(timelock)
+    await helpers.etherscan.verify(
+      timelock,
+      "contracts/governance/TokenholderGovernor.sol:TokenholderGovernor"
+    )
   }
 
   if (hre.network.tags.tenderly) {
