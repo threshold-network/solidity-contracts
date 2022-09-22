@@ -361,9 +361,7 @@ describe("TokenStaking", () => {
         })
 
         it("should set value of stakes", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([amount, Zero, Zero])
+          await assertStakes(stakingProvider.address, amount, Zero, Zero)
           expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
             0
           )
@@ -544,9 +542,7 @@ describe("TokenStaking", () => {
         })
 
         it("should set value of stakes", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, tAmount, Zero])
+          await assertStakes(stakingProvider.address, Zero, tAmount, Zero)
           expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
             0
           )
@@ -777,9 +773,7 @@ describe("TokenStaking", () => {
       })
 
       it("should set value of stakes", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, Zero, tAmount])
+        await assertStakes(stakingProvider.address, Zero, Zero, tAmount)
         expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
@@ -2771,9 +2765,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([expectedAmount, Zero, Zero])
+        await assertStakes(stakingProvider.address, expectedAmount, Zero, Zero)
       })
 
       it("should not update roles", async () => {
@@ -2869,9 +2861,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([amount, Zero, Zero])
+        await assertStakes(stakingProvider.address, amount, Zero, Zero)
       })
 
       it("should not update start staking timestamp", async () => {
@@ -2930,9 +2920,12 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([topUpAmount, keepInTAmount, Zero])
+        await assertStakes(
+          stakingProvider.address,
+          topUpAmount,
+          keepInTAmount,
+          Zero
+        )
       })
 
       it("should not update roles", async () => {
@@ -3016,9 +3009,12 @@ describe("TokenStaking", () => {
       })
 
       it("should update only T staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([topUpAmount, Zero, nuInTAmount])
+        await assertStakes(
+          stakingProvider.address,
+          topUpAmount,
+          Zero,
+          nuInTAmount
+        )
       })
 
       it("should not update roles", async () => {
@@ -3219,9 +3215,12 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, newKeepInTAmount, Zero])
+        await assertStakes(
+          stakingProvider.address,
+          Zero,
+          newKeepInTAmount,
+          Zero
+        )
       })
 
       it("should not update roles", async () => {
@@ -3324,9 +3323,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, keepInTAmount, Zero])
+        await assertStakes(stakingProvider.address, Zero, keepInTAmount, Zero)
       })
 
       it("should not update start staking timestamp", async () => {
@@ -3382,9 +3379,12 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([tAmount, keepInTAmount, Zero])
+        await assertStakes(
+          stakingProvider.address,
+          tAmount,
+          keepInTAmount,
+          Zero
+        )
       })
 
       it("should not update roles", async () => {
@@ -3451,9 +3451,12 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Keep staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, keepInTAmount, nuInTAmount])
+        await assertStakes(
+          stakingProvider.address,
+          Zero,
+          keepInTAmount,
+          nuInTAmount
+        )
       })
 
       it("should not update roles", async () => {
@@ -3573,9 +3576,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, Zero, newNuInTAmount])
+        await assertStakes(stakingProvider.address, Zero, Zero, newNuInTAmount)
         expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
           newNuAmount
         )
@@ -3666,9 +3667,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, Zero, nuInTAmount])
+        await assertStakes(stakingProvider.address, Zero, Zero, nuInTAmount)
         expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
           nuAmount
         )
@@ -3712,9 +3711,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([tAmount, Zero, nuInTAmount])
+        await assertStakes(stakingProvider.address, tAmount, Zero, nuInTAmount)
         expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
@@ -3792,9 +3789,12 @@ describe("TokenStaking", () => {
       })
 
       it("should update only Nu staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, keepInTAmount, nuInTAmount])
+        await assertStakes(
+          stakingProvider.address,
+          Zero,
+          keepInTAmount,
+          nuInTAmount
+        )
         expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
           nuAmount.sub(conversion.remainder)
         )
@@ -4040,9 +4040,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, Zero, Zero])
+        await assertStakes(stakingProvider.address, Zero, Zero, Zero)
       })
 
       it("should not update roles", async () => {
@@ -4278,9 +4276,7 @@ describe("TokenStaking", () => {
         })
 
         it("should set Keep staked amount to zero", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([tAmount, Zero, Zero])
+          await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
         })
 
         it("should not update roles", async () => {
@@ -4592,9 +4588,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update Nu staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([tAmount, Zero, expectedNuInTAmount])
+          await assertStakes(
+            stakingProvider.address,
+            tAmount,
+            Zero,
+            expectedNuInTAmount
+          )
           expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
             expectedNuAmount
           )
@@ -4710,9 +4709,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update Nu staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, expectedNuInTAmount])
+          await assertStakes(
+            stakingProvider.address,
+            Zero,
+            Zero,
+            expectedNuInTAmount
+          )
           expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
             expectedNuAmount
           )
@@ -4867,9 +4869,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update staked amount", async () => {
-        expect(
-          await tokenStaking.stakes(stakingProvider.address)
-        ).to.deep.equal([Zero, Zero, Zero])
+        await assertStakes(stakingProvider.address, Zero, Zero, Zero)
       })
 
       it("should not update roles", async () => {
@@ -5256,9 +5256,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, newKeepInTAmount, Zero])
+          await assertStakes(
+            stakingProvider.address,
+            Zero,
+            newKeepInTAmount,
+            Zero
+          )
         })
 
         it("should decrease available amount to authorize", async () => {
@@ -5303,9 +5306,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, newKeepInTAmount, Zero])
+          await assertStakes(
+            stakingProvider.address,
+            Zero,
+            newKeepInTAmount,
+            Zero
+          )
         })
 
         it("should not call seize in Keep contract", async () => {
@@ -5345,9 +5351,7 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, Zero])
+          await assertStakes(stakingProvider.address, Zero, Zero, Zero)
         })
 
         it("should decrease available amount to authorize", async () => {
@@ -5462,9 +5466,12 @@ describe("TokenStaking", () => {
           })
 
           it("should update staked amount", async () => {
-            expect(
-              await tokenStaking.stakes(stakingProvider.address)
-            ).to.deep.equal([Zero, expectedKeepInTAmount, Zero])
+            await assertStakes(
+              stakingProvider.address,
+              Zero,
+              expectedKeepInTAmount,
+              Zero
+            )
           })
 
           it("should decrease available amount to authorize", async () => {
@@ -5607,9 +5614,7 @@ describe("TokenStaking", () => {
           })
 
           it("should update staked amount", async () => {
-            expect(
-              await tokenStaking.stakes(stakingProvider.address)
-            ).to.deep.equal([tStake, Zero, Zero])
+            await assertStakes(stakingProvider.address, tStake, Zero, Zero)
           })
 
           it("should decrease available amount to authorize", async () => {
@@ -5745,9 +5750,7 @@ describe("TokenStaking", () => {
           })
 
           it("should update staked amount", async () => {
-            expect(
-              await tokenStaking.stakes(stakingProvider.address)
-            ).to.deep.equal([Zero, Zero, Zero])
+            await assertStakes(stakingProvider.address, Zero, Zero, Zero)
           })
 
           it("should decrease authorized amount for both applications", async () => {
@@ -5920,9 +5923,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, newNuInTAmount])
+          await assertStakes(
+            stakingProvider.address,
+            Zero,
+            Zero,
+            newNuInTAmount
+          )
         })
 
         it("should decrease available amount to authorize", async () => {
@@ -5965,9 +5971,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, newNuInTAmount])
+          await assertStakes(
+            stakingProvider.address,
+            Zero,
+            Zero,
+            newNuInTAmount
+          )
         })
 
         it("should not call seize in NuCypher contract", async () => {
@@ -6007,9 +6016,7 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, Zero])
+          await assertStakes(stakingProvider.address, Zero, Zero, Zero)
         })
 
         it("should decrease available amount to authorize", async () => {
@@ -6091,9 +6098,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, expectedNuInTAmount])
+          await assertStakes(
+            stakingProvider.address,
+            Zero,
+            Zero,
+            expectedNuInTAmount
+          )
         })
 
         it("should call seize in NuCypher contract", async () => {
@@ -6138,9 +6148,7 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, Zero])
+          await assertStakes(stakingProvider.address, Zero, Zero, Zero)
         })
 
         it("should call seize in NuCypher contract", async () => {
@@ -6934,9 +6942,12 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([expectedAmount, Zero, Zero])
+          await assertStakes(
+            stakingProvider.address,
+            expectedAmount,
+            Zero,
+            Zero
+          )
         })
 
         it("should decrease the delegatee voting power", async () => {
@@ -7073,11 +7084,7 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          expect(await tokenStaking.stakes(otherStaker.address)).to.deep.equal([
-            Zero,
-            Zero,
-            Zero,
-          ])
+          await assertStakes(otherStaker.address, Zero, Zero, Zero)
         })
 
         it("should update index of queue", async () => {
@@ -7225,9 +7232,7 @@ describe("TokenStaking", () => {
         })
 
         it("should not update staked amount", async () => {
-          expect(
-            await tokenStaking.stakes(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, Zero])
+          await assertStakes(stakingProvider.address, Zero, Zero, Zero)
         })
 
         it("should update index of queue", async () => {
@@ -7481,4 +7486,24 @@ describe("TokenStaking", () => {
       }
     )
   })
+
+  async function assertStakes(
+    address,
+    expectedTStake,
+    expectedKeepInTStake,
+    expectedNuInTStake
+  ) {
+    expect(
+      (await tokenStaking.stakes(address)).tStake,
+      "invalid tStake"
+    ).to.equal(expectedTStake)
+    expect(
+      (await tokenStaking.stakes(address)).keepInTStake,
+      "invalid keepInTStake"
+    ).to.equal(expectedKeepInTStake)
+    expect(
+      (await tokenStaking.stakes(address)).nuInTStake,
+      "invalid nuInTStake"
+    ).to.equal(expectedNuInTStake)
+  }
 })
