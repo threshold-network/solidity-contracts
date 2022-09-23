@@ -1302,9 +1302,12 @@ describe("TokenStaking", () => {
             })
 
             it("should inform application", async () => {
-              expect(
-                await application1Mock.stakingProviders(stakingProvider.address)
-              ).to.deep.equal([authorizedAmount, Zero])
+              await assertApplicationStakingProviders(
+                application1Mock,
+                stakingProvider.address,
+                authorizedAmount,
+                Zero
+              )
             })
 
             it("should emit AuthorizationIncreased", async () => {
@@ -1412,9 +1415,12 @@ describe("TokenStaking", () => {
             })
 
             it("should inform application", async () => {
-              expect(
-                await application1Mock.stakingProviders(stakingProvider.address)
-              ).to.deep.equal([amount, Zero])
+              await assertApplicationStakingProviders(
+                application1Mock,
+                stakingProvider.address,
+                amount,
+                Zero
+              )
             })
 
             it("should emit two AuthorizationIncreased", async () => {
@@ -1604,9 +1610,12 @@ describe("TokenStaking", () => {
           })
 
           it("should inform application", async () => {
-            expect(
-              await application1Mock.stakingProviders(stakingProvider.address)
-            ).to.deep.equal([authorizedAmount, Zero])
+            await assertApplicationStakingProviders(
+              application1Mock,
+              stakingProvider.address,
+              authorizedAmount,
+              Zero
+            )
           })
 
           it("should emit AuthorizationIncreased", async () => {
@@ -1689,9 +1698,12 @@ describe("TokenStaking", () => {
             })
 
             it("should inform second application", async () => {
-              expect(
-                await application2Mock.stakingProviders(stakingProvider.address)
-              ).to.deep.equal([tAmount, Zero])
+              await assertApplicationStakingProviders(
+                application2Mock,
+                stakingProvider.address,
+                tAmount,
+                Zero
+              )
             })
 
             it("should emit AuthorizationIncreased", async () => {
@@ -1864,9 +1876,12 @@ describe("TokenStaking", () => {
           })
 
           it("should send request to application", async () => {
-            expect(
-              await application1Mock.stakingProviders(stakingProvider.address)
-            ).to.deep.equal([amount, expectedToAmount])
+            await assertApplicationStakingProviders(
+              application1Mock,
+              stakingProvider.address,
+              amount,
+              expectedToAmount
+            )
           })
 
           it("should emit AuthorizationDecreaseRequested", async () => {
@@ -1920,12 +1935,18 @@ describe("TokenStaking", () => {
             })
 
             it("should send request to application", async () => {
-              expect(
-                await application1Mock.stakingProviders(stakingProvider.address)
-              ).to.deep.equal([amount, Zero])
-              expect(
-                await application2Mock.stakingProviders(stakingProvider.address)
-              ).to.deep.equal([amount, Zero])
+              await assertApplicationStakingProviders(
+                application1Mock,
+                stakingProvider.address,
+                amount,
+                Zero
+              )
+              await assertApplicationStakingProviders(
+                application2Mock,
+                stakingProvider.address,
+                amount,
+                Zero
+              )
             })
 
             it("should emit AuthorizationDecreaseRequested", async () => {
@@ -1985,9 +2006,12 @@ describe("TokenStaking", () => {
           })
 
           it("should send request to application with last amount", async () => {
-            expect(
-              await application1Mock.stakingProviders(stakingProvider.address)
-            ).to.deep.equal([amount, expectedToAmount2])
+            await assertApplicationStakingProviders(
+              application1Mock,
+              stakingProvider.address,
+              amount,
+              expectedToAmount2
+            )
           })
 
           it("should emit AuthorizationDecreaseRequested twice", async () => {
@@ -5390,9 +5414,12 @@ describe("TokenStaking", () => {
         })
 
         it("should inform application", async () => {
-          expect(
-            await application1Mock.stakingProviders(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero])
+          await assertApplicationStakingProviders(
+            application1Mock,
+            stakingProvider.address,
+            Zero,
+            Zero
+          )
         })
 
         it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
@@ -5531,12 +5558,18 @@ describe("TokenStaking", () => {
           })
 
           it("should inform only one application", async () => {
-            expect(
-              await application1Mock.stakingProviders(stakingProvider.address)
-            ).to.deep.equal([expectedAuthorizedAmount1, Zero])
-            expect(
-              await application2Mock.stakingProviders(stakingProvider.address)
-            ).to.deep.equal([expectedAuthorizedAmount2, Zero])
+            await assertApplicationStakingProviders(
+              application1Mock,
+              stakingProvider.address,
+              expectedAuthorizedAmount1,
+              Zero
+            )
+            await assertApplicationStakingProviders(
+              application2Mock,
+              stakingProvider.address,
+              expectedAuthorizedAmount2,
+              Zero
+            )
           })
 
           it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
@@ -5641,15 +5674,21 @@ describe("TokenStaking", () => {
           })
 
           it("should inform application", async () => {
-            expect(
-              await application1Mock.stakingProviders(stakingProvider.address)
-            ).to.deep.equal([tStake, Zero])
+            await assertApplicationStakingProviders(
+              application1Mock,
+              stakingProvider.address,
+              tStake,
+              Zero
+            )
             await application1Mock.approveAuthorizationDecrease(
               stakingProvider.address
             )
-            expect(
-              await application1Mock.stakingProviders(stakingProvider.address)
-            ).to.deep.equal([Zero, Zero])
+            await assertApplicationStakingProviders(
+              application1Mock,
+              stakingProvider.address,
+              Zero,
+              Zero
+            )
           })
 
           it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
@@ -5774,16 +5813,18 @@ describe("TokenStaking", () => {
           })
 
           it("should catch exceptions during application calls", async () => {
-            expect(
-              await brokenApplicationMock.stakingProviders(
-                stakingProvider.address
-              )
-            ).to.deep.equal([authorizedAmount, Zero])
-            expect(
-              await expensiveApplicationMock.stakingProviders(
-                stakingProvider.address
-              )
-            ).to.deep.equal([authorizedAmount, Zero])
+            await assertApplicationStakingProviders(
+              brokenApplicationMock,
+              stakingProvider.address,
+              authorizedAmount,
+              Zero
+            )
+            await assertApplicationStakingProviders(
+              expensiveApplicationMock,
+              stakingProvider.address,
+              authorizedAmount,
+              Zero
+            )
             await expect(
               brokenApplicationMock.approveAuthorizationDecrease(
                 stakingProvider.address
@@ -6058,9 +6099,12 @@ describe("TokenStaking", () => {
         })
 
         it("should inform application", async () => {
-          expect(
-            await application1Mock.stakingProviders(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero])
+          await assertApplicationStakingProviders(
+            application1Mock,
+            stakingProvider.address,
+            Zero,
+            Zero
+          )
         })
 
         it("should emit TokensSeized and AuthorizationInvoluntaryDecreased", async () => {
@@ -7050,18 +7094,30 @@ describe("TokenStaking", () => {
         })
 
         it("should inform all applications", async () => {
-          expect(
-            await application1Mock.stakingProviders(stakingProvider.address)
-          ).to.deep.equal([provider1Authorized1.sub(amountToSlash), Zero])
-          expect(
-            await application2Mock.stakingProviders(stakingProvider.address)
-          ).to.deep.equal([provider1Authorized2.sub(amountToSlash), Zero])
-          expect(
-            await application1Mock.stakingProviders(otherStaker.address)
-          ).to.deep.equal([provider2Authorized1, Zero])
-          expect(
-            await application2Mock.stakingProviders(otherStaker.address)
-          ).to.deep.equal([provider2Authorized2, Zero])
+          await assertApplicationStakingProviders(
+            application1Mock,
+            stakingProvider.address,
+            provider1Authorized1.sub(amountToSlash),
+            Zero
+          )
+          await assertApplicationStakingProviders(
+            application2Mock,
+            stakingProvider.address,
+            provider1Authorized2.sub(amountToSlash),
+            Zero
+          )
+          await assertApplicationStakingProviders(
+            application1Mock,
+            otherStaker.address,
+            provider2Authorized1,
+            Zero
+          )
+          await assertApplicationStakingProviders(
+            application2Mock,
+            otherStaker.address,
+            provider2Authorized2,
+            Zero
+          )
         })
 
         it("should emit TokensSeized and SlashingProcessed events", async () => {
@@ -7145,12 +7201,18 @@ describe("TokenStaking", () => {
               application2Mock.address
             )
           ).to.equal(0)
-          expect(
-            await application1Mock.stakingProviders(otherStaker.address)
-          ).to.deep.equal([Zero, Zero])
-          expect(
-            await application2Mock.stakingProviders(otherStaker.address)
-          ).to.deep.equal([Zero, Zero])
+          await assertApplicationStakingProviders(
+            application1Mock,
+            otherStaker.address,
+            Zero,
+            Zero
+          )
+          await assertApplicationStakingProviders(
+            application2Mock,
+            otherStaker.address,
+            Zero,
+            Zero
+          )
         })
 
         it("should allow to authorize more applications", async () => {
@@ -7522,5 +7584,24 @@ describe("TokenStaking", () => {
       (await nucypherStakingMock.stakers(stakerAddress)).stakingProvider,
       "invalid stakingProvider"
     ).to.equal(expectedStakingProvider)
+  }
+
+  async function assertApplicationStakingProviders(
+    applicationMock,
+    stakingProviderAddress,
+    expectedAuthorized,
+    expectedDeauthorizingTo
+  ) {
+    expect(
+      (await applicationMock.stakingProviders(stakingProviderAddress))
+        .authorized,
+      "invalid authorized"
+    ).to.equal(expectedAuthorized)
+
+    expect(
+      (await applicationMock.stakingProviders(stakingProviderAddress))
+        .deauthorizingTo,
+      "invalid deauthorizingTo"
+    ).to.equal(expectedDeauthorizingTo)
   }
 })
