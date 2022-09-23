@@ -6523,14 +6523,8 @@ describe("TokenStaking", () => {
       })
 
       it("should add two slashing events", async () => {
-        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
-          stakingProvider.address,
-          amount,
-        ])
-        expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
-          otherStaker.address,
-          amountToSlash,
-        ])
+        await assertSlashingQueue(0, stakingProvider.address, amount)
+        await assertSlashingQueue(1, otherStaker.address, amountToSlash)
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
     })
@@ -6587,14 +6581,8 @@ describe("TokenStaking", () => {
       })
 
       it("should add two slashing events", async () => {
-        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
-          stakingProvider.address,
-          amountToSlash,
-        ])
-        expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
-          otherStaker.address,
-          amountToSlash,
-        ])
+        await assertSlashingQueue(0, stakingProvider.address, amountToSlash)
+        await assertSlashingQueue(1, otherStaker.address, amountToSlash)
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
 
@@ -6668,14 +6656,8 @@ describe("TokenStaking", () => {
       })
 
       it("should add two slashing events", async () => {
-        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
-          otherStaker.address,
-          amountToSlash,
-        ])
-        expect(await tokenStaking.slashingQueue(1)).to.deep.equal([
-          stakingProvider.address,
-          amountToSlash,
-        ])
+        await assertSlashingQueue(0, otherStaker.address, amountToSlash)
+        await assertSlashingQueue(1, stakingProvider.address, amountToSlash)
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(2)
       })
 
@@ -6707,10 +6689,7 @@ describe("TokenStaking", () => {
       })
 
       it("should add one slashing event", async () => {
-        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
-          stakingProvider.address,
-          amountToSlash,
-        ])
+        await assertSlashingQueue(0, stakingProvider.address, amountToSlash)
         expect(await tokenStaking.getSlashingQueueLength()).to.equal(1)
       })
 
@@ -6749,10 +6728,7 @@ describe("TokenStaking", () => {
       })
 
       it("should add one slashing event", async () => {
-        expect(await tokenStaking.slashingQueue(0)).to.deep.equal([
-          otherStaker.address,
-          amountToSlash,
-        ])
+        await assertSlashingQueue(0, otherStaker.address, amountToSlash)
       })
 
       it("should keep index of queue unchanged", async () => {
@@ -7645,5 +7621,20 @@ describe("TokenStaking", () => {
         .undelegatedAt,
       "invalid undelegatedAt"
     ).to.equal(expectedUndelegatedAt)
+  }
+
+  async function assertSlashingQueue(
+    index,
+    expectedStakingProviderAddress,
+    expectedAmount
+  ) {
+    expect(
+      (await tokenStaking.slashingQueue(index)).stakingProvider,
+      "invalid stakingProvider"
+    ).to.equal(expectedStakingProviderAddress)
+    expect(
+      (await tokenStaking.slashingQueue(index)).amount,
+      "invalid amount"
+    ).to.equal(expectedAmount)
   }
 })
