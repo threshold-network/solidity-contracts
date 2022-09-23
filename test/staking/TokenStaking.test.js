@@ -5294,9 +5294,13 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in Keep contract", async () => {
-          expect(
-            await keepStakingMock.getDelegationInfo(stakingProvider.address)
-          ).to.deep.equal([newKeepAmount, createdAt, Zero])
+          await assertDelegationInfo(
+            stakingProvider.address,
+            newKeepAmount,
+            createdAt,
+            Zero
+          )
+
           expect(
             await keepStakingMock.tattletales(otherStaker.address)
           ).to.equal(0)
@@ -5335,9 +5339,12 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in Keep contract", async () => {
-          expect(
-            await keepStakingMock.getDelegationInfo(stakingProvider.address)
-          ).to.deep.equal([newKeepAmount, createdAt, Zero])
+          await assertDelegationInfo(
+            stakingProvider.address,
+            newKeepAmount,
+            createdAt,
+            Zero
+          )
           expect(
             await keepStakingMock.tattletales(otherStaker.address)
           ).to.equal(0)
@@ -5405,9 +5412,12 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in Keep contract", async () => {
-          expect(
-            await keepStakingMock.getDelegationInfo(stakingProvider.address)
-          ).to.deep.equal([Zero, createdAt, Zero])
+          await assertDelegationInfo(
+            stakingProvider.address,
+            Zero,
+            createdAt,
+            Zero
+          )
           expect(
             await keepStakingMock.tattletales(otherStaker.address)
           ).to.equal(0)
@@ -5549,9 +5559,12 @@ describe("TokenStaking", () => {
           })
 
           it("should call seize in Keep contract", async () => {
-            expect(
-              await keepStakingMock.getDelegationInfo(stakingProvider.address)
-            ).to.deep.equal([expectedKeepAmount, createdAt, Zero])
+            await assertDelegationInfo(
+              stakingProvider.address,
+              expectedKeepAmount,
+              createdAt,
+              Zero
+            )
             expect(
               await keepStakingMock.tattletales(otherStaker.address)
             ).to.equal(expectedReward)
@@ -5665,9 +5678,12 @@ describe("TokenStaking", () => {
           })
 
           it("should call seize in Keep contract", async () => {
-            expect(
-              await keepStakingMock.getDelegationInfo(stakingProvider.address)
-            ).to.deep.equal([expectedKeepAmount, createdAt, Zero])
+            await assertDelegationInfo(
+              stakingProvider.address,
+              expectedKeepAmount,
+              createdAt,
+              Zero
+            )
             expect(
               await keepStakingMock.tattletales(otherStaker.address)
             ).to.equal(expectedReward)
@@ -5804,9 +5820,12 @@ describe("TokenStaking", () => {
           })
 
           it("should call seize in Keep contract", async () => {
-            expect(
-              await keepStakingMock.getDelegationInfo(stakingProvider.address)
-            ).to.deep.equal([expectedKeepAmount, createdAt, undelegatedAt])
+            await assertDelegationInfo(
+              stakingProvider.address,
+              expectedKeepAmount,
+              createdAt,
+              Zero
+            )
             expect(
               await keepStakingMock.tattletales(otherStaker.address)
             ).to.equal(expectedReward)
@@ -7026,12 +7045,13 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in Keep contract", async () => {
-          expect(
-            await keepStakingMock.getDelegationInfo(stakingProvider.address)
-          ).to.deep.equal([Zero, Zero, Zero])
-          expect(
-            await keepStakingMock.getDelegationInfo(otherStaker.address)
-          ).to.deep.equal([keepAmount, createdAt, Zero])
+          await assertDelegationInfo(stakingProvider.address, Zero, Zero, Zero)
+          await assertDelegationInfo(
+            otherStaker.address,
+            keepAmount,
+            createdAt,
+            Zero
+          )
           expect(
             await keepStakingMock.tattletales(auxiliaryAccount.address)
           ).to.equal(0)
@@ -7172,9 +7192,7 @@ describe("TokenStaking", () => {
 
         it("should call seize in Keep contract", async () => {
           const expectedKeepReward = rewardFromPenalty(keepAmount.div(2), 100)
-          expect(
-            await keepStakingMock.getDelegationInfo(otherStaker.address)
-          ).to.deep.equal([Zero, createdAt, Zero])
+          await assertDelegationInfo(otherStaker.address, Zero, createdAt, Zero)
           expect(
             await keepStakingMock.tattletales(auxiliaryAccount.address)
           ).to.equal(expectedKeepReward)
@@ -7603,5 +7621,29 @@ describe("TokenStaking", () => {
         .deauthorizingTo,
       "invalid deauthorizingTo"
     ).to.equal(expectedDeauthorizingTo)
+  }
+
+  async function assertDelegationInfo(
+    stakingProviderAddress,
+    expectedAmount,
+    expectedCreatedAt,
+    expectedUndelegatedAt
+  ) {
+    expect(
+      (await keepStakingMock.getDelegationInfo(stakingProviderAddress)).amount,
+      "invalid amount"
+    ).to.equal(expectedAmount)
+
+    expect(
+      (await keepStakingMock.getDelegationInfo(stakingProviderAddress))
+        .createdAt,
+      "invalid createdAt"
+    ).to.equal(expectedCreatedAt)
+
+    expect(
+      (await keepStakingMock.getDelegationInfo(stakingProviderAddress))
+        .undelegatedAt,
+      "invalid undelegatedAt"
+    ).to.equal(expectedUndelegatedAt)
   }
 })
