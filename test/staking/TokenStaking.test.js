@@ -5824,7 +5824,7 @@ describe("TokenStaking", () => {
               stakingProvider.address,
               expectedKeepAmount,
               createdAt,
-              Zero
+              undelegatedAt
             )
             expect(
               await keepStakingMock.tattletales(otherStaker.address)
