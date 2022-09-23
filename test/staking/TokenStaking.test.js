@@ -786,9 +786,7 @@ describe("TokenStaking", () => {
       })
 
       it("should do callback to NuCypher staking contract", async () => {
-        expect(await nucypherStakingMock.stakers(staker.address)).to.deep.equal(
-          [nuAmount, stakingProvider.address]
-        )
+        await assertNuStakers(staker.address, nuAmount, stakingProvider.address)
       })
 
       it("should increase available amount to authorize", async () => {
@@ -3742,9 +3740,7 @@ describe("TokenStaking", () => {
       })
 
       it("should do callback to NuCypher staking contract", async () => {
-        expect(await nucypherStakingMock.stakers(staker.address)).to.deep.equal(
-          [nuAmount, stakingProvider.address]
-        )
+        await assertNuStakers(staker.address, nuAmount, stakingProvider.address)
       })
 
       it("should emit ToppedUp event", async () => {
@@ -5941,9 +5937,12 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in NuCypher contract", async () => {
-          expect(
-            await nucypherStakingMock.stakers(staker.address)
-          ).to.deep.equal([newNuAmount, stakingProvider.address])
+          await assertNuStakers(
+            staker.address,
+            newNuAmount,
+            stakingProvider.address
+          )
+
           expect(
             await nucypherStakingMock.investigators(otherStaker.address)
           ).to.equal(0)
@@ -5980,9 +5979,11 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in NuCypher contract", async () => {
-          expect(
-            await nucypherStakingMock.stakers(staker.address)
-          ).to.deep.equal([newNuAmount, stakingProvider.address])
+          await assertNuStakers(
+            staker.address,
+            newNuAmount,
+            stakingProvider.address
+          )
           expect(
             await nucypherStakingMock.investigators(otherStaker.address)
           ).to.equal(0)
@@ -6050,9 +6051,7 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in NuCypher contract", async () => {
-          expect(
-            await nucypherStakingMock.stakers(staker.address)
-          ).to.deep.equal([Zero, stakingProvider.address])
+          await assertNuStakers(staker.address, Zero, stakingProvider.address)
           expect(
             await nucypherStakingMock.investigators(otherStaker.address)
           ).to.equal(0)
@@ -6107,9 +6106,11 @@ describe("TokenStaking", () => {
         })
 
         it("should call seize in NuCypher contract", async () => {
-          expect(
-            await nucypherStakingMock.stakers(staker.address)
-          ).to.deep.equal([expectedNuAmount, stakingProvider.address])
+          await assertNuStakers(
+            staker.address,
+            expectedNuAmount,
+            stakingProvider.address
+          )
           expect(
             await nucypherStakingMock.investigators(otherStaker.address)
           ).to.equal(expectedReward)
@@ -6152,9 +6153,11 @@ describe("TokenStaking", () => {
         })
 
         it("should call seize in NuCypher contract", async () => {
-          expect(
-            await nucypherStakingMock.stakers(staker.address)
-          ).to.deep.equal([expectedNuAmount, stakingProvider.address])
+          await assertNuStakers(
+            staker.address,
+            expectedNuAmount,
+            stakingProvider.address
+          )
           expect(
             await nucypherStakingMock.investigators(otherStaker.address)
           ).to.equal(expectedReward)
@@ -6991,12 +6994,12 @@ describe("TokenStaking", () => {
         })
 
         it("should not call seize in NuCypher contract", async () => {
-          expect(
-            await nucypherStakingMock.stakers(staker.address)
-          ).to.deep.equal([Zero, AddressZero])
-          expect(
-            await nucypherStakingMock.stakers(otherStaker.address)
-          ).to.deep.equal([nuAmount, otherStaker.address])
+          await assertNuStakers(staker.address, Zero, AddressZero)
+          await assertNuStakers(
+            otherStaker.address,
+            nuAmount,
+            otherStaker.address
+          )
           expect(
             await nucypherStakingMock.investigators(auxiliaryAccount.address)
           ).to.equal(0)
@@ -7123,9 +7126,7 @@ describe("TokenStaking", () => {
 
         it("should call seize in NuCypher contract", async () => {
           const expectedNuReward = rewardFromPenalty(nuAmount, 100)
-          expect(
-            await nucypherStakingMock.stakers(otherStaker.address)
-          ).to.deep.equal([Zero, otherStaker.address])
+          await assertNuStakers(otherStaker.address, Zero, otherStaker.address)
           expect(
             await nucypherStakingMock.investigators(auxiliaryAccount.address)
           ).to.equal(expectedNuReward)
@@ -7505,5 +7506,21 @@ describe("TokenStaking", () => {
       (await tokenStaking.stakes(address)).nuInTStake,
       "invalid nuInTStake"
     ).to.equal(expectedNuInTStake)
+  }
+
+  async function assertNuStakers(
+    stakerAddress,
+    expectedValue,
+    expectedStakingProvider
+  ) {
+    expect(
+      (await nucypherStakingMock.stakers(stakerAddress)).value,
+      "invalid value"
+    ).to.equal(expectedValue)
+
+    expect(
+      (await nucypherStakingMock.stakers(stakerAddress)).stakingProvider,
+      "invalid stakingProvider"
+    ).to.equal(expectedStakingProvider)
   }
 })
