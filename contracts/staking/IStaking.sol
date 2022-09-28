@@ -13,7 +13,7 @@
 //               ▐████▌    ▐████▌
 //               ▐████▌    ▐████▌
 
-pragma solidity 0.8.9;
+pragma solidity ^0.8.9;
 
 /// @title Interface of Threshold Network staking contract
 /// @notice The staking contract enables T owners to have their wallets offline
