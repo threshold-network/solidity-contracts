@@ -70,10 +70,8 @@ const config: HardhatUserConfig = {
     username: "thesis",
     project: "thesis/threshold-network",
   },
-  verify: {
-    etherscan: {
-      apiKey: process.env.ETHERSCAN_API_KEY,
-    },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   external: {
     contracts: [
