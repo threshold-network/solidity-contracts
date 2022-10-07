@@ -71,6 +71,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log("Initialized TokenStaking.")
 
     if (hre.network.tags.etherscan) {
+      await hre.ethers.provider.waitForTransaction(
+        TokenStaking.transactionHash,
+        5,
+        300000
+      )
       await helpers.etherscan.verify(TokenStaking)
     }
   }

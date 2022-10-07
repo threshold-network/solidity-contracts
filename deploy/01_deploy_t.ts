@@ -11,6 +11,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   if (hre.network.tags.etherscan) {
+    await hre.ethers.provider.waitForTransaction(
+      T.transactionHash,
+      5,
+      300000
+    )
     await helpers.etherscan.verify(T)
   }
 
