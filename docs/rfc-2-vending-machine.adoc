@@ -89,4 +89,5 @@ The vending machine contracts are not upgradeable.
 == Deployments and contract addresses
 
 Information about latest deployments and addresses of the contracts on Mainnet
-and Testnets can be found link:https://docs.keep.network/deployments.html[here].
+and Testnet can be found
+link:https://docs.threshold.network/extras/contract-addresses/goerli-testnet[here].
