@@ -13,7 +13,7 @@
 //               ▐████▌    ▐████▌
 //               ▐████▌    ▐████▌
 
-pragma solidity 0.8.9;
+pragma solidity ^0.8.9;
 
 /// @title  Application interface for Threshold Network applications
 /// @notice Generic interface for an application. Application is an external
