@@ -2,6 +2,10 @@
 
 = Threshold network contracts
 
+https://github.com/threshold-network/solidity-contracts/actions/workflows/contracts.yaml[image:https://img.shields.io/github/workflow/status/threshold-network/solidity-contracts/Solidity/main?event=push&label=Threshold%20contracts%20build[Threshold contracts build status]]
+https://docs.threshold.network[image:https://img.shields.io/badge/docs-website-green.svg[Docs]]
+https://discord.gg/threshold[image:https://img.shields.io/badge/chat-Discord-5865f2.svg[Chat with us on Discord]]
+
 This package contains Threshold network contracts.
 
 toc::[]
