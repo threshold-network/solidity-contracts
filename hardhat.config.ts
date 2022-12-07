@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config"
 
+import "@nomiclabs/hardhat-etherscan"
 import "@keep-network/hardhat-helpers"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
@@ -54,26 +55,7 @@ const config: HardhatUserConfig = {
             process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
           ]
         : undefined,
-      tags: ["tenderly"],
-    },
-    rinkeby: {
-      url: process.env.CHAIN_API_URL || "",
-      chainId: 4,
-      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
-        : undefined,
-      tags: ["tenderly"],
-    },
-    ropsten: {
-      url: process.env.CHAIN_API_URL || "",
-      chainId: 3,
-      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [
-            process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-          ]
-        : undefined,
-      tags: ["tenderly"],
+      tags: ["etherscan", "tenderly"],
     },
     mainnet: {
       url: process.env.CHAIN_API_URL || "",
@@ -81,17 +63,15 @@ const config: HardhatUserConfig = {
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
         ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
         : undefined,
-      tags: ["tenderly"],
+      tags: ["etherscan", "tenderly"],
     },
   },
   tenderly: {
     username: "thesis",
     project: "thesis/threshold-network",
   },
-  verify: {
-    etherscan: {
-      apiKey: process.env.ETHERSCAN_API_KEY,
-    },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   external: {
     contracts: [
@@ -112,7 +92,6 @@ const config: HardhatUserConfig = {
       // with `yarn link` command, uncomment the line below to use the linked
       // dependencies.
       // development: ["external/npm/@keep-network/keep-core/artifacts"],
-      ropsten: ["external/npm/@keep-network/keep-core/artifacts"],
       goerli: ["external/npm/@keep-network/keep-core/artifacts"],
       mainnet: ["./external/mainnet"],
     },
@@ -128,7 +107,6 @@ const config: HardhatUserConfig = {
     },
     keepRegistryKeeper: {
       default: 1, // same as the deployer
-      ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
       goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
     },
   },

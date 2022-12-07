@@ -29,6 +29,15 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
   })
 
+  if (hre.network.tags.etherscan) {
+    await hre.ethers.provider.waitForTransaction(
+      vendingMachine.transactionHash,
+      5,
+      300000
+    )
+    await helpers.etherscan.verify(vendingMachine)
+  }
+
   if (hre.network.tags.tenderly) {
     await hre.tenderly.verify({
       name: "VendingMachineKeep",
