@@ -13,7 +13,7 @@
 //               ▐████▌    ▐████▌
 //               ▐████▌    ▐████▌
 
-pragma solidity 0.8.9;
+pragma solidity ^0.8.9;
 
 /// @title Interface of Threshold Network staking contract
 /// @notice The staking contract enables T owners to have their wallets offline
@@ -70,7 +70,8 @@ interface IStaking {
         address authorizer
     ) external;
 
-    /// @notice Refresh Keep stake owner. Can be called only by the old owner.
+    /// @notice Refresh Keep stake owner. Can be called only by the old owner
+    ///         or their staking provider.
     /// @dev The staking provider in T staking contract is the legacy KEEP
     ///      staking contract operator.
     function refreshKeepStakeOwner(address stakingProvider) external;
@@ -109,7 +110,9 @@ interface IStaking {
     ///         it happens depends on the application. Can only be called by the
     ///         given staking provider’s authorizer. Overwrites pending
     ///         authorization decrease for the given staking provider and
-    ///         application.
+    ///         application if the application agrees for that. If the
+    ///         application does not agree for overwriting, the function
+    ///         reverts.
     /// @dev Calls `authorizationDecreaseRequested(address stakingProvider, uint256 amount)`
     ///      on the given application. See `IApplication`.
     function requestAuthorizationDecrease(
@@ -180,7 +183,6 @@ interface IStaking {
     //
 
     /// @notice Increases the amount of the stake for the given staking provider.
-    ///         Can be called only by the owner or the staking provider.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
     function topUp(address stakingProvider, uint96 amount) external;
