@@ -49,3 +49,13 @@ yarn deploy --network <network>
 If contracts haven't been built yet or changes occurred, this task will build
 the contracts before running the deployment script. This command produces
 an `export.json` file containing contract deployment info.
+
+
+=== Generate contract documentation
+
+To generate documentation for the solidity contracts please run:
+```
+yarn docgen
+```
+
+This produces documentation files in `docs/contracts` for each contract.
