@@ -139,8 +139,9 @@ const config: HardhatUserConfig = {
   docgen: {
     sourcesDir: "contracts",
     outputDir: "docs/contracts",
-    theme: "markdown",
     exclude: ["test"],
+    theme: "markdown",
+    templates: "docs/theme",
     pages: "items",
     pageExtensions: ".md"
   }

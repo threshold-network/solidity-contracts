@@ -8,12 +8,6 @@
 bytes32 VETO_POWER
 ```
 
-### manager
-
-```solidity
-address manager
-```
-
 ### constructor
 
 ```solidity
@@ -61,30 +55,4 @@ function state(uint256 proposalId) public view returns (enum IGovernor.ProposalS
 ```solidity
 function supportsInterface(bytes4 interfaceId) public view returns (bool)
 ```
-
-### _execute
-
-```solidity
-function _execute(uint256 proposalId, address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) internal
-```
-
-### _cancel
-
-```solidity
-function _cancel(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) internal returns (uint256)
-```
-
-### _executor
-
-```solidity
-function _executor() internal view returns (address)
-```
-
-Returns the address of the entity that acts as governance for
-        this contract.
-
-_By default, Governor assumes this is either the Governor contract
-     itself, or a timelock if there's one configured. We override this
-     here for the StakerGovernor contract so it's the Tokenholder DAO's
-     Timelock, which we obtain at constructor time._
 

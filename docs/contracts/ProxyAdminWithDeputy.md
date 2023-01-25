@@ -60,15 +60,3 @@ Upgrades `proxy` to `implementation` and calls a function on the
         new implementation. This contract must be the admin of `proxy`,
         and the caller must be this contract's owner or the deputy.
 
-### _setDeputy
-
-```solidity
-function _setDeputy(address newDeputy) internal
-```
-
-### _checkCallerIsOwnerOrDeputy
-
-```solidity
-function _checkCallerIsOwnerOrDeputy() internal view
-```
-

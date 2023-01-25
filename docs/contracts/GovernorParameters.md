@@ -15,12 +15,6 @@ _Based on `GovernorVotesQuorumFraction`, but without being opinionated
 uint256 FRACTION_DENOMINATOR
 ```
 
-### AVERAGE_BLOCK_TIME_IN_SECONDS
-
-```solidity
-uint64 AVERAGE_BLOCK_TIME_IN_SECONDS
-```
-
 ### quorumNumerator
 
 ```solidity
@@ -55,12 +49,6 @@ event VotingDelaySet(uint256 oldVotingDelay, uint256 newVotingDelay)
 
 ```solidity
 event VotingPeriodSet(uint256 oldVotingPeriod, uint256 newVotingPeriod)
-```
-
-### constructor
-
-```solidity
-constructor(uint256 quorumNumeratorValue, uint256 proposalNumeratorValue, uint256 initialVotingDelay, uint256 initialVotingPeriod) internal
 ```
 
 ### updateQuorumNumerator
@@ -157,42 +145,4 @@ _Delay, in number of blocks, between the vote start and vote ends.
 
 NOTE: The {votingDelay} can delay the start of the vote. This must be considered when setting the voting
 duration compared to the voting delay._
-
-### _updateQuorumNumerator
-
-```solidity
-function _updateQuorumNumerator(uint256 newQuorumNumerator) internal virtual
-```
-
-### _updateProposalThresholdNumerator
-
-```solidity
-function _updateProposalThresholdNumerator(uint256 proposalNumerator) internal virtual
-```
-
-### _setVotingDelay
-
-```solidity
-function _setVotingDelay(uint256 newVotingDelay) internal virtual
-```
-
-### _setVotingPeriod
-
-```solidity
-function _setVotingPeriod(uint256 newVotingPeriod) internal virtual
-```
-
-### _getPastTotalSupply
-
-```solidity
-function _getPastTotalSupply(uint256 blockNumber) internal view virtual returns (uint256)
-```
-
-Compute the past total voting power at a particular block
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| blockNumber | uint256 | The block number to get the vote power at |
 

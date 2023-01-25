@@ -10,12 +10,6 @@ Staker DAO voting power extraction from staked T positions,
 contract IVotesHistory staking
 ```
 
-### constructor
-
-```solidity
-constructor(contract IVotesHistory tStakingAddress) internal
-```
-
 ### getVotes
 
 ```solidity
@@ -34,18 +28,4 @@ _See {IGovernor-getVotes}_
 | ---- | ---- | ----------- |
 | account | address | Delegate account with T staking voting power |
 | blockNumber | uint256 | The block number to get the vote balance at |
-
-### _getPastTotalSupply
-
-```solidity
-function _getPastTotalSupply(uint256 blockNumber) internal view virtual returns (uint256)
-```
-
-Compute the total voting power for the Staker DAO.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| blockNumber | uint256 | The block number to get the voting power at |
 

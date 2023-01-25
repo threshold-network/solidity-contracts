@@ -13,15 +13,3 @@ A wrapper around OpenZeppelin's `SafeERC20Upgradeable` but specific
 _This implementation force-casts T to `IERC20Upgradeable` to make it
      work with `SafeERC20Upgradeable`._
 
-### safeTransfer
-
-```solidity
-function safeTransfer(contract T token, address to, uint256 value) internal
-```
-
-### safeTransferFrom
-
-```solidity
-function safeTransferFrom(contract T token, address from, address to, uint256 value) internal
-```
-

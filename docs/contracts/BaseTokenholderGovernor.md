@@ -56,33 +56,9 @@ function state(uint256 proposalId) public view returns (enum IGovernor.ProposalS
 function supportsInterface(bytes4 interfaceId) public view returns (bool)
 ```
 
-### _execute
-
-```solidity
-function _execute(uint256 proposalId, address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) internal
-```
-
-### _cancel
-
-```solidity
-function _cancel(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) internal returns (uint256)
-```
-
-### _executor
-
-```solidity
-function _executor() internal view returns (address)
-```
-
 ### proposalDeadline
 
 ```solidity
 function proposalDeadline(uint256 proposalId) public view virtual returns (uint256)
-```
-
-### _castVote
-
-```solidity
-function _castVote(uint256 proposalId, address account, uint8 support, string reason) internal virtual returns (uint256)
 ```
 

@@ -17,12 +17,6 @@ contract IVotesHistory token
 contract IVotesHistory staking
 ```
 
-### constructor
-
-```solidity
-constructor(contract IVotesHistory tokenAddress, contract IVotesHistory tStakingAddress) internal
-```
-
 ### getVotes
 
 ```solidity
@@ -47,24 +41,4 @@ _See {IGovernor-getVotes}_
 | ---- | ---- | ----------- |
 | account | address | Tokenholder account in the T network |
 | blockNumber | uint256 | The block number to get the vote balance at |
-
-### _getPastTotalSupply
-
-```solidity
-function _getPastTotalSupply(uint256 blockNumber) internal view virtual returns (uint256)
-```
-
-Compute the total voting power for Tokenholder DAO. Note how it
-        only uses the token total supply as source, as native T tokens
-        that are staked continue existing, but as deposits in the
-        staking contract. However, legacy stakes can't contribute to the
-        total voting power as they're already implicitly counted as part
-        of Vending Machines' liquid balance; hence, we only need to read
-        total voting power from the token.
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| blockNumber | uint256 | The block number to get the vote power at |
 

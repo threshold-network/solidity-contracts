@@ -187,15 +187,3 @@ function conversionFromT(uint256 amount) public view returns (uint256 wrappedAmo
 The amount of wrapped tokens (KEEP/NU) that's obtained from
         `amount` T tokens, and the remainder that can't be downgraded.
 
-### _wrap
-
-```solidity
-function _wrap(address tokenHolder, uint256 wrappedTokenAmount) internal
-```
-
-### _unwrap
-
-```solidity
-function _unwrap(address tokenHolder, uint256 tTokenAmount) internal
-```
-

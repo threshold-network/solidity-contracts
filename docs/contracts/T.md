@@ -57,27 +57,3 @@ Delegate votes from `msg.sender` to `delegatee`.
 | ---- | ---- | ----------- |
 | delegatee | address | The address to delegate votes to |
 
-### beforeTokenTransfer
-
-```solidity
-function beforeTokenTransfer(address from, address to, uint256 amount) internal
-```
-
-_Hook that is called before any transfer of tokens. This includes
-     minting and burning.
-
-Calling conditions:
-- when `from` and `to` are both non-zero, `amount` of `from`'s tokens
-  will be to transferred to `to`.
-- when `from` is zero, `amount` tokens will be minted for `to`.
-- when `to` is zero, `amount` of ``from``'s tokens will be burned.
-- `from` and `to` are never both zero._
-
-### delegate
-
-```solidity
-function delegate(address delegator, address delegatee) internal virtual
-```
-
-Change delegation for `delegator` to `delegatee`.
-

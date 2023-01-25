@@ -88,15 +88,3 @@ function resolveOwner(address operator) external view returns (address)
 Resolves KEEP stake owner for the provided operator address.
         Reverts if could not resolve the owner.
 
-### resolveSnapshottedManagedGrantees
-
-```solidity
-function resolveSnapshottedManagedGrantees(address operator) internal view returns (address)
-```
-
-### resolveSnapshottedGrantees
-
-```solidity
-function resolveSnapshottedGrantees(address operator) internal pure returns (address)
-```
-
