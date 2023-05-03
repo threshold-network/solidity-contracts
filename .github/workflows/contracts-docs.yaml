@@ -49,8 +49,8 @@ jobs:
   # `refs/tags/v`. It will generate contracts documentation in
   # Markdown and sync it with a specific path of
   # `threshold-network/threshold` repository. If changes will be detected,
-  # the destination repository will be updated. The commit pushing the
-  # changes will be verified using GPG key.
+  # a PR updating the docs will be created in the destination repository. The
+  # commit pushing the changes will be verified using GPG key.
   contracts-docs-publish:
     name: Publish contracts documentation
     needs: docs-detect-changes
@@ -61,7 +61,7 @@ jobs:
       verifyCommits: true
       destinationRepo: threshold-network/threshold
       destinationFolder: ./docs/app-development/staking-contract-and-dao/staking-contract-and-dao-api
-      destinationBranch: main
+      destinationBaseBranch: main
       userEmail: valkyrie@thesis.co
       userName: Valkyrie
     secrets:
