@@ -2,9 +2,9 @@
 
 ## Bug Bounty Program
 
-Since April 28th, 2022 Threshold Network has a [Bug Bounty program with Immunefi](https://immunefi.com/bounty/thresholdnetwork/) as approved by Threshold DAO in [TIP-041](https://forum.threshold.network/t/tip-041-establish-a-bug-bounty-program/453) proposal. 
+Threshold Network has a [Bug Bounty program with Immunefi](https://immunefi.com/bounty/thresholdnetwork/).
 
-The details for the Bug Bounty are constantly maintained and updated at the [Immunefi dedicated space to Threshold](https://immunefi.com/bounty/thresholdnetwork/). There you can explore the assets in scope of the Bounty and the different rewards by threat level. As a guide, the initial bounty program launched with the following rewards according to the severity of the threats found:
+The details for the Bug Bounty are maintained and updated at the [Immunefi dedicated space to Threshold](https://immunefi.com/bounty/thresholdnetwork/). There you can explore the assets in scope of the Bounty and the different rewards by threat level. As a guide, the initial bounty program launched with the following rewards according to the severity of the threats found:
 
 Smart Contracts
 - Critical Level: USD $100,000 to USD $500,000
@@ -24,7 +24,7 @@ General:
 - Attacks that the reporter has already exploited themselves, leading to damage
 - Attacks requiring access to leaked keys/credentials
 - Attacks requiring access to privileged addresses (governance, strategist), except in such cases where the contracts are intended to have no privileged access to functions that make the attack possible
-- Broken link hijacking is out of scope
+- Broken link hijacking
 
 Smart Contracts and Blockchain/DLT: 
 - Basic economic governance attacks (e.g. 51% attack)
@@ -64,9 +64,9 @@ Sometimes vulnerabilities are more sensitive in nature and require extra precaut
 
 A great place to begin your research is by working on our testnet. Please see our [documentation](https://docs.threshold.network) to get started. We ask that you please respect network machines and their owners. If you find a vulnerability that you suspect has given you access to a machine against the owner's permission, stop what you're doing and immediately email `security@threshold.network`.
 
-The Threshold team will make a best effort to respond to a new report **within 48 hours**. This response may be a simple acknowledgement that the report was received, or may be an initial assessment from the team. Unless the report is assessed as irrelevant or incorrect, this response will include expected next steps and communication time frames from the Threshold team.
+Threshold DAO will make a best effort to respond to a new report **within 48 hours**. This response may be a simple acknowledgement that the report was received, or may be an initial assessment from the team. Unless the report is assessed as irrelevant or incorrect, this response will include expected next steps and communication time frames.
 
-The Threshold team will try to make an initial assessment of a bug's relevance, severity, and exploitability, and communicate this back to the reporter. The Threshold DAO will compensate important findings on a case-by-case basis. We value security researchers and we encourage you to contact us to discuss your findings.
+Threshold DAO will try to make an initial assessment of a bug's relevance, severity, and exploitability, and communicate this back to the reporter. The Threshold DAO will compensate important findings on a case-by-case basis. We value security researchers and we encourage you to contact us to discuss your findings.
 
 We also ask all researchers to please submit their reports in English.
 
