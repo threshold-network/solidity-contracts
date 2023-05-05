@@ -17,7 +17,8 @@ Websites and Applications
 - High Level: USD $1,000 to USD $10,000
 - Medium Level: USD $1,000
 
-**Out of Scope Impacts**
+### Out of Scope Impacts
+
 Please note that the following impacts and attack vectors are excluded from rewards for the Immunefi bug bounty program:
 
 General: 
