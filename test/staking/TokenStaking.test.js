@@ -1526,7 +1526,7 @@ describe("TokenStaking", () => {
 
           await nucypherStakingMock.setStaker(staker.address, nuStake)
           await tokenStaking
-            .connect(stakingProvider)
+            .connect(staker)
             .topUpNu(stakingProvider.address)
 
           await tToken.connect(staker).approve(tokenStaking.address, tStake)
@@ -3514,12 +3514,12 @@ describe("TokenStaking", () => {
     context("when staking provider has no delegated stake", () => {
       it("should revert", async () => {
         await expect(
-          tokenStaking.connect(stakingProvider).topUpNu(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
+          tokenStaking.connect(staker).topUpNu(stakingProvider.address)
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
-    context("when caller is not owner or staking provider", () => {
+    context("when caller is not owner", () => {
       it("should revert", async () => {
         await tToken
           .connect(staker)
@@ -3533,8 +3533,8 @@ describe("TokenStaking", () => {
             initialStakerBalance
           )
         await expect(
-          tokenStaking.connect(authorizer).topUpNu(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
+          tokenStaking.connect(stakingProvider).topUpNu(stakingProvider.address)
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
@@ -3551,7 +3551,7 @@ describe("TokenStaking", () => {
             amount
           )
         await expect(
-          tokenStaking.connect(stakingProvider).topUpNu(stakingProvider.address)
+          tokenStaking.connect(staker).topUpNu(stakingProvider.address)
         ).to.be.revertedWith("Nothing to top-up")
       })
     })
@@ -3684,7 +3684,7 @@ describe("TokenStaking", () => {
           .connect(staker)
           .unstakeNu(stakingProvider.address, nuInTAmount)
         tx = await tokenStaking
-          .connect(stakingProvider)
+          .connect(staker)
           .topUpNu(stakingProvider.address)
       })
 
@@ -3804,7 +3804,7 @@ describe("TokenStaking", () => {
 
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
         tx = await tokenStaking
-          .connect(stakingProvider)
+          .connect(staker)
           .topUpNu(stakingProvider.address)
       })
 

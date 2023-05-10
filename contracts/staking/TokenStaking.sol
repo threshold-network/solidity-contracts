@@ -214,6 +214,14 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         _;
     }
 
+    modifier onlyOwnerOf(address stakingProvider) {
+        require(
+            stakingProviders[stakingProvider].owner == msg.sender,
+            "Caller is not owner"
+        );
+        _;
+    }
+
     /// @param _token Address of T token contract
     /// @param _keepStakingContract Address of Keep staking contract
     /// @param _nucypherStakingContract Address of NuCypher staking contract
@@ -763,7 +771,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     function topUpNu(address stakingProvider)
         external
         override
-        onlyOwnerOrStakingProvider(stakingProvider)
+        onlyOwnerOf(stakingProvider)
     {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
@@ -1420,14 +1428,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         internal
         virtual
         override
+        onlyOwnerOf(stakingProvider)
     {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        require(
-            stakingProviderStruct.owner == msg.sender,
-            "Caller is not owner"
-        );
         uint96 stakingProviderBalance = stakingProviderStruct.tStake +
             stakingProviderStruct.keepInTStake +
             stakingProviderStruct.nuInTStake;
