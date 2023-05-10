@@ -488,6 +488,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address application,
         uint96 amount
     ) external override onlyAuthorizerOf(stakingProvider) {
+        require(amount > 0, "Parameters must be specified");
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
