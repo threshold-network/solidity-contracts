@@ -1,4 +1,5 @@
 import { HardhatUserConfig } from "hardhat/config"
+import "./tasks"
 
 import "@keep-network/hardhat-helpers"
 import "@nomiclabs/hardhat-waffle"
@@ -76,11 +77,12 @@ const config: HardhatUserConfig = {
       tags: ["tenderly"],
     },
     mainnet: {
-      url: process.env.CHAIN_API_URL || "",
+      // TODO: set your infura API key!
+      url: "https://mainnet.infura.io/v3/<API_KEY>",
       chainId: 1,
-      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
-        : undefined,
+      accounts: {
+        mnemonic: "test test test test test test test test test test test test",
+      },
       tags: ["tenderly"],
     },
   },
