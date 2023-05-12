@@ -852,152 +852,6 @@ describe("TokenStaking", () => {
     })
   })
 
-  describe("refreshKeepManagedGrantOwner", () => {
-    context("when staking provider has no delegated stake", () => {
-      it("should revert", async () => {
-        await expect(
-          tokenStaking
-            .connect(stakingProvider)
-            .refreshKeepStakeOwner(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when caller is neither old owner nor staking provider", () => {
-      it("should revert", async () => {
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            stakingProvider.address,
-            beneficiary.address,
-            authorizer.address,
-            initialStakerBalance
-          )
-        await expect(
-          tokenStaking
-            .connect(authorizer)
-            .refreshKeepStakeOwner(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    const contextRefreshKeepStakeOwner = (getCaller) => {
-      context("when grantee was not changed", () => {
-        let tx
-
-        beforeEach(async () => {
-          const createdAt = 1
-          await keepStakingMock.setOperator(
-            stakingProvider.address,
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-            createdAt,
-            0,
-            initialStakerBalance
-          )
-          await keepStakingMock.setEligibility(
-            stakingProvider.address,
-            tokenStaking.address,
-            true
-          )
-          await tokenStaking.stakeKeep(stakingProvider.address)
-
-          tx = await tokenStaking
-            .connect(getCaller())
-            .refreshKeepStakeOwner(stakingProvider.address)
-        })
-
-        it("should not update owner", async () => {
-          expect(
-            await tokenStaking.rolesOf(stakingProvider.address)
-          ).to.deep.equal([
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-        })
-
-        it("should emit OwnerRefreshed", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "OwnerRefreshed")
-            .withArgs(stakingProvider.address, staker.address, staker.address)
-        })
-      })
-
-      context("when grantee was changed", () => {
-        let tx
-
-        beforeEach(async () => {
-          const createdAt = 1
-          await keepStakingMock.setOperator(
-            stakingProvider.address,
-            otherStaker.address,
-            beneficiary.address,
-            authorizer.address,
-            createdAt,
-            0,
-            initialStakerBalance
-          )
-          await keepStakingMock.setEligibility(
-            stakingProvider.address,
-            tokenStaking.address,
-            true
-          )
-          await tokenStaking.stakeKeep(stakingProvider.address)
-
-          await keepStakingMock.setOperator(
-            stakingProvider.address,
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-            createdAt,
-            0,
-            initialStakerBalance
-          )
-          tx = await tokenStaking
-            .connect(otherStaker)
-            .refreshKeepStakeOwner(stakingProvider.address)
-        })
-
-        it("should update owner", async () => {
-          expect(
-            await tokenStaking.rolesOf(stakingProvider.address)
-          ).to.deep.equal([
-            staker.address,
-            beneficiary.address,
-            authorizer.address,
-          ])
-        })
-
-        it("should emit OwnerRefreshed", async () => {
-          await expect(tx)
-            .to.emit(tokenStaking, "OwnerRefreshed")
-            .withArgs(
-              stakingProvider.address,
-              otherStaker.address,
-              staker.address
-            )
-        })
-      })
-    }
-
-    context("when caller is the old owner", () => {
-      contextRefreshKeepStakeOwner(() => {
-        return staker
-      })
-    })
-
-    context("when caller is the staking provider", () => {
-      contextRefreshKeepStakeOwner(() => {
-        return stakingProvider
-      })
-    })
-  })
-
   describe("approveApplication", () => {
     context("when caller is not the governance", () => {
       it("should revert", async () => {
@@ -1526,7 +1380,7 @@ describe("TokenStaking", () => {
 
           await nucypherStakingMock.setStaker(staker.address, nuStake)
           await tokenStaking
-            .connect(stakingProvider)
+            .connect(staker)
             .topUpNu(stakingProvider.address)
 
           await tToken.connect(staker).approve(tokenStaking.address, tStake)
@@ -3514,12 +3368,12 @@ describe("TokenStaking", () => {
     context("when staking provider has no delegated stake", () => {
       it("should revert", async () => {
         await expect(
-          tokenStaking.connect(stakingProvider).topUpNu(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
+          tokenStaking.connect(staker).topUpNu(stakingProvider.address)
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
-    context("when caller is not owner or staking provider", () => {
+    context("when caller is not owner", () => {
       it("should revert", async () => {
         await tToken
           .connect(staker)
@@ -3533,8 +3387,8 @@ describe("TokenStaking", () => {
             initialStakerBalance
           )
         await expect(
-          tokenStaking.connect(authorizer).topUpNu(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
+          tokenStaking.connect(stakingProvider).topUpNu(stakingProvider.address)
+        ).to.be.revertedWith("Caller is not owner")
       })
     })
 
@@ -3551,7 +3405,7 @@ describe("TokenStaking", () => {
             amount
           )
         await expect(
-          tokenStaking.connect(stakingProvider).topUpNu(stakingProvider.address)
+          tokenStaking.connect(staker).topUpNu(stakingProvider.address)
         ).to.be.revertedWith("Nothing to top-up")
       })
     })
@@ -3684,7 +3538,7 @@ describe("TokenStaking", () => {
           .connect(staker)
           .unstakeNu(stakingProvider.address, nuInTAmount)
         tx = await tokenStaking
-          .connect(stakingProvider)
+          .connect(staker)
           .topUpNu(stakingProvider.address)
       })
 
@@ -3804,7 +3658,7 @@ describe("TokenStaking", () => {
 
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
         tx = await tokenStaking
-          .connect(stakingProvider)
+          .connect(staker)
           .topUpNu(stakingProvider.address)
       })
 

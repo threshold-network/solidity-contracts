@@ -9,7 +9,7 @@ contract KeepRegistryStub is IKeepRegistry {
 
     event OperatorContractApproved(address operatorContract);
 
-    constructor() public {
+    constructor() {
         registryKeeper = msg.sender;
     }
 
