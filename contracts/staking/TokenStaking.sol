@@ -215,6 +215,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     modifier onlyOwnerOf(address stakingProvider) {
+        // slither-disable-next-line incorrect-equality
         require(
             stakingProviders[stakingProvider].owner == msg.sender,
             "Caller is not owner"
