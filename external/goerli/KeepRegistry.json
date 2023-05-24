@@ -1,4 +1,5 @@
 {
+  "address": "0x8420404dC5e9a9f920280B2e0e08988cc7008459",
   "contractName": "KeepRegistry",
   "abi": [
     {
@@ -516,20 +517,14 @@
   "ast": {
     "absolutePath": "/home/runner/work/keep-core/keep-core/solidity-v1/contracts/KeepRegistry.sol",
     "exportedSymbols": {
-      "KeepRegistry": [
-        4642
-      ]
+      "KeepRegistry": [4642]
     },
     "id": 4643,
     "nodeType": "SourceUnit",
     "nodes": [
       {
         "id": 4202,
-        "literals": [
-          "solidity",
-          "0.5",
-          ".17"
-        ],
+        "literals": ["solidity", "0.5", ".17"],
         "nodeType": "PragmaDirective",
         "src": "0:23:12"
       },
@@ -540,9 +535,7 @@
         "documentation": "@title KeepRegistry\n @notice Governance owned registry of approved contracts and roles.",
         "fullyImplemented": true,
         "id": 4642,
-        "linearizedBaseContracts": [
-          4642
-        ],
+        "linearizedBaseContracts": [4642],
         "name": "KeepRegistry",
         "nodeType": "ContractDefinition",
         "nodes": [
@@ -1414,10 +1407,7 @@
                       "id": 4272,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "3278:7:12",
                       "typeDescriptions": {
@@ -1567,10 +1557,7 @@
                       "id": 4284,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "3393:7:12",
                       "typeDescriptions": {
@@ -1623,9 +1610,7 @@
               "src": "3524:212:12",
               "statements": [
                 {
-                  "assignments": [
-                    4299
-                  ],
+                  "assignments": [4299],
                   "declarations": [
                     {
                       "constant": false,
@@ -1824,10 +1809,7 @@
                       "id": 4304,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "3597:7:12",
                       "typeDescriptions": {
@@ -1951,10 +1933,7 @@
                       "id": 4313,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "3666:7:12",
                       "typeDescriptions": {
@@ -2120,10 +2099,7 @@
                       "id": 4327,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "3807:7:12",
                       "typeDescriptions": {
@@ -2289,10 +2265,7 @@
                       "id": 4340,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "4015:7:12",
                       "typeDescriptions": {
@@ -3286,10 +3259,7 @@
                       "id": 4428,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "5024:7:12",
                       "typeDescriptions": {
@@ -3440,10 +3410,7 @@
                       "id": 4439,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "5165:7:12",
                       "typeDescriptions": {
@@ -3906,10 +3873,7 @@
                       "id": 4470,
                       "name": "require",
                       "nodeType": "Identifier",
-                      "overloadedDeclarations": [
-                        28149,
-                        28150
-                      ],
+                      "overloadedDeclarations": [28149, 28150],
                       "referencedDeclaration": 28150,
                       "src": "5636:7:12",
                       "typeDescriptions": {
@@ -5963,19 +5927,13 @@
     "attributes": {
       "absolutePath": "/home/runner/work/keep-core/keep-core/solidity-v1/contracts/KeepRegistry.sol",
       "exportedSymbols": {
-        "KeepRegistry": [
-          4642
-        ]
+        "KeepRegistry": [4642]
       }
     },
     "children": [
       {
         "attributes": {
-          "literals": [
-            "solidity",
-            "0.5",
-            ".17"
-          ]
+          "literals": ["solidity", "0.5", ".17"]
         },
         "id": 4202,
         "name": "PragmaDirective",
@@ -5983,18 +5941,12 @@
       },
       {
         "attributes": {
-          "baseContracts": [
-            null
-          ],
-          "contractDependencies": [
-            null
-          ],
+          "baseContracts": [null],
+          "contractDependencies": [null],
           "contractKind": "contract",
           "documentation": "@title KeepRegistry\n @notice Governance owned registry of approved contracts and roles.",
           "fullyImplemented": true,
-          "linearizedBaseContracts": [
-            4642
-          ],
+          "linearizedBaseContracts": [4642],
           "name": "KeepRegistry",
           "scope": 4643
         },
@@ -6816,9 +6768,7 @@
             "children": [
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4271,
@@ -6837,9 +6787,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -6856,10 +6804,7 @@
                                   "typeString": "literal_string \"Not authorized\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -6886,9 +6831,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4208,
                                   "type": "address",
                                   "value": "governance"
@@ -6912,9 +6855,7 @@
                                   {
                                     "attributes": {
                                       "argumentTypes": null,
-                                      "overloadedDeclarations": [
-                                        null
-                                      ],
+                                      "overloadedDeclarations": [null],
                                       "referencedDeclaration": 28146,
                                       "type": "msg",
                                       "value": "msg"
@@ -6984,9 +6925,7 @@
             "children": [
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4283,
@@ -7005,9 +6944,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -7024,10 +6961,7 @@
                                   "typeString": "literal_string \"Not authorized\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -7054,9 +6988,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4210,
                                   "type": "address",
                                   "value": "registryKeeper"
@@ -7080,9 +7012,7 @@
                                   {
                                     "attributes": {
                                       "argumentTypes": null,
-                                      "overloadedDeclarations": [
-                                        null
-                                      ],
+                                      "overloadedDeclarations": [null],
                                       "referencedDeclaration": 28146,
                                       "type": "msg",
                                       "value": "msg"
@@ -7188,9 +7118,7 @@
                 "children": [
                   {
                     "attributes": {
-                      "assignments": [
-                        4299
-                      ]
+                      "assignments": [4299]
                     },
                     "children": [
                       {
@@ -7233,9 +7161,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4214,
                               "type": "mapping(address => address)",
                               "value": "panicButtons"
@@ -7247,9 +7173,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4296,
                               "type": "address",
                               "value": "_operatorContract"
@@ -7278,9 +7202,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -7297,10 +7219,7 @@
                                   "typeString": "literal_string \"Panic button disabled\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -7327,9 +7246,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4299,
                                   "type": "address",
                                   "value": "panicButton"
@@ -7346,9 +7263,7 @@
                                   "isPure": true,
                                   "isStructConstructorCall": false,
                                   "lValueRequested": false,
-                                  "names": [
-                                    null
-                                  ],
+                                  "names": [null],
                                   "type": "address payable",
                                   "type_conversion": true
                                 },
@@ -7436,9 +7351,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -7455,10 +7368,7 @@
                                   "typeString": "literal_string \"Not authorized\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -7485,9 +7395,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4299,
                                   "type": "address",
                                   "value": "panicButton"
@@ -7511,9 +7419,7 @@
                                   {
                                     "attributes": {
                                       "argumentTypes": null,
-                                      "overloadedDeclarations": [
-                                        null
-                                      ],
+                                      "overloadedDeclarations": [null],
                                       "referencedDeclaration": 28146,
                                       "type": "msg",
                                       "value": "msg"
@@ -7627,9 +7533,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -7646,10 +7550,7 @@
                                   "typeString": "literal_string \"Not a new operator contract\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -7666,9 +7567,7 @@
                               "isPure": false,
                               "isStructConstructorCall": false,
                               "lValueRequested": false,
-                              "names": [
-                                null
-                              ],
+                              "names": [null],
                               "type": "bool",
                               "type_conversion": false
                             },
@@ -7681,9 +7580,7 @@
                                       "typeString": "address"
                                     }
                                   ],
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4602,
                                   "type": "function (address) view returns (bool)",
                                   "value": "isNewOperatorContract"
@@ -7695,9 +7592,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4325,
                                   "type": "address",
                                   "value": "_operatorContract"
@@ -7806,9 +7701,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -7825,10 +7718,7 @@
                                   "typeString": "literal_string \"Not an approved operator contract\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -7845,9 +7735,7 @@
                               "isPure": false,
                               "isStructConstructorCall": false,
                               "lValueRequested": false,
-                              "names": [
-                                null
-                              ],
+                              "names": [null],
                               "type": "bool",
                               "type_conversion": false
                             },
@@ -7860,9 +7748,7 @@
                                       "typeString": "address"
                                     }
                                   ],
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4617,
                                   "type": "function (address) view returns (bool)",
                                   "value": "isApprovedOperatorContract"
@@ -7874,9 +7760,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4338,
                                   "type": "address",
                                   "value": "_operatorContract"
@@ -7938,9 +7822,7 @@
               "implemented": true,
               "isConstructor": true,
               "kind": "constructor",
-              "modifiers": [
-                null
-              ],
+              "modifiers": [null],
               "name": "",
               "scope": 4642,
               "stateMutability": "nonpayable",
@@ -7950,9 +7832,7 @@
             "children": [
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4350,
@@ -7961,9 +7841,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4351,
@@ -7988,9 +7866,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4208,
                               "type": "address",
                               "value": "governance"
@@ -8014,9 +7890,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 28146,
                                   "type": "msg",
                                   "value": "msg"
@@ -8056,9 +7930,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4210,
                               "type": "address",
                               "value": "registryKeeper"
@@ -8082,9 +7954,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 28146,
                                   "type": "msg",
                                   "value": "msg"
@@ -8124,9 +7994,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4216,
                               "type": "address",
                               "value": "defaultPanicButton"
@@ -8150,9 +8018,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 28146,
                                   "type": "msg",
                                   "value": "msg"
@@ -8235,9 +8101,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4374,
@@ -8252,9 +8116,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4282,
                       "type": "modifier ()",
                       "value": "onlyGovernance"
@@ -8286,9 +8148,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4208,
                               "type": "address",
                               "value": "governance"
@@ -8300,9 +8160,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4370,
                               "type": "address",
                               "value": "_governance"
@@ -8331,9 +8189,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -8346,9 +8202,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4240,
                               "type": "function (address)",
                               "value": "GovernanceUpdated"
@@ -8360,9 +8214,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4208,
                               "type": "address",
                               "value": "governance"
@@ -8440,9 +8292,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4390,
@@ -8457,9 +8307,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4282,
                       "type": "modifier ()",
                       "value": "onlyGovernance"
@@ -8491,9 +8339,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4210,
                               "type": "address",
                               "value": "registryKeeper"
@@ -8505,9 +8351,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4386,
                               "type": "address",
                               "value": "_registryKeeper"
@@ -8536,9 +8380,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -8551,9 +8393,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4244,
                               "type": "function (address)",
                               "value": "RegistryKeeperUpdated"
@@ -8565,9 +8405,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4210,
                               "type": "address",
                               "value": "registryKeeper"
@@ -8645,9 +8483,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4406,
@@ -8662,9 +8498,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4282,
                       "type": "modifier ()",
                       "value": "onlyGovernance"
@@ -8696,9 +8530,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4216,
                               "type": "address",
                               "value": "defaultPanicButton"
@@ -8710,9 +8542,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4402,
                               "type": "address",
                               "value": "_panicButton"
@@ -8741,9 +8571,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -8756,9 +8584,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4248,
                               "type": "function (address)",
                               "value": "DefaultPanicButtonUpdated"
@@ -8770,9 +8596,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4216,
                               "type": "address",
                               "value": "defaultPanicButton"
@@ -8877,9 +8701,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4427,
@@ -8891,9 +8713,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4349,
                       "type": "modifier (address)",
                       "value": "onlyForApprovedContract"
@@ -8905,9 +8725,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4418,
                       "type": "address",
                       "value": "_operatorContract"
@@ -8929,9 +8747,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4282,
                       "type": "modifier ()",
                       "value": "onlyGovernance"
@@ -8957,9 +8773,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -8976,10 +8790,7 @@
                                   "typeString": "literal_string \"Disabled panic button cannot be updated\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -9016,9 +8827,7 @@
                                   {
                                     "attributes": {
                                       "argumentTypes": null,
-                                      "overloadedDeclarations": [
-                                        null
-                                      ],
+                                      "overloadedDeclarations": [null],
                                       "referencedDeclaration": 4214,
                                       "type": "mapping(address => address)",
                                       "value": "panicButtons"
@@ -9030,9 +8839,7 @@
                                   {
                                     "attributes": {
                                       "argumentTypes": null,
-                                      "overloadedDeclarations": [
-                                        null
-                                      ],
+                                      "overloadedDeclarations": [null],
                                       "referencedDeclaration": 4418,
                                       "type": "address",
                                       "value": "_operatorContract"
@@ -9054,9 +8861,7 @@
                                   "isPure": true,
                                   "isStructConstructorCall": false,
                                   "lValueRequested": false,
-                                  "names": [
-                                    null
-                                  ],
+                                  "names": [null],
                                   "type": "address payable",
                                   "type_conversion": true
                                 },
@@ -9144,9 +8949,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -9163,10 +8966,7 @@
                                   "typeString": "literal_string \"Panic button must be non-zero address\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -9193,9 +8993,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4420,
                                   "type": "address",
                                   "value": "_panicButton"
@@ -9212,9 +9010,7 @@
                                   "isPure": true,
                                   "isStructConstructorCall": false,
                                   "lValueRequested": false,
-                                  "names": [
-                                    null
-                                  ],
+                                  "names": [null],
                                   "type": "address payable",
                                   "type_conversion": true
                                 },
@@ -9318,9 +9114,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4214,
                                   "type": "mapping(address => address)",
                                   "value": "panicButtons"
@@ -9332,9 +9126,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4418,
                                   "type": "address",
                                   "value": "_operatorContract"
@@ -9351,9 +9143,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4420,
                               "type": "address",
                               "value": "_panicButton"
@@ -9382,9 +9172,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -9401,9 +9189,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4258,
                               "type": "function (address,address)",
                               "value": "OperatorContractPanicButtonUpdated"
@@ -9415,9 +9201,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4418,
                               "type": "address",
                               "value": "_operatorContract"
@@ -9429,9 +9213,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4420,
                               "type": "address",
                               "value": "_panicButton"
@@ -9509,9 +9291,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4469,
@@ -9523,9 +9303,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4349,
                       "type": "modifier (address)",
                       "value": "onlyForApprovedContract"
@@ -9537,9 +9315,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4462,
                       "type": "address",
                       "value": "_operatorContract"
@@ -9561,9 +9337,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4282,
                       "type": "modifier ()",
                       "value": "onlyGovernance"
@@ -9589,9 +9363,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -9608,10 +9380,7 @@
                                   "typeString": "literal_string \"Panic button already disabled\""
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                28149,
-                                28150
-                              ],
+                              "overloadedDeclarations": [28149, 28150],
                               "referencedDeclaration": 28150,
                               "type": "function (bool,string memory) pure",
                               "value": "require"
@@ -9648,9 +9417,7 @@
                                   {
                                     "attributes": {
                                       "argumentTypes": null,
-                                      "overloadedDeclarations": [
-                                        null
-                                      ],
+                                      "overloadedDeclarations": [null],
                                       "referencedDeclaration": 4214,
                                       "type": "mapping(address => address)",
                                       "value": "panicButtons"
@@ -9662,9 +9429,7 @@
                                   {
                                     "attributes": {
                                       "argumentTypes": null,
-                                      "overloadedDeclarations": [
-                                        null
-                                      ],
+                                      "overloadedDeclarations": [null],
                                       "referencedDeclaration": 4462,
                                       "type": "address",
                                       "value": "_operatorContract"
@@ -9686,9 +9451,7 @@
                                   "isPure": true,
                                   "isStructConstructorCall": false,
                                   "lValueRequested": false,
-                                  "names": [
-                                    null
-                                  ],
+                                  "names": [null],
                                   "type": "address payable",
                                   "type_conversion": true
                                 },
@@ -9792,9 +9555,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4214,
                                   "type": "mapping(address => address)",
                                   "value": "panicButtons"
@@ -9806,9 +9567,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4462,
                                   "type": "address",
                                   "value": "_operatorContract"
@@ -9830,9 +9589,7 @@
                               "isPure": true,
                               "isStructConstructorCall": false,
                               "lValueRequested": false,
-                              "names": [
-                                null
-                              ],
+                              "names": [null],
                               "type": "address payable",
                               "type_conversion": true
                             },
@@ -9898,9 +9655,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -9913,9 +9668,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4252,
                               "type": "function (address)",
                               "value": "OperatorContractPanicButtonDisabled"
@@ -9927,9 +9680,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4462,
                               "type": "address",
                               "value": "_operatorContract"
@@ -10034,9 +9785,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4502,
@@ -10051,9 +9800,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4282,
                       "type": "modifier ()",
                       "value": "onlyGovernance"
@@ -10095,9 +9842,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4220,
                                   "type": "mapping(address => address)",
                                   "value": "operatorContractUpgraders"
@@ -10109,9 +9854,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4496,
                                   "type": "address",
                                   "value": "_serviceContract"
@@ -10128,9 +9871,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4498,
                               "type": "address",
                               "value": "_operatorContractUpgrader"
@@ -10159,9 +9900,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -10178,9 +9917,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4264,
                               "type": "function (address,address)",
                               "value": "OperatorContractUpgraderUpdated"
@@ -10192,9 +9929,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4496,
                               "type": "address",
                               "value": "_serviceContract"
@@ -10206,9 +9941,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4498,
                               "type": "address",
                               "value": "_operatorContractUpgrader"
@@ -10313,9 +10046,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4523,
@@ -10330,9 +10061,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4282,
                       "type": "modifier ()",
                       "value": "onlyGovernance"
@@ -10374,9 +10103,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4224,
                                   "type": "mapping(address => address)",
                                   "value": "serviceContractUpgraders"
@@ -10388,9 +10115,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4517,
                                   "type": "address",
                                   "value": "_operatorContract"
@@ -10407,9 +10132,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4519,
                               "type": "address",
                               "value": "_serviceContractUpgrader"
@@ -10438,9 +10161,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -10457,9 +10178,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4270,
                               "type": "function (address,address)",
                               "value": "ServiceContractUpgraderUpdated"
@@ -10471,9 +10190,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4517,
                               "type": "address",
                               "value": "_operatorContract"
@@ -10485,9 +10202,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4519,
                               "type": "address",
                               "value": "_serviceContractUpgrader"
@@ -10565,9 +10280,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4545,
@@ -10579,9 +10292,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4336,
                       "type": "modifier (address)",
                       "value": "onlyForNewContract"
@@ -10593,9 +10304,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4538,
                       "type": "address",
                       "value": "operatorContract"
@@ -10617,9 +10326,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4294,
                       "type": "modifier ()",
                       "value": "onlyRegistryKeeper"
@@ -10661,9 +10368,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4228,
                                   "type": "mapping(address => enum KeepRegistry.ContractStatus)",
                                   "value": "operatorContracts"
@@ -10675,9 +10380,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4538,
                                   "type": "address",
                                   "value": "operatorContract"
@@ -10706,9 +10409,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4206,
                                   "type": "type(enum KeepRegistry.ContractStatus)",
                                   "value": "ContractStatus"
@@ -10758,9 +10459,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4214,
                                   "type": "mapping(address => address)",
                                   "value": "panicButtons"
@@ -10772,9 +10471,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4538,
                                   "type": "address",
                                   "value": "operatorContract"
@@ -10791,9 +10488,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4216,
                               "type": "address",
                               "value": "defaultPanicButton"
@@ -10822,9 +10517,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -10837,9 +10530,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4232,
                               "type": "function (address)",
                               "value": "OperatorContractApproved"
@@ -10851,9 +10542,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4538,
                               "type": "address",
                               "value": "operatorContract"
@@ -10931,9 +10620,7 @@
               },
               {
                 "attributes": {
-                  "parameters": [
-                    null
-                  ]
+                  "parameters": [null]
                 },
                 "children": [],
                 "id": 4574,
@@ -10945,9 +10632,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4349,
                       "type": "modifier (address)",
                       "value": "onlyForApprovedContract"
@@ -10959,9 +10644,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4566,
                       "type": "address",
                       "value": "operatorContract"
@@ -10980,9 +10663,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4323,
                       "type": "modifier (address)",
                       "value": "onlyPanicButton"
@@ -10994,9 +10675,7 @@
                   {
                     "attributes": {
                       "argumentTypes": null,
-                      "overloadedDeclarations": [
-                        null
-                      ],
+                      "overloadedDeclarations": [null],
                       "referencedDeclaration": 4566,
                       "type": "address",
                       "value": "operatorContract"
@@ -11038,9 +10717,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4228,
                                   "type": "mapping(address => enum KeepRegistry.ContractStatus)",
                                   "value": "operatorContracts"
@@ -11052,9 +10729,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4566,
                                   "type": "address",
                                   "value": "operatorContract"
@@ -11083,9 +10758,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4206,
                                   "type": "type(enum KeepRegistry.ContractStatus)",
                                   "value": "ContractStatus"
@@ -11119,9 +10792,7 @@
                           "isPure": false,
                           "isStructConstructorCall": false,
                           "lValueRequested": false,
-                          "names": [
-                            null
-                          ],
+                          "names": [null],
                           "type": "tuple()",
                           "type_conversion": false
                         },
@@ -11134,9 +10805,7 @@
                                   "typeString": "address"
                                 }
                               ],
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4236,
                               "type": "function (address)",
                               "value": "OperatorContractDisabled"
@@ -11148,9 +10817,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4566,
                               "type": "address",
                               "value": "operatorContract"
@@ -11185,9 +10852,7 @@
               "implemented": true,
               "isConstructor": false,
               "kind": "function",
-              "modifiers": [
-                null
-              ],
+              "modifiers": [null],
               "name": "isNewOperatorContract",
               "scope": 4642,
               "stateMutability": "view",
@@ -11297,9 +10962,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4228,
                                   "type": "mapping(address => enum KeepRegistry.ContractStatus)",
                                   "value": "operatorContracts"
@@ -11311,9 +10974,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4589,
                                   "type": "address",
                                   "value": "operatorContract"
@@ -11342,9 +11003,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4206,
                                   "type": "type(enum KeepRegistry.ContractStatus)",
                                   "value": "ContractStatus"
@@ -11384,9 +11043,7 @@
               "implemented": true,
               "isConstructor": false,
               "kind": "function",
-              "modifiers": [
-                null
-              ],
+              "modifiers": [null],
               "name": "isApprovedOperatorContract",
               "scope": 4642,
               "stateMutability": "view",
@@ -11496,9 +11153,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4228,
                                   "type": "mapping(address => enum KeepRegistry.ContractStatus)",
                                   "value": "operatorContracts"
@@ -11510,9 +11165,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4604,
                                   "type": "address",
                                   "value": "operatorContract"
@@ -11541,9 +11194,7 @@
                               {
                                 "attributes": {
                                   "argumentTypes": null,
-                                  "overloadedDeclarations": [
-                                    null
-                                  ],
+                                  "overloadedDeclarations": [null],
                                   "referencedDeclaration": 4206,
                                   "type": "type(enum KeepRegistry.ContractStatus)",
                                   "value": "ContractStatus"
@@ -11583,9 +11234,7 @@
               "implemented": true,
               "isConstructor": false,
               "kind": "function",
-              "modifiers": [
-                null
-              ],
+              "modifiers": [null],
               "name": "operatorContractUpgraderFor",
               "scope": 4642,
               "stateMutability": "view",
@@ -11681,9 +11330,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4220,
                               "type": "mapping(address => address)",
                               "value": "operatorContractUpgraders"
@@ -11695,9 +11342,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4619,
                               "type": "address",
                               "value": "_serviceContract"
@@ -11732,9 +11377,7 @@
               "implemented": true,
               "isConstructor": false,
               "kind": "function",
-              "modifiers": [
-                null
-              ],
+              "modifiers": [null],
               "name": "serviceContractUpgraderFor",
               "scope": 4642,
               "stateMutability": "view",
@@ -11830,9 +11473,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4224,
                               "type": "mapping(address => address)",
                               "value": "serviceContractUpgraders"
@@ -11844,9 +11485,7 @@
                           {
                             "attributes": {
                               "argumentTypes": null,
-                              "overloadedDeclarations": [
-                                null
-                              ],
+                              "overloadedDeclarations": [null],
                               "referencedDeclaration": 4631,
                               "type": "address",
                               "value": "_operatorContract"
