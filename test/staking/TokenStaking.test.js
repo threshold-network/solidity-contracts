@@ -1379,9 +1379,7 @@ describe("TokenStaking", () => {
           tx = await tokenStaking.stakeKeep(stakingProvider.address)
 
           await nucypherStakingMock.setStaker(staker.address, nuStake)
-          await tokenStaking
-            .connect(staker)
-            .topUpNu(stakingProvider.address)
+          await tokenStaking.connect(staker).topUpNu(stakingProvider.address)
 
           await tToken.connect(staker).approve(tokenStaking.address, tStake)
           await tokenStaking
@@ -3537,9 +3535,7 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(staker)
           .unstakeNu(stakingProvider.address, nuInTAmount)
-        tx = await tokenStaking
-          .connect(staker)
-          .topUpNu(stakingProvider.address)
+        tx = await tokenStaking.connect(staker).topUpNu(stakingProvider.address)
       })
 
       it("should update only Nu staked amount", async () => {
@@ -3657,9 +3653,7 @@ describe("TokenStaking", () => {
         blockTimestamp = await lastBlockTime()
 
         await nucypherStakingMock.setStaker(staker.address, nuAmount)
-        tx = await tokenStaking
-          .connect(staker)
-          .topUpNu(stakingProvider.address)
+        tx = await tokenStaking.connect(staker).topUpNu(stakingProvider.address)
       })
 
       it("should update only Nu staked amount", async () => {
