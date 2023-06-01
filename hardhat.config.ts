@@ -98,9 +98,6 @@ const config: HardhatUserConfig = {
       // For hardhat environment we can fork the mainnet, so we need to point it
       // to the contract artifacts.
       hardhat: process.env.FORKING_URL ? ["./external/mainnet"] : [],
-
-      // ropsten network in no longer supported and should not be used
-      ropsten: [""],
       goerli: ["./external/goerli"],
       mainnet: ["./external/mainnet"],
     },
