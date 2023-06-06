@@ -94,26 +94,11 @@ const config: HardhatUserConfig = {
     },
   },
   external: {
-    contracts: [
-      {
-        // Due to a limitation of `hardhat-deploy` plugin, we have
-        // to modify the artifacts imported from NPM. Please see
-        // `scripts/prepare-dependencies.sh` for details.
-        artifacts: "external/npm/@keep-network/keep-core/artifacts",
-        // Example if we want to use deployment scripts from external package:
-        // deploy: "node_modules/@keep-network/keep-core/deploy",
-      },
-    ],
     deployments: {
       // For hardhat environment we can fork the mainnet, so we need to point it
       // to the contract artifacts.
       hardhat: process.env.FORKING_URL ? ["./external/mainnet"] : [],
-      // For development environment we expect the local dependencies to be linked
-      // with `yarn link` command, uncomment the line below to use the linked
-      // dependencies.
-      // development: ["external/npm/@keep-network/keep-core/artifacts"],
-      ropsten: ["external/npm/@keep-network/keep-core/artifacts"],
-      goerli: ["external/npm/@keep-network/keep-core/artifacts"],
+      goerli: ["./external/goerli"],
       mainnet: ["./external/mainnet"],
     },
   },
