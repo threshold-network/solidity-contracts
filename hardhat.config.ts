@@ -45,6 +45,11 @@ const config: HardhatUserConfig = {
       chainId: 1101,
       tags: ["allowStubs"],
     },
+    docker: {
+      url: "geth:8545",
+      chainId: 1101,
+      tags: ["allowStubs"],
+    },
     goerli: {
       url: process.env.CHAIN_API_URL || "",
       chainId: 5,
