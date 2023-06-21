@@ -307,10 +307,6 @@ additionally appointing beneficiary and authorizer roles. Caches the amount
 staked in NU staking contract. Can be called only by the original delegation
 owner.
 
-==== `refreshKeepStakeOwner(address stakingProvider) external onlyOwnerOf(stakingProvider)`
-
-Refresh Keep stake owner. Can be called only by the old owner.
-
 ==== `setMinimumStakeAmount(uint96 amount) external onlyGovernance`
 
 Allows the governance to set the minimum required stake amount. This amount is

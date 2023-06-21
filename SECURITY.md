@@ -1,46 +1,32 @@
 # Security Policy
 
-## Reporting a Vulnerability
-
-If you identify vulnerabilities with any Threshold Network code, please email `security@threshold.network` with relevant information to your findings. We will work with researchers to coordinate vulnerability disclosure between our stakers, partners, and users to ensure the successful mitigation of vulnerabilities.
-
-Throughout the reporting process, we expect researchers to honor an embargo period that may vary depending on the severity of the disclosure. This ensures that we have the opportunity to fix any issues, identify further issues (if any), and inform our users.
-
-Sometimes vulnerabilities are more sensitive in nature and require extra precautions. We are happy to work together to use a more secure medium, such as Signal. Email security@threshold.network and we will coordinate a communication channel that we're both comfortable with.
-
-A great place to begin your research is by working on our testnet. Please see our [documentation](https://docs.threshold.network) to get started. We ask that you please respect network machines and their owners. If you find a vulnerability that you suspect has given you access to a machine against the owner's permission, stop what you're doing and immediately email `security@threshold.network`.
-
-The Threshold team will make a best effort to respond to a new report **within 48 hours**. This response may be a simple acknowledgement that the report was received, or may be an initial assessment from the team. Unless the report is assessed as irrelevant or incorrect, this response will include expected next steps and communication time frames from the Threshold team.
-
-The Threshold team will try to make an initial assessment of a bug's relevance, severity, and exploitability, and communicate this back to the reporter.
-
-The Threshold DAO does have a bug bounty available, which is dispensed on a case-by-case basis.
-
 ## Bug Bounty Program
 
-The following Bug Bounty amounts were approved by the DAO in [TIP-041](https://forum.threshold.network/t/tip-041-establish-a-bug-bounty-program/453) proposal:
+Threshold Network has a [Bug Bounty program with Immunefi](https://immunefi.com/bounty/thresholdnetwork/).
 
-- Critical: Up to $500,000 in T tokens.
-- High: Up to $50,000 in T tokens.
-- Medium: Up to $5,000 in T tokens.
-- Low: Up to $500 in T tokens.
+The details for the Bug Bounty are maintained and updated at the [Immunefi Threshold page](https://immunefi.com/bounty/thresholdnetwork/). There you can explore the assets in scope for the bounty and the different rewards by threat level. As a guide, the initial bounty program launched with the following rewards according to the severity of the threats found:
 
-The following attacks are excluded from the Bug Bounty program:
+Smart Contracts
 
-- Attacks that the reporter has already exploited themselves, leading to damage.
-- Attacks requiring access to leaked keys/credentials.
-- Basic economic governance attacks (e.g. 51% attack).
-- Lack of liquidity.
-- Sybil attacks.
+- Critical Level: USD $100,000 to USD $500,000
+- High Level: USD $10,000 to USD $50,000
+- Medium Level: USD $1,000 to USD $5,000
+- Low Level: USD $1,000
 
-The following activities are prohibited by this bug bounty program:
+Websites and Applications
 
-- Any testing with mainnet or public testnet contracts; all testing should be done on private testnets.
-- Attempting phishing or other social engineering attacks against our contributors and/or users.
-- Any denial of service attacks.
-- Automated testing of services that generates significant amounts of traffic.
-- Public disclosure of an unpatched vulnerability in an embargoed bounty.
+- Critical Level: USD $10,000 to USD $25,000
+- High Level: USD $1,000 to USD $10,000
+- Medium Level: USD $1,000
 
-Rewards are distributed according to the impact of the vulnerability based on the [Immunefi Vulnerability Severity Classification System V2.2](https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-2/). This is a simplified 5-level scale, with separate scales for websites/apps, smart contracts, and blockchains/DLTs, focusing on the impact of the vulnerability reported.
+A great place to begin your research is by working on our testnet. Please see our [documentation](https://docs.threshold.network) to get started. We ask that you please respect network machines and their owners. If you find a vulnerability that you suspect has given you access to a machine against the owner's permission, stop what you're doing and create a report using the Immunefi dashboard for researchers.
 
-Threshold DAO is currently in the process of establishing a Bug Bounty program on Immunefi.
+Rewards are distributed according to the impact of the vulnerability based on the [Immunefi Vulnerability Severity Classification System V2.3](https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/). This is a simplified 4-level scale, with separate scales for websites/apps, smart contracts, and blockchains/DLTs, focusing on the impact of the vulnerability reported.
+
+## Reporting a Vulnerability Not Covered by the Bug Bounty Program
+
+Please verify the list of assets in-scope and out-of-scope available as part of the [Threshold Bug Bounty details](https://immunefi.com/bounty/thresholdnetwork/). Additionally, security researchers are encouraged to submit issues outside of the outlined "Impacts" and "Assets in Scope". If you can demonstrate a critical impact on code in production for an asset not in scope, Threshold DAO encourages you to submit your bug report using the “primacy of impact exception” asset in Immunefi.
+
+Threshold DAO will try to make an initial assessment of a bug's relevance, severity, and exploitability, and communicate this back to the reporter. The Threshold DAO will compensate important findings on a case-by-case basis. We value security researchers and we encourage you to contact us to discuss your findings.
+
+We also ask all researchers to please submit their reports in English.
