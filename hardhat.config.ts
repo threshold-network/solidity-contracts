@@ -8,6 +8,7 @@ import "@tenderly/hardhat-tenderly"
 import "hardhat-contract-sizer"
 import "hardhat-deploy"
 import "hardhat-gas-reporter"
+import "solidity-docgen"
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -119,6 +120,12 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 60000,
+  },
+  docgen: {
+    outputDir: "generated-docs",
+    templates: "docgen-templates",
+    pages: "single", // `single`, `items` or `files`
+    exclude: ["./test"],
   },
 }
 

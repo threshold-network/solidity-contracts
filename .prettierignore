@@ -3,4 +3,5 @@ artifacts/
 build/
 cache/
 deployments/
+docgen-templates/
 export/
