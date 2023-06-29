@@ -42,6 +42,7 @@ jobs:
     uses: keep-network/ci/.github/workflows/reusable-solidity-docs.yml@main
     with:
       publish: false
+      addTOC: false
       commentPR: true
       exportAsGHArtifacts: true
 
@@ -58,12 +59,14 @@ jobs:
     uses: keep-network/ci/.github/workflows/reusable-solidity-docs.yml@main
     with:
       publish: true
+      addTOC: false
       verifyCommits: true
       destinationRepo: threshold-network/threshold
       destinationFolder: ./docs/app-development/staking-contract-and-dao/staking-contract-and-dao-api
       destinationBaseBranch: main
       userEmail: 38324465+thesis-valkyrie@users.noreply.github.com
       userName: Valkyrie
+      rsyncDelete: true
     secrets:
       githubToken: ${{ secrets.THRESHOLD_DOCS_GITHUB_TOKEN }}
       gpgPrivateKey: ${{ secrets.THRESHOLD_DOCS_GPG_PRIVATE_KEY_BASE64 }}
