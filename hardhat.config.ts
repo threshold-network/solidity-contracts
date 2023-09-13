@@ -110,7 +110,7 @@ const config: HardhatUserConfig = {
       default: 1, // same as the deployer
       ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
       goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
-      // sepolia: "", TODO: Fill with the address of the deployer
+      sepolia: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
     },
   },
   mocha: {
