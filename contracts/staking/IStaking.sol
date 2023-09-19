@@ -112,9 +112,9 @@ interface IStaking {
     ///         called by the application that was previously requested to
     ///         decrease the authorization for that staking provider.
     ///         Returns resulting authorized amount for the application.
-    function approveAuthorizationDecrease(
-        address stakingProvider
-    ) external returns (uint96);
+    function approveAuthorizationDecrease(address stakingProvider)
+        external
+        returns (uint96);
 
     /// @notice Decreases the authorization for the given `stakingProvider` on
     ///         the given disabled `application`, for all authorized amount.
@@ -186,14 +186,14 @@ interface IStaking {
     function unstakeKeep(address stakingProvider) external;
 
     /// @notice Sets the legacy NU staking contract active stake amount cached
-    ///         in T staking contract to 0. Reverts if there is at least one 
-    ///         authorization higher than the sum of remaining legacy NU stake 
-    ///         and liquid T stake for that staking provider or if the untaked 
-    ///         amount is higher than the cached legacy stake amount. If succeeded, 
-    ///         the legacy NU stake can be partially or fully undelegated on 
-    ///         the legacy staking contract. This function allows to unstake 
-    ///         from NU staking contract and still being able to operate in 
-    ///         T network and earning rewards based on the liquid T staked. 
+    ///         in T staking contract to 0. Reverts if there is at least one
+    ///         authorization higher than the sum of remaining legacy NU stake
+    ///         and liquid T stake for that staking provider or if the untaked
+    ///         amount is higher than the cached legacy stake amount. If succeeded,
+    ///         the legacy NU stake can be partially or fully undelegated on
+    ///         the legacy staking contract. This function allows to unstake
+    ///         from NU staking contract and still being able to operate in
+    ///         T network and earning rewards based on the liquid T staked.
     ///         Can be called only by the delegation owner or the staking provider.
     function unstakeNu(address stakingProvider) external;
 
@@ -220,10 +220,8 @@ interface IStaking {
 
     /// @notice Withdraw some amount of T tokens from notifiers treasury.
     ///         Can only be called by the governance.
-    function withdrawNotificationReward(
-        address recipient,
-        uint96 amount
-    ) external;
+    function withdrawNotificationReward(address recipient, uint96 amount)
+        external;
 
     /// @notice Adds staking providers to the slashing queue along with the
     ///         amount that should be slashed from each one of them. Can only be
@@ -256,26 +254,29 @@ interface IStaking {
 
     /// @notice Returns the authorized stake amount of the staking provider for
     ///         the application.
-    function authorizedStake(
-        address stakingProvider,
-        address application
-    ) external view returns (uint96);
+    function authorizedStake(address stakingProvider, address application)
+        external
+        view
+        returns (uint96);
 
     /// @notice Returns staked amount of T, Keep and Nu for the specified
     ///         staking provider.
     /// @dev    All values are in T denomination
-    function stakes(
-        address stakingProvider
-    )
+    function stakes(address stakingProvider)
         external
         view
-        returns (uint96 tStake, uint96 keepInTStake, uint96 nuInTStake);
+        returns (
+            uint96 tStake,
+            uint96 keepInTStake,
+            uint96 nuInTStake
+        );
 
     /// @notice Returns start staking timestamp.
     /// @dev    This value is set at most once.
-    function getStartStakingTimestamp(
-        address stakingProvider
-    ) external view returns (uint256);
+    function getStartStakingTimestamp(address stakingProvider)
+        external
+        view
+        returns (uint256);
 
     /// @notice Returns staked amount of NU for the specified staking provider.
     function stakedNu(address stakingProvider) external view returns (uint256);
@@ -285,9 +286,7 @@ interface IStaking {
     /// @return owner Stake owner address.
     /// @return beneficiary Beneficiary address.
     /// @return authorizer Authorizer address.
-    function rolesOf(
-        address stakingProvider
-    )
+    function rolesOf(address stakingProvider)
         external
         view
         returns (
@@ -318,10 +317,10 @@ interface IStaking {
     ///      stake type is the minimum amount of stake of the given type
     ///      needed to satisfy the maximum application authorization given the
     ///      staked amounts of the other stake types for that staking provider.
-    function getMinStaked(
-        address stakingProvider,
-        StakeType stakeTypes
-    ) external view returns (uint96);
+    function getMinStaked(address stakingProvider, StakeType stakeTypes)
+        external
+        view
+        returns (uint96);
 
     /// @notice Returns available amount to authorize for the specified application
     function getAvailableToAuthorize(

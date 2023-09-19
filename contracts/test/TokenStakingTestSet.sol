@@ -5,7 +5,6 @@ pragma solidity 0.8.9;
 import "../staking/IApplication.sol";
 import "../staking/TokenStaking.sol";
 
-
 contract VendingMachineMock {
     uint256 public constant FLOATING_POINT_DIVISOR = 10**15;
 
@@ -77,6 +76,14 @@ contract ApplicationMock is IApplication {
         );
     }
 
+    function availableRewards(address) external pure returns (uint96) {
+        return 0;
+    }
+
+    function minimumAuthorization() external pure returns (uint96) {
+        return 0;
+    }
+
     function involuntaryAuthorizationDecrease(
         address stakingProvider,
         uint96,
@@ -96,14 +103,6 @@ contract ApplicationMock is IApplication {
             stakingProviderStruct.deauthorizingTo = 0;
         }
         stakingProviderStruct.authorized = toAmount;
-    }
-
-    function availableRewards(address) external pure returns (uint96) {
-        return 0;
-    }
-
-    function minimumAuthorization() external pure returns (uint96) {
-        return 0;
     }
 }
 
@@ -150,14 +149,8 @@ contract ManagedGrantMock {
 }
 
 contract ExtendedTokenStaking is TokenStaking {
-    constructor(
-        T _token,
-        VendingMachine _nucypherVendingMachine
-    )
-        TokenStaking(
-            _token,
-            _nucypherVendingMachine
-        )
+    constructor(T _token, VendingMachine _nucypherVendingMachine)
+        TokenStaking(_token, _nucypherVendingMachine)
     {}
 
     function cleanAuthorizedApplications(
@@ -202,30 +195,24 @@ contract ExtendedTokenStaking is TokenStaking {
 
 contract LegacyTokenStaking is TokenStaking {
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        T _token,
-        VendingMachine _nucypherVendingMachine
-    )
-        TokenStaking(
-            _token,
-            _nucypherVendingMachine
-        )
+    constructor(T _token, VendingMachine _nucypherVendingMachine)
+        TokenStaking(_token, _nucypherVendingMachine)
     {}
 
     function setLegacyStakingProviderDefault(address stakingProvider) external {
-        setLegacyStakingProvider(stakingProvider, stakingProvider, payable(stakingProvider), stakingProvider);
-    }
-
-    function setLegacyStakingProvider(address stakingProvider, address owner, address payable beneficiary, address authorizer) public {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+        setLegacyStakingProvider(
+            stakingProvider,
+            stakingProvider,
+            payable(stakingProvider),
             stakingProvider
-        ];
-        stakingProviderStruct.owner = owner;
-        stakingProviderStruct.authorizer = authorizer;
-        stakingProviderStruct.beneficiary = beneficiary;
+        );
     }
 
-    function addLegacyStake(address stakingProvider, uint96 keepInTStake, uint96 nuInTStake) external {
+    function addLegacyStake(
+        address stakingProvider,
+        uint96 keepInTStake,
+        uint96 nuInTStake
+    ) external {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -238,7 +225,11 @@ contract LegacyTokenStaking is TokenStaking {
         increaseStakeCheckpoint(stakingProvider, keepInTStake + nuInTStake);
     }
 
-    function forceIncreaseAuthorization(address stakingProvider, address application, uint96 amount) external {
+    function forceIncreaseAuthorization(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) external {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -248,4 +239,17 @@ contract LegacyTokenStaking is TokenStaking {
         authorization.authorized += amount;
     }
 
+    function setLegacyStakingProvider(
+        address stakingProvider,
+        address owner,
+        address payable beneficiary,
+        address authorizer
+    ) public {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        stakingProviderStruct.owner = owner;
+        stakingProviderStruct.authorizer = authorizer;
+        stakingProviderStruct.beneficiary = beneficiary;
+    }
 }

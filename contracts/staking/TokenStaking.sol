@@ -80,7 +80,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     uint256 internal constant SLASHING_REWARD_PERCENT = 5;
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
     uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
-    uint256 internal constant CONVERSION_DIVISOR = 10 ** (18 - 3);
+    uint256 internal constant CONVERSION_DIVISOR = 10**(18 - 3);
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
@@ -91,8 +91,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     address public governance;
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
-    uint96 public legacyStakeDiscrepancyPenalty;
-    uint256 public legacyStakeDiscrepancyRewardMultiplier;
+    // slither-disable-next-line constable-states
+    uint96 private legacyStakeDiscrepancyPenalty;
+    // slither-disable-next-line constable-states
+    uint256 private legacyStakeDiscrepancyRewardMultiplier;
 
     uint256 public notifiersTreasury;
     uint256 public notificationReward;
@@ -287,9 +289,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///      is just to protect against griefing stake operation. Please note
     ///      that each application may have its own minimum authorization though
     ///      and the authorization can not be higher than the stake.
-    function setMinimumStakeAmount(
-        uint96 amount
-    ) external override onlyGovernance {
+    function setMinimumStakeAmount(uint96 amount)
+        external
+        override
+        onlyGovernance
+    {
         minTStakeAmount = amount;
         emit MinimumStakeAmountSet(amount);
     }
@@ -302,9 +306,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Allows the Governance to approve the particular application
     ///         before individual stake authorizers are able to authorize it.
-    function approveApplication(
-        address application
-    ) external override onlyGovernance {
+    function approveApplication(address application)
+        external
+        override
+        onlyGovernance
+    {
         require(application != address(0), "Parameters must be specified");
         ApplicationInfo storage info = applicationInfo[application];
         require(
@@ -418,9 +424,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         called by the application that was previously requested to
     ///         decrease the authorization for that staking provider.
     ///         Returns resulting authorized amount for the application.
-    function approveAuthorizationDecrease(
-        address stakingProvider
-    ) external override returns (uint96) {
+    function approveAuthorizationDecrease(address stakingProvider)
+        external
+        override
+        returns (uint96)
+    {
         ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
         require(
             applicationStruct.status == ApplicationStatus.APPROVED,
@@ -489,9 +497,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         application. The paused application can not slash stakes until
     ///         it is approved again by the Governance using `approveApplication`
     ///         function. Should be used only in case of an emergency.
-    function pauseApplication(
-        address application
-    ) external override onlyPanicButtonOf(application) {
+    function pauseApplication(address application)
+        external
+        override
+        onlyPanicButtonOf(application)
+    {
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
@@ -509,9 +519,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         `forceDecreaseAuthorization` at any moment. Can be called only
     ///         by the governance. The disabled application can't be approved
     ///         again. Should be used only in case of an emergency.
-    function disableApplication(
-        address application
-    ) external override onlyGovernance {
+    function disableApplication(address application)
+        external
+        override
+        onlyGovernance
+    {
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
@@ -528,10 +540,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         provided address. Can only be called by the Governance. If the
     ///         Panic Button for the given application should be disabled, the
     ///         role address should be set to 0x0 address.
-    function setPanicButton(
-        address application,
-        address panicButton
-    ) external override onlyGovernance {
+    function setPanicButton(address application, address panicButton)
+        external
+        override
+        onlyGovernance
+    {
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
@@ -546,9 +559,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Sets the maximum number of applications one staking provider can
     ///         have authorized. Used to protect against DoSing slashing queue.
     ///         Can only be called by the Governance.
-    function setAuthorizationCeiling(
-        uint256 ceiling
-    ) external override onlyGovernance {
+    function setAuthorizationCeiling(uint256 ceiling)
+        external
+        override
+        onlyGovernance
+    {
         authorizationCeiling = ceiling;
         emit AuthorizationCeilingSet(ceiling);
     }
@@ -590,10 +605,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         the liquid T stake amount. Can be called only by the owner or
     ///         the staking provider. Can only be called when 24h passed since
     ///         the stake has been delegated.
-    function unstakeT(
-        address stakingProvider,
-        uint96 amount
-    ) external override onlyOwnerOrStakingProvider(stakingProvider) {
+    function unstakeT(address stakingProvider, uint96 amount)
+        external
+        override
+        onlyOwnerOrStakingProvider(stakingProvider)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -628,9 +644,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @dev    This function (or `unstakeAll`) must be called before
     ///         `undelegate`/`undelegateAt` in Keep staking contract. Otherwise
     ///         provider can be slashed by `notifyKeepStakeDiscrepancy` method.
-    function unstakeKeep(
-        address stakingProvider
-    ) external override onlyOwnerOrStakingProvider(stakingProvider) {
+    function unstakeKeep(address stakingProvider)
+        external
+        override
+        onlyOwnerOrStakingProvider(stakingProvider)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -660,9 +678,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         in NuCypher staking contract. Otherwise NU tokens can't be
     ///         unlocked.
     /// @param stakingProvider Staking provider address
-    function unstakeNu(
-        address stakingProvider
-    ) external override onlyOwnerOrStakingProvider(stakingProvider) {
+    function unstakeNu(address stakingProvider)
+        external
+        override
+        onlyOwnerOrStakingProvider(stakingProvider)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -684,9 +704,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         Can be called only by the delegation owner or the staking
     ///         provider. Can only be called when 24h passed since the stake
     ///         has been delegated.
-    function unstakeAll(
-        address stakingProvider
-    ) external override onlyOwnerOrStakingProvider(stakingProvider) {
+    function unstakeAll(address stakingProvider)
+        external
+        override
+        onlyOwnerOrStakingProvider(stakingProvider)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -724,9 +746,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Sets reward in T tokens for notification of misbehaviour
     ///         of one staking provider. Can only be called by the governance.
-    function setNotificationReward(
-        uint96 reward
-    ) external override onlyGovernance {
+    function setNotificationReward(uint96 reward)
+        external
+        override
+        onlyGovernance
+    {
         notificationReward = reward;
         emit NotificationRewardSet(reward);
     }
@@ -742,10 +766,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Withdraw some amount of T tokens from notifiers treasury.
     ///         Can only be called by the governance.
-    function withdrawNotificationReward(
-        address recipient,
-        uint96 amount
-    ) external override onlyGovernance {
+    function withdrawNotificationReward(address recipient, uint96 amount)
+        external
+        override
+        onlyGovernance
+    {
         require(amount <= notifiersTreasury, "Not enough tokens");
         notifiersTreasury -= amount;
         emit NotificationRewardWithdrawn(recipient, amount);
@@ -759,10 +784,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @dev    This method doesn't emit events for providers that are added to
     ///         the queue. If necessary  events can be added to the application
     ///         level.
-    function slash(
-        uint96 amount,
-        address[] memory _stakingProviders
-    ) external override {
+    function slash(uint96 amount, address[] memory _stakingProviders)
+        external
+        override
+    {
         notify(amount, 0, address(0), _stakingProviders);
     }
 
@@ -817,17 +842,18 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Delegate voting power from the stake associated to the
     ///         `stakingProvider` to a `delegatee` address. Caller must be the
     ///         owner of this stake.
-    function delegateVoting(
-        address stakingProvider,
-        address delegatee
-    ) external {
+    function delegateVoting(address stakingProvider, address delegatee)
+        external
+    {
         delegate(stakingProvider, delegatee);
     }
 
     /// @notice Transfers ownership of the contract to `newGuvnor`.
-    function transferGovernance(
-        address newGuvnor
-    ) external virtual onlyGovernance {
+    function transferGovernance(address newGuvnor)
+        external
+        virtual
+        onlyGovernance
+    {
         _transferGovernance(newGuvnor);
     }
 
@@ -839,10 +865,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Returns the authorized stake amount of the staking provider for
     ///         the application.
-    function authorizedStake(
-        address stakingProvider,
-        address application
-    ) external view override returns (uint96) {
+    function authorizedStake(address stakingProvider, address application)
+        external
+        view
+        override
+        returns (uint96)
+    {
         return
             stakingProviders[stakingProvider]
                 .authorizations[application]
@@ -852,13 +880,15 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Returns staked amount of T, Keep and Nu for the specified
     ///         staking provider.
     /// @dev    All values are in T denomination
-    function stakes(
-        address stakingProvider
-    )
+    function stakes(address stakingProvider)
         external
         view
         override
-        returns (uint96 tStake, uint96 keepInTStake, uint96 nuInTStake)
+        returns (
+            uint96 tStake,
+            uint96 keepInTStake,
+            uint96 nuInTStake
+        )
     {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
@@ -870,16 +900,22 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Returns start staking timestamp.
     /// @dev    This value is set at most once.
-    function getStartStakingTimestamp(
-        address stakingProvider
-    ) external view override returns (uint256) {
+    function getStartStakingTimestamp(address stakingProvider)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return stakingProviders[stakingProvider].startStakingTimestamp;
     }
 
     /// @notice Returns staked amount of NU for the specified staking provider.
-    function stakedNu(
-        address stakingProvider
-    ) external view override returns (uint256 nuAmount) {
+    function stakedNu(address stakingProvider)
+        external
+        view
+        override
+        returns (uint256 nuAmount)
+    {
         (nuAmount, ) = convertFromT(
             stakingProviders[stakingProvider].nuInTStake,
             nucypherRatio
@@ -891,13 +927,15 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @return owner Stake owner address.
     /// @return beneficiary Beneficiary address.
     /// @return authorizer Authorizer address.
-    function rolesOf(
-        address stakingProvider
-    )
+    function rolesOf(address stakingProvider)
         external
         view
         override
-        returns (address owner, address payable beneficiary, address authorizer)
+        returns (
+            address owner,
+            address payable beneficiary,
+            address authorizer
+        )
     {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
@@ -982,10 +1020,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///      needed to satisfy the maximum application authorization given
     ///      the staked amounts of the other stake types for that staking
     ///      provider.
-    function getMinStaked(
-        address stakingProvider,
-        StakeType stakeTypes
-    ) public view override returns (uint96) {
+    function getMinStaked(address stakingProvider, StakeType stakeTypes)
+        public
+        view
+        override
+        returns (uint96)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -1043,10 +1083,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///      parameters, `delegator` and `delegatee`. Here we override it and
     ///      comply with the same signature but the semantics of the first
     ///      parameter changes to the `stakingProvider` address.
-    function delegate(
-        address stakingProvider,
-        address delegatee
-    ) internal virtual override onlyOwnerOf(stakingProvider) {
+    function delegate(address stakingProvider, address delegatee)
+        internal
+        virtual
+        override
+        onlyOwnerOf(stakingProvider)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -1116,9 +1158,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         Executes `involuntaryAuthorizationDecrease` function on each
     ///         affected application.
     //slither-disable-next-line dead-code
-    function processSlashing(
-        SlashingEvent storage slashing
-    ) internal returns (uint96 tAmountToBurn) {
+    function processSlashing(SlashingEvent storage slashing)
+        internal
+        returns (uint96 tAmountToBurn)
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             slashing.stakingProvider
         ];
@@ -1233,8 +1276,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 0
             ) {
                 stakingProviderStruct.authorizedApplications[
-                    index
-                ] = stakingProviderStruct.authorizedApplications[
+                        index
+                    ] = stakingProviderStruct.authorizedApplications[
                     length - deleted - 1
                 ];
                 deleted++;
@@ -1279,20 +1322,18 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Creates new checkpoints due to an increment of a stakers' stake
     /// @param _delegator Address of the staking provider acting as delegator
     /// @param _amount Amount of T to increment
-    function increaseStakeCheckpoint(
-        address _delegator,
-        uint96 _amount
-    ) internal {
+    function increaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
         newStakeCheckpoint(_delegator, _amount, true);
     }
 
     /// @notice Creates new checkpoints due to a decrease of a stakers' stake
     /// @param _delegator Address of the stake owner acting as delegator
     /// @param _amount Amount of T to decrease
-    function decreaseStakeCheckpoint(
-        address _delegator,
-        uint96 _amount
-    ) internal {
+    function decreaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
         newStakeCheckpoint(_delegator, _amount, false);
     }
 
@@ -1305,10 +1346,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Returns the amount of legacy tokens that's obtained from
     ///         `tAmount` T tokens for the given `ratio`, and the T remainder
     ///         that can't be converted.
-    function convertFromT(
-        uint96 tAmount,
-        uint256 ratio
-    ) internal pure returns (uint256 amount, uint96 tRemainder) {
+    function convertFromT(uint96 tAmount, uint256 ratio)
+        internal
+        pure
+        returns (uint256 amount, uint96 tRemainder)
+    {
         //slither-disable-next-line weak-prng
         tRemainder = (tAmount % ratio).toUint96();
         uint256 convertibleAmount = tAmount - tRemainder;
