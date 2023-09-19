@@ -26,7 +26,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   } else if (
     // TODO: For testnets currently we deploy a stub contract. We should consider
     // switching to an actual contract.
-    hre.network.name !== "ropsten" &&
+    hre.network.name !== "sepolia" &&
     hre.network.name !== "goerli" &&
     (!hre.network.tags.allowStubs ||
       (hre.network.config as HardhatNetworkConfig)?.forking?.enabled)
