@@ -51,25 +51,6 @@ interface IStaking {
         uint96 amount
     ) external;
 
-    /// @notice Copies delegation from the legacy KEEP staking contract to T
-    ///         staking contract. No tokens are transferred. Caches the active
-    ///         stake amount from KEEP staking contract. Can be called by
-    ///         anyone.
-    /// @dev The staking provider in T staking contract is the legacy KEEP
-    ///      staking contract operator.
-    function stakeKeep(address stakingProvider) external;
-
-    /// @notice Copies delegation from the legacy NU staking contract to T
-    ///         staking contract, additionally appointing staking provider,
-    ///         beneficiary and authorizer roles. Caches the amount staked in NU
-    ///         staking contract. Can be called only by the original delegation
-    ///         owner.
-    function stakeNu(
-        address stakingProvider,
-        address payable beneficiary,
-        address authorizer
-    ) external;
-
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
@@ -131,9 +112,9 @@ interface IStaking {
     ///         called by the application that was previously requested to
     ///         decrease the authorization for that staking provider.
     ///         Returns resulting authorized amount for the application.
-    function approveAuthorizationDecrease(address stakingProvider)
-        external
-        returns (uint96);
+    function approveAuthorizationDecrease(
+        address stakingProvider
+    ) external returns (uint96);
 
     /// @notice Decreases the authorization for the given `stakingProvider` on
     ///         the given disabled `application`, for all authorized amount.
@@ -181,16 +162,6 @@ interface IStaking {
     ///      transfer to the staking contract.
     function topUp(address stakingProvider, uint96 amount) external;
 
-    /// @notice Propagates information about stake top-up from the legacy KEEP
-    ///         staking contract to T staking contract. Can be called only by
-    ///         the owner or the staking provider.
-    function topUpKeep(address stakingProvider) external;
-
-    /// @notice Propagates information about stake top-up from the legacy NU
-    ///         staking contract to T staking contract. Can be called only by
-    ///         the owner or the staking provider.
-    function topUpNu(address stakingProvider) external;
-
     //
     //
     // Undelegating a stake (unstaking)
@@ -214,17 +185,17 @@ interface IStaking {
     ///         called only by the delegation owner or the staking provider.
     function unstakeKeep(address stakingProvider) external;
 
-    /// @notice Reduces cached legacy NU stake amount by the provided amount.
-    ///         Reverts if there is at least one authorization higher than the
-    ///         sum of remaining legacy NU stake and liquid T stake for that
-    ///         staking provider or if the untaked amount is higher than the
-    ///         cached legacy stake amount. If succeeded, the legacy NU stake
-    ///         can be partially or fully undelegated on the legacy staking
-    ///         contract. This function allows to unstake from NU staking
-    ///         contract and still being able to operate in T network and
-    ///         earning rewards based on the liquid T staked. Can be called only
-    ///         by the delegation owner or the staking provider.
-    function unstakeNu(address stakingProvider, uint96 amount) external;
+    /// @notice Sets the legacy NU staking contract active stake amount cached
+    ///         in T staking contract to 0. Reverts if there is at least one 
+    ///         authorization higher than the sum of remaining legacy NU stake 
+    ///         and liquid T stake for that staking provider or if the untaked 
+    ///         amount is higher than the cached legacy stake amount. If succeeded, 
+    ///         the legacy NU stake can be partially or fully undelegated on 
+    ///         the legacy staking contract. This function allows to unstake 
+    ///         from NU staking contract and still being able to operate in 
+    ///         T network and earning rewards based on the liquid T staked. 
+    ///         Can be called only by the delegation owner or the staking provider.
+    function unstakeNu(address stakingProvider) external;
 
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
     ///         amount to 0 and withdraws all liquid T from the stake to the
@@ -239,34 +210,6 @@ interface IStaking {
     //
     //
 
-    /// @notice Notifies about the discrepancy between legacy KEEP active stake
-    ///         and the amount cached in T staking contract. Slashes the staking
-    ///         provider in case the amount cached is higher than the actual
-    ///         active stake amount in KEEP staking contract. Needs to update
-    ///         authorizations of all affected applications and execute an
-    ///         involuntary allocation decrease on all affected applications.
-    ///         Can be called by anyone, notifier receives a reward.
-    function notifyKeepStakeDiscrepancy(address stakingProvider) external;
-
-    /// @notice Notifies about the discrepancy between legacy NU active stake
-    ///         and the amount cached in T staking contract. Slashes the
-    ///         staking provider in case the amount cached is higher than the
-    ///         actual active stake amount in NU staking contract. Needs to
-    ///         update authorizations of all affected applications and execute
-    ///         an involuntary allocation decrease on all affected applications.
-    ///         Can be called by anyone, notifier receives a reward.
-    function notifyNuStakeDiscrepancy(address stakingProvider) external;
-
-    /// @notice Sets the penalty amount for stake discrepancy and reward
-    ///         multiplier for reporting it. The penalty is seized from the
-    ///         delegated stake, and 5% of the penalty, scaled by the
-    ///         multiplier, is given to the notifier. The rest of the tokens are
-    ///         burned. Can only be called by the Governance. See `seize` function.
-    function setStakeDiscrepancyPenalty(
-        uint96 penalty,
-        uint256 rewardMultiplier
-    ) external;
-
     /// @notice Sets reward in T tokens for notification of misbehaviour
     ///         of one staking provider. Can only be called by the governance.
     function setNotificationReward(uint96 reward) external;
@@ -277,8 +220,10 @@ interface IStaking {
 
     /// @notice Withdraw some amount of T tokens from notifiers treasury.
     ///         Can only be called by the governance.
-    function withdrawNotificationReward(address recipient, uint96 amount)
-        external;
+    function withdrawNotificationReward(
+        address recipient,
+        uint96 amount
+    ) external;
 
     /// @notice Adds staking providers to the slashing queue along with the
     ///         amount that should be slashed from each one of them. Can only be
@@ -311,29 +256,26 @@ interface IStaking {
 
     /// @notice Returns the authorized stake amount of the staking provider for
     ///         the application.
-    function authorizedStake(address stakingProvider, address application)
-        external
-        view
-        returns (uint96);
+    function authorizedStake(
+        address stakingProvider,
+        address application
+    ) external view returns (uint96);
 
     /// @notice Returns staked amount of T, Keep and Nu for the specified
     ///         staking provider.
     /// @dev    All values are in T denomination
-    function stakes(address stakingProvider)
+    function stakes(
+        address stakingProvider
+    )
         external
         view
-        returns (
-            uint96 tStake,
-            uint96 keepInTStake,
-            uint96 nuInTStake
-        );
+        returns (uint96 tStake, uint96 keepInTStake, uint96 nuInTStake);
 
     /// @notice Returns start staking timestamp.
     /// @dev    This value is set at most once.
-    function getStartStakingTimestamp(address stakingProvider)
-        external
-        view
-        returns (uint256);
+    function getStartStakingTimestamp(
+        address stakingProvider
+    ) external view returns (uint256);
 
     /// @notice Returns staked amount of NU for the specified staking provider.
     function stakedNu(address stakingProvider) external view returns (uint256);
@@ -343,7 +285,9 @@ interface IStaking {
     /// @return owner Stake owner address.
     /// @return beneficiary Beneficiary address.
     /// @return authorizer Authorizer address.
-    function rolesOf(address stakingProvider)
+    function rolesOf(
+        address stakingProvider
+    )
         external
         view
         returns (
@@ -374,10 +318,10 @@ interface IStaking {
     ///      stake type is the minimum amount of stake of the given type
     ///      needed to satisfy the maximum application authorization given the
     ///      staked amounts of the other stake types for that staking provider.
-    function getMinStaked(address stakingProvider, StakeType stakeTypes)
-        external
-        view
-        returns (uint96);
+    function getMinStaked(
+        address stakingProvider,
+        StakeType stakeTypes
+    ) external view returns (uint96);
 
     /// @notice Returns available amount to authorize for the specified application
     function getAvailableToAuthorize(
