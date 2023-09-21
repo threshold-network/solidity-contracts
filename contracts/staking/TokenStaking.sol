@@ -1010,16 +1010,15 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///      application authorization is 40 T, then `getMinStaked` for
     ///      that staking provider returns:
     ///          * 0 T if KEEP stake type specified i.e.
-    ///            min = 40 T max - (10 T + 30 T worth of NU) = 0 T
+    ///            min = 40 T max - (10 T) = 30 T
     ///          * 10 T if NU stake type specified i.e.
-    ///            min = 40 T max - (10 T + 20 T worth of KEEP) = 10 T
+    ///            min = 40 T max - (10 T) = 30 T
     ///          * 0 T if T stake type specified i.e.
-    ///            min = 40 T max - (20 T worth of KEEP + 30 T worth of NU) < 0 T
+    ///            min = 40 T max = 40 T < 0 T
     ///      In other words, the minimum stake amount for the specified
     ///      stake type is the minimum amount of stake of the given type
     ///      needed to satisfy the maximum application authorization given
-    ///      the staked amounts of the other stake types for that staking
-    ///      provider.
+    ///      the staked amounts of the T stake types for that staking provider.
     function getMinStaked(address stakingProvider, StakeType stakeTypes)
         public
         view
