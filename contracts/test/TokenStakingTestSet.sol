@@ -235,8 +235,16 @@ contract LegacyTokenStaking is TokenStaking {
         ];
         AppAuthorization storage authorization = stakingProviderStruct
             .authorizations[application];
-        stakingProviderStruct.authorizedApplications.push(application);
+        uint96 fromAmount = authorization.authorized;
+        if (fromAmount == 0) {
+            stakingProviderStruct.authorizedApplications.push(application);
+        }
         authorization.authorized += amount;
+        IApplication(application).authorizationIncreased(
+            stakingProvider,
+            fromAmount,
+            authorization.authorized
+        );
     }
 
     function setLegacyStakingProvider(

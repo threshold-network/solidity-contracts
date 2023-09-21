@@ -738,6 +738,15 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
+    /// @notice Involuntary decrease authorization for all application up to T
+    ///         stake amount for all staking providers in the list.
+    ///         Sets cached legacy stake amount to 0. Can be called by anyone
+    function forceUnstakeLegacy(address[] memory _stakingProviders) external {
+        for (uint256 i = 0; i < _stakingProviders.length; i++) {
+            forceUnstakeLegacy(_stakingProviders[i]);
+        }
+    }
+
     //
     //
     // Keeping information in sync
@@ -1002,6 +1011,72 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             authorization.authorized,
             deauthorizingTo
         );
+    }
+
+    /// @notice Involuntary decrease authorization for all application up to T
+    ///         stake amount. Sets cached legacy stake amount to 0.
+    ///         Can be called by anyone
+    function forceUnstakeLegacy(address stakingProvider) public {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        uint96 legacyStake = stakingProviderStruct.keepInTStake +
+            stakingProviderStruct.nuInTStake;
+        require(legacyStake > 0, "No legacy stake");
+
+        // similar to authorizationDecrease method
+        uint256 applicationsToDelete = 0;
+        for (
+            uint256 i = 0;
+            i < stakingProviderStruct.authorizedApplications.length;
+            i++
+        ) {
+            address authorizedApplication = stakingProviderStruct
+                .authorizedApplications[i];
+            AppAuthorization storage authorization = stakingProviderStruct
+                .authorizations[authorizedApplication];
+            uint96 fromAmount = authorization.authorized;
+
+            if (fromAmount <= stakingProviderStruct.tStake) {
+                continue;
+            }
+            authorization.authorized = stakingProviderStruct.tStake;
+
+            bool successful = true;
+            //slither-disable-next-line calls-loop
+            try
+                IApplication(authorizedApplication)
+                    .involuntaryAuthorizationDecrease{
+                    gas: GAS_LIMIT_AUTHORIZATION_DECREASE
+                }(stakingProvider, fromAmount, authorization.authorized)
+            {} catch {
+                successful = false;
+            }
+            if (authorization.deauthorizing > authorization.authorized) {
+                authorization.deauthorizing = authorization.authorized;
+            }
+            emit AuthorizationInvoluntaryDecreased(
+                stakingProvider,
+                authorizedApplication,
+                fromAmount,
+                authorization.authorized,
+                successful
+            );
+            if (authorization.authorized == 0) {
+                applicationsToDelete++;
+            }
+        }
+        if (applicationsToDelete > 0) {
+            cleanAuthorizedApplications(
+                stakingProviderStruct,
+                applicationsToDelete
+            );
+        }
+
+        emit Unstaked(stakingProvider, legacyStake);
+        stakingProviderStruct.keepInTStake = 0;
+        stakingProviderStruct.nuInTStake = 0;
+        decreaseStakeCheckpoint(stakingProvider, legacyStake);
     }
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination

@@ -4611,6 +4611,306 @@ describe("TokenStaking", () => {
     )
   })
 
+  describe("forceUnstakeLegacy", () => {
+    const tAmount = initialStakerBalance
+    const keepInTStake = convertToT(initialStakerBalance, keepRatio).result
+    const nuInTStake = convertToT(initialStakerBalance, nuRatio).result
+
+    beforeEach(async () => {
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application2Mock.address)
+      await tToken
+        .connect(staker)
+        .approve(tokenStaking.address, initialStakerBalance)
+      await tokenStaking
+        .connect(staker)
+        .stake(stakingProvider.address, staker.address, staker.address, tAmount)
+    })
+
+    context("when no legacy stake", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            tAmount
+          )
+        await expect(
+          tokenStaking["forceUnstakeLegacy(address)"](stakingProvider.address)
+        ).to.be.revertedWith("No legacy stake")
+      })
+    })
+
+    context("when authorized only T stake", () => {
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking.addLegacyStake(
+          stakingProvider.address,
+          keepInTStake,
+          nuInTStake
+        )
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            tAmount
+          )
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(stakingProvider.address, delegatee.address)
+
+        tx = await tokenStaking["forceUnstakeLegacy(address)"](
+          stakingProvider.address
+        )
+      })
+
+      it("should update staked amount", async () => {
+        await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
+      })
+
+      it("should not decrease authorized amounts", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(tAmount)
+      })
+
+      it("should not inform application", async () => {
+        await assertApplicationStakingProviders(
+          application1Mock,
+          stakingProvider.address,
+          tAmount,
+          Zero
+        )
+      })
+
+      it("should emit Unstaked event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, nuInTStake.add(keepInTStake))
+      })
+    })
+
+    context("when authorized T, KEEP and NU stakes", () => {
+      const authorized1 = tAmount.add(keepInTStake).add(nuInTStake)
+      const authorized2 = nuInTStake.add(keepInTStake)
+      const deauth = authorized1.sub(tAmount).sub(1)
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking.addLegacyStake(
+          stakingProvider.address,
+          keepInTStake,
+          nuInTStake
+        )
+        await tokenStaking
+          .connect(staker)
+          .forceIncreaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            authorized1
+          )
+        await tokenStaking
+          .connect(staker)
+          .forceIncreaseAuthorization(
+            stakingProvider.address,
+            application2Mock.address,
+            authorized2
+          )
+        await tokenStaking
+          .connect(staker)
+          ["requestAuthorizationDecrease(address,address,uint96)"](
+            stakingProvider.address,
+            application1Mock.address,
+            deauth
+          )
+        await tokenStaking
+          .connect(staker)
+          .delegateVoting(stakingProvider.address, delegatee.address)
+
+        tx = await tokenStaking["forceUnstakeLegacy(address)"](
+          stakingProvider.address
+        )
+      })
+
+      it("should update staked amount", async () => {
+        await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
+      })
+
+      it("should decrease the delegatee voting power", async () => {
+        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
+      })
+
+      it("should decrease authorized amounts", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(tAmount)
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application2Mock.address
+          )
+        ).to.equal(tAmount)
+      })
+
+      it("should inform application", async () => {
+        await assertApplicationStakingProviders(
+          application1Mock,
+          stakingProvider.address,
+          tAmount,
+          Zero
+        )
+        await assertApplicationStakingProviders(
+          application2Mock,
+          stakingProvider.address,
+          tAmount,
+          Zero
+        )
+      })
+
+      it("should emit Unstaked and AuthorizationInvoluntaryDecreased event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, nuInTStake.add(keepInTStake))
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+          .withArgs(
+            stakingProvider.address,
+            application1Mock.address,
+            authorized1,
+            tAmount,
+            true
+          )
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+          .withArgs(
+            stakingProvider.address,
+            application2Mock.address,
+            authorized2,
+            tAmount,
+            true
+          )
+      })
+    })
+
+    context("when unstake multiple legacy stakes", () => {
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking.addLegacyStake(
+          stakingProvider.address,
+          keepInTStake,
+          0
+        )
+        await tokenStaking.setLegacyStakingProvider(
+          stakingProvider.address,
+          staker.address,
+          beneficiary.address,
+          authorizer.address
+        )
+        await tokenStaking.addLegacyStake(otherStaker.address, 0, nuInTStake)
+
+        await tokenStaking
+          .connect(staker)
+          .forceIncreaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            tAmount.add(keepInTStake)
+          )
+        await tokenStaking
+          .connect(staker)
+          .forceIncreaseAuthorization(
+            otherStaker.address,
+            application1Mock.address,
+            nuInTStake
+          )
+
+        tx = await tokenStaking["forceUnstakeLegacy(address[])"]([
+          stakingProvider.address,
+          otherStaker.address,
+        ])
+      })
+
+      it("should update staked amount", async () => {
+        await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
+        await assertStakes(otherStaker.address, Zero, Zero, Zero)
+      })
+
+      it("should decrease authorized amounts", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(tAmount)
+        expect(
+          await tokenStaking.authorizedStake(
+            otherStaker.address,
+            application1Mock.address
+          )
+        ).to.equal(Zero)
+      })
+
+      it("should inform application", async () => {
+        await assertApplicationStakingProviders(
+          application1Mock,
+          stakingProvider.address,
+          tAmount,
+          Zero
+        )
+        await assertApplicationStakingProviders(
+          application1Mock,
+          otherStaker.address,
+          Zero,
+          Zero
+        )
+      })
+
+      it("should emit Unstaked and AuthorizationInvoluntaryDecreased event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, keepInTStake)
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(otherStaker.address, nuInTStake)
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+          .withArgs(
+            stakingProvider.address,
+            application1Mock.address,
+            tAmount.add(keepInTStake),
+            tAmount,
+            true
+          )
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
+          .withArgs(
+            otherStaker.address,
+            application1Mock.address,
+            nuInTStake,
+            Zero,
+            true
+          )
+      })
+    })
+  })
+
   async function assertStakes(
     address,
     expectedTStake,
