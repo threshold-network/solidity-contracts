@@ -667,11 +667,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Sets the legacy NU staking contract active stake amount cached
     ///         in T staking contract to 0. Reverts if there is at least one
     ///         authorization higher than the sum of remaining legacy NU stake
-    ///         and liquid T stake for that staking provider or if the untaked
+    ///         and liquid T stake for that staking provider or if the unstaked
     ///         amount is higher than the cached legacy stake amount. If succeeded,
     ///         the legacy NU stake can be partially or fully undelegated on
     ///         the legacy staking contract. This function allows to unstake
-    ///         from NU staking contract and still being able to operate in
+    ///         from NU staking contract while still being able to operate in
     ///         T network and earning rewards based on the liquid T staked.
     ///         Can be called only by the delegation owner or the staking provider.
     /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
