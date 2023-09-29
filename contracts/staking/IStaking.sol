@@ -158,9 +158,15 @@ interface IStaking {
     //
 
     /// @notice Increases the amount of the stake for the given staking provider.
+    ///         If `autoIncrease` flag is true then the amount will be added for
+    ///         all authorized applications.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
     function topUp(address stakingProvider, uint96 amount) external;
+
+    /// @notice Toggle auto authorization increase flag. If true then all amount
+    ///         in top-up will be added to already authorized applications.
+    function toggleAutoAuthorizationIncrease(address stakingProvider) external;
 
     //
     //
@@ -277,6 +283,12 @@ interface IStaking {
         external
         view
         returns (uint256);
+
+    /// @notice Returns auto-increase flag.
+    function getAutoIncreaseFlag(address stakingProvider)
+        external
+        view
+        returns (bool);
 
     /// @notice Returns staked amount of NU for the specified staking provider.
     function stakedNu(address stakingProvider) external view returns (uint256);

@@ -60,6 +60,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         mapping(address => AppAuthorization) authorizations;
         address[] authorizedApplications;
         uint256 startStakingTimestamp;
+        bool autoIncrease;
     }
 
     struct AppAuthorization {
@@ -150,6 +151,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     );
     event AuthorizationCeilingSet(uint256 ceiling);
     event ToppedUp(address indexed stakingProvider, uint96 amount);
+    event AutoIncreaseToggled(
+        address indexed stakingProvider,
+        bool autoIncrease
+    );
     event Unstaked(address indexed stakingProvider, uint96 amount);
     event TokensSeized(
         address indexed stakingProvider,
@@ -575,6 +580,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
 
     /// @notice Increases the amount of the stake for the given staking provider.
+    ///         If `autoIncrease` flag is true then the amount will be added for
+    ///         all authorized applications.
     /// @dev The sender of this transaction needs to have the amount approved to
     ///      transfer to the staking contract.
     function topUp(address stakingProvider, uint96 amount) external override {
@@ -590,6 +597,54 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit ToppedUp(stakingProvider, amount);
         increaseStakeCheckpoint(stakingProvider, amount);
         token.safeTransferFrom(msg.sender, address(this), amount);
+
+        if (!stakingProviderStruct.autoIncrease) {
+            return;
+        }
+
+        // increase authorization for all authorized app
+        for (
+            uint256 i = 0;
+            i < stakingProviderStruct.authorizedApplications.length;
+            i++
+        ) {
+            address application = stakingProviderStruct.authorizedApplications[
+                i
+            ];
+            AppAuthorization storage authorization = stakingProviderStruct
+                .authorizations[application];
+            uint96 fromAmount = authorization.authorized;
+            authorization.authorized += amount;
+            emit AuthorizationIncreased(
+                stakingProvider,
+                application,
+                fromAmount,
+                authorization.authorized
+            );
+            IApplication(application).authorizationIncreased(
+                stakingProvider,
+                fromAmount,
+                authorization.authorized
+            );
+        }
+    }
+
+    /// @notice Toggle auto authorization increase flag. If true then all amount
+    ///         in top-up will be added to already authorized applications.
+    function toggleAutoAuthorizationIncrease(address stakingProvider)
+        external
+        override
+        onlyAuthorizerOf(stakingProvider)
+    {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        stakingProviderStruct.autoIncrease = !stakingProviderStruct
+            .autoIncrease;
+        emit AutoIncreaseToggled(
+            stakingProvider,
+            stakingProviderStruct.autoIncrease
+        );
     }
 
     //
@@ -916,6 +971,16 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         returns (uint256)
     {
         return stakingProviders[stakingProvider].startStakingTimestamp;
+    }
+
+    /// @notice Returns auto-increase flag.
+    function getAutoIncreaseFlag(address stakingProvider)
+        external
+        view
+        override
+        returns (bool)
+    {
+        return stakingProviders[stakingProvider].autoIncrease;
     }
 
     /// @notice Returns staked amount of NU for the specified staking provider.
