@@ -664,16 +664,16 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         decreaseStakeCheckpoint(stakingProvider, keepInTStake);
     }
 
-    /// @notice Sets the legacy NU staking contract active stake amount cached
-    ///         in T staking contract to 0. Reverts if there is at least one
+    /// @notice Sets to 0 the amount of T that is cached from the legacy
+    ///         NU staking contract. Reverts if there is at least one
     ///         authorization higher than the sum of remaining legacy NU stake
-    ///         and liquid T stake for that staking provider or if the unstaked
+    ///         and native T stake for that staking provider or if the unstaked
     ///         amount is higher than the cached legacy stake amount. If succeeded,
     ///         the legacy NU stake can be partially or fully undelegated on
-    ///         the legacy staking contract. This function allows to unstake
+    ///         the legacy NU staking contract. This function allows to unstake
     ///         from NU staking contract while still being able to operate in
-    ///         T network and earning rewards based on the liquid T staked.
-    ///         Can be called only by the delegation owner or the staking provider.
+    ///         T network and earning rewards based on the native T staked.
+    ///         Can be called only by the stake owner or the staking provider.
     /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
     ///         in NuCypher staking contract. Otherwise NU tokens can't be
     ///         unlocked.
@@ -1089,7 +1089,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///          * 10 T if NU stake type specified i.e.
     ///            min = 40 T max - (10 T) = 30 T
     ///          * 0 T if T stake type specified i.e.
-    ///            min = 40 T max = 40 T < 0 T
+    ///            min = 40 T max = 40 T
     ///      In other words, the minimum stake amount for the specified
     ///      stake type is the minimum amount of stake of the given type
     ///      needed to satisfy the maximum application authorization given
@@ -1244,11 +1244,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             stakingProviderStruct.keepInTStake +
             stakingProviderStruct.nuInTStake;
         // slash T
-        if (tAmountToSlash <= stakingProviderStruct.tStake) {
-            tAmountToBurn = tAmountToSlash;
-        } else {
-            tAmountToBurn = stakingProviderStruct.tStake;
-        }
+        tAmountToBurn = MathUpgradeable
+            .min(tAmountToSlash, stakingProviderStruct.tStake)
+            .toUint96();
         stakingProviderStruct.tStake -= tAmountToBurn;
         tAmountToSlash -= tAmountToBurn;
 

@@ -185,16 +185,16 @@ interface IStaking {
     ///         called only by the delegation owner or the staking provider.
     function unstakeKeep(address stakingProvider) external;
 
-    /// @notice Sets the legacy NU staking contract active stake amount cached
-    ///         in T staking contract to 0. Reverts if there is at least one
+    /// @notice Sets to 0 the amount of T that is cached from the legacy
+    ///         NU staking contract. Reverts if there is at least one
     ///         authorization higher than the sum of remaining legacy NU stake
-    ///         and liquid T stake for that staking provider or if the unstaked
+    ///         and native T stake for that staking provider or if the unstaked
     ///         amount is higher than the cached legacy stake amount. If succeeded,
     ///         the legacy NU stake can be partially or fully undelegated on
-    ///         the legacy staking contract. This function allows to unstake
+    ///         the legacy NU staking contract. This function allows to unstake
     ///         from NU staking contract while still being able to operate in
-    ///         T network and earning rewards based on the liquid T staked.
-    ///         Can be called only by the delegation owner or the staking provider.
+    ///         T network and earning rewards based on the native T staked.
+    ///         Can be called only by the stake owner or the staking provider.
     function unstakeNu(address stakingProvider) external;
 
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
@@ -303,20 +303,20 @@ interface IStaking {
 
     /// @notice Returns minimum possible stake for T, KEEP or NU in T
     ///         denomination.
-    /// @dev For example, suppose the given staking provider has 10 T, 20 T
-    ///      worth of KEEP, and 30 T worth of NU all staked, and the maximum
+    /// @dev For example, suppose the given staking provider has 10 T, 20 T worth
+    ///      of KEEP, and 30 T worth of NU all staked, and the maximum
     ///      application authorization is 40 T, then `getMinStaked` for
     ///      that staking provider returns:
     ///          * 0 T if KEEP stake type specified i.e.
-    ///            min = 40 T max - (10 T + 30 T worth of NU) = 0 T
+    ///            min = 40 T max - (10 T) = 30 T
     ///          * 10 T if NU stake type specified i.e.
-    ///            min = 40 T max - (10 T + 20 T worth of KEEP) = 10 T
+    ///            min = 40 T max - (10 T) = 30 T
     ///          * 0 T if T stake type specified i.e.
-    ///            min = 40 T max - (20 T worth of KEEP + 30 T worth of NU) < 0 T
+    ///            min = 40 T max = 40 T
     ///      In other words, the minimum stake amount for the specified
     ///      stake type is the minimum amount of stake of the given type
-    ///      needed to satisfy the maximum application authorization given the
-    ///      staked amounts of the other stake types for that staking provider.
+    ///      needed to satisfy the maximum application authorization given
+    ///      the staked amounts of the T stake types for that staking provider.
     function getMinStaked(address stakingProvider, StakeType stakeTypes)
         external
         view
