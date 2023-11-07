@@ -8,6 +8,7 @@ import "@tenderly/hardhat-tenderly"
 import "hardhat-contract-sizer"
 import "hardhat-deploy"
 import "hardhat-gas-reporter"
+import "solidity-docgen"
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -56,21 +57,13 @@ const config: HardhatUserConfig = {
         : undefined,
       tags: ["tenderly"],
     },
-    rinkeby: {
+    sepolia: {
       url: process.env.CHAIN_API_URL || "",
-      chainId: 4,
-      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
-        : undefined,
-      tags: ["tenderly"],
-    },
-    ropsten: {
-      url: process.env.CHAIN_API_URL || "",
-      chainId: 3,
+      chainId: 11155111,
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
         ? [
             process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY, // TODO: verify if we have different owner here or can we remove this
           ]
         : undefined,
       tags: ["tenderly"],
@@ -94,26 +87,12 @@ const config: HardhatUserConfig = {
     },
   },
   external: {
-    contracts: [
-      {
-        // Due to a limitation of `hardhat-deploy` plugin, we have
-        // to modify the artifacts imported from NPM. Please see
-        // `scripts/prepare-dependencies.sh` for details.
-        artifacts: "external/npm/@keep-network/keep-core/artifacts",
-        // Example if we want to use deployment scripts from external package:
-        // deploy: "node_modules/@keep-network/keep-core/deploy",
-      },
-    ],
     deployments: {
       // For hardhat environment we can fork the mainnet, so we need to point it
       // to the contract artifacts.
       hardhat: process.env.FORKING_URL ? ["./external/mainnet"] : [],
-      // For development environment we expect the local dependencies to be linked
-      // with `yarn link` command, uncomment the line below to use the linked
-      // dependencies.
-      // development: ["external/npm/@keep-network/keep-core/artifacts"],
-      ropsten: ["external/npm/@keep-network/keep-core/artifacts"],
-      goerli: ["external/npm/@keep-network/keep-core/artifacts"],
+      goerli: ["./external/goerli"],
+      sepolia: ["./external/sepolia"],
       mainnet: ["./external/mainnet"],
     },
   },
@@ -121,6 +100,7 @@ const config: HardhatUserConfig = {
     deployer: {
       default: 1, // take the first account as deployer
       goerli: 0,
+      sepolia: 0,
       // mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
     },
     thresholdCouncil: {
@@ -128,12 +108,18 @@ const config: HardhatUserConfig = {
     },
     keepRegistryKeeper: {
       default: 1, // same as the deployer
-      ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
       goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
+      sepolia: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
     },
   },
   mocha: {
     timeout: 60000,
+  },
+  docgen: {
+    outputDir: "generated-docs",
+    templates: "docgen-templates",
+    pages: "files", // `single`, `items` or `files`
+    exclude: ["./test"],
   },
 }
 

@@ -24,8 +24,8 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment (network) for workflow execution, e.g. `goerli`"
-        required: false
+        description: "Environment (network) for workflow execution, e.g. `sepolia`"
+        required: true
       upstream_builds:
         description: "Upstream builds"
         required: false
@@ -59,7 +59,10 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
           cache: "yarn"
 
       - name: Install dependencies
@@ -83,7 +86,10 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
           cache: "yarn"
 
       - name: Install dependencies
@@ -104,7 +110,10 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
           cache: "yarn"
 
       - name: Install dependencies
@@ -124,7 +133,10 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
           cache: "yarn"
           registry-url: "https://registry.npmjs.org"
 
@@ -141,9 +153,16 @@ jobs:
 
       - name: Deploy contracts
         env:
-          CHAIN_API_URL: ${{ secrets.GOERLI_ETH_HOSTNAME_HTTP }}
-          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
-          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          # Using fake ternary expressions to decide which credentials to use,
+          # depending on chosen environment. Note: if `GOERLI_ETH_HOSTNAME_HTTP`
+          # is empty, the expression will be evaluated to
+          # `SEPOLIA_ETH_HOSTNAME_HTTP`'s value.
+          CHAIN_API_URL: |
+            ${{ inputs.github.event.inputs.environment == 'goerli'
+              && secrets.GOERLI_ETH_HOSTNAME_HTTP
+              || secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
+          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
         run: yarn deploy --network ${{ github.event.inputs.environment }}
 
       - name: Bump up package version
@@ -193,7 +212,10 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
           cache: "yarn"
 
       - name: Install needed dependencies
@@ -209,7 +231,14 @@ jobs:
       - name: Verify contracts on Etherscan
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-          CHAIN_API_URL: ${{ secrets.GOERLI_ETH_HOSTNAME_HTTP }}
+          # Using fake ternary expressions to decide which credentials to use,
+          # depending on chosen environment. Note: if `GOERLI_ETH_HOSTNAME_HTTP`
+          # is empty, the expression will be evaluated to
+          # `SEPOLIA_ETH_HOSTNAME_HTTP`'s value.
+          CHAIN_API_URL: |
+            ${{ inputs.github.event.inputs.environment == 'goerli'
+              && secrets.GOERLI_ETH_HOSTNAME_HTTP
+              || secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
         run: |
           yarn run hardhat --network ${{ github.event.inputs.environment }} \
             etherscan-verify --license GPL-3.0 --force-license
@@ -229,7 +258,10 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: "18.x"
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
           cache: "yarn"
           registry-url: "https://registry.npmjs.org"
 
@@ -241,9 +273,16 @@ jobs:
 
       - name: Deploy contracts
         env:
-          CHAIN_API_URL: ${{ secrets.GOERLI_ETH_HOSTNAME_HTTP }}
-          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.DAPP_DEV_GOERLI_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
-          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOERLI_KEEP_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          # Using fake ternary expressions to decide which credentials to use,
+          # depending on chosen environment. Note: if `GOERLI_ETH_HOSTNAME_HTTP`
+          # is empty, the expression will be evaluated to
+          # `SEPOLIA_ETH_HOSTNAME_HTTP`'s value.
+          CHAIN_API_URL: |
+            ${{ inputs.github.event.inputs.environment == 'goerli'
+              && secrets.GOERLI_ETH_HOSTNAME_HTTP
+              || secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
+          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.DAPP_DEV_TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
+          KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
         run: yarn deploy --network ${{ github.event.inputs.environment }}
 
       - name: Bump up package version
@@ -284,7 +323,10 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: "18"
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
           cache: "yarn"
 
       - uses: actions/setup-python@v4

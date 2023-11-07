@@ -70,12 +70,6 @@ interface IStaking {
         address authorizer
     ) external;
 
-    /// @notice Refresh Keep stake owner. Can be called only by the old owner
-    ///         or their staking provider.
-    /// @dev The staking provider in T staking contract is the legacy KEEP
-    ///      staking contract operator.
-    function refreshKeepStakeOwner(address stakingProvider) external;
-
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
