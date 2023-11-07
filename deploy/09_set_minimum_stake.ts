@@ -24,5 +24,5 @@ export default func
 func.tags = ["setMinStakeAmount"]
 func.dependencies = ["TokenStaking"]
 func.skip = async function (hre: HardhatRuntimeEnvironment): Promise<boolean> {
-  return hre.network.name !== "goerli"
+  return hre.network.name !== "sepolia"
 }
