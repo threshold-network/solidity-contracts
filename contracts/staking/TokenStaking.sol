@@ -629,7 +629,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
-    /// @notice Toggle auto authorization increase flag. If true then all amount
+    /// @notice Toggle `autoIncrease` flag. If true then the complete amount
     ///         in top-up will be added to already authorized applications.
     function toggleAutoAuthorizationIncrease(address stakingProvider)
         external
