@@ -26,11 +26,11 @@ interface IApplicationWithOperator is IApplication {
         returns (address);
 
     /// @notice Used by staking provider to set operator address that will
-    ///         operate a node. The operator addressmust be unique.
+    ///         operate a node. The operator address must be unique.
     ///         Reverts if the operator is already set for the staking provider
     ///         or if the operator address is already in use.
     /// @dev    Depending on application the given staking provider can set operator
-    ///         address only one or multiple times. Besides that application can decide
+    ///         address only once or multiple times. Besides that, application can decide
     ///         if function reverts if there is a pending authorization decrease for
     ///         the staking provider.
     function registerOperator(address operator) external;

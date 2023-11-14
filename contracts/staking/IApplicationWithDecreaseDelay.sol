@@ -26,15 +26,15 @@ interface IApplicationWithDecreaseDelay is IApplication {
     ///         so that operator can participate in the application.
     /// @return authorizationDecreaseDelay Delay in seconds that needs to pass
     ///         between the time authorization decrease is requested and the
-    ///         time that request gets approved. Protects against free-riders
+    ///         time that request gets approved. Protects against participants
     ///         earning rewards and not being active in the network.
     /// @return authorizationDecreaseChangePeriod Authorization decrease change
-    ///        period in seconds. It is the time, before authorization decrease
-    ///        delay end, during which the pending authorization decrease
+    ///        period in seconds. It is the time window, before authorization decrease
+    ///        delay ends, during which the pending authorization decrease
     ///        request can be overwritten.
     ///        If set to 0, pending authorization decrease request can not be
     ///        overwritten until the entire `authorizationDecreaseDelay` ends.
-    ///        If set to value equal `authorizationDecreaseDelay`, request can
+    ///        If set to a value equal to `authorizationDecreaseDelay`, request can
     ///        always be overwritten.
     function authorizationParameters()
         external
