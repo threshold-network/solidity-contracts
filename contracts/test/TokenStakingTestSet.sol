@@ -2,195 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "../staking/ILegacyTokenStaking.sol";
 import "../staking/IApplication.sol";
 import "../staking/TokenStaking.sol";
-
-contract KeepTokenStakingMock is IKeepTokenStaking {
-    using PercentUtils for uint256;
-
-    struct OperatorStruct {
-        address owner;
-        address payable beneficiary;
-        address authorizer;
-        uint256 createdAt;
-        uint256 undelegatedAt;
-        uint256 amount;
-        mapping(address => bool) eligibility;
-    }
-
-    mapping(address => OperatorStruct) internal operators;
-    mapping(address => uint256) public tattletales;
-
-    function setOperator(
-        address operator,
-        address owner,
-        address payable beneficiary,
-        address authorizer,
-        uint256 createdAt,
-        uint256 undelegatedAt,
-        uint256 amount
-    ) external {
-        OperatorStruct storage operatorStrut = operators[operator];
-        operatorStrut.owner = owner;
-        operatorStrut.beneficiary = beneficiary;
-        operatorStrut.authorizer = authorizer;
-        operatorStrut.createdAt = createdAt;
-        operatorStrut.undelegatedAt = undelegatedAt;
-        operatorStrut.amount = amount;
-    }
-
-    function setEligibility(
-        address operator,
-        address application,
-        bool isEligible
-    ) external {
-        operators[operator].eligibility[application] = isEligible;
-    }
-
-    function setAmount(address operator, uint256 amount) external {
-        operators[operator].amount = amount;
-    }
-
-    function setUndelegatedAt(address operator, uint256 undelegatedAt)
-        external
-    {
-        operators[operator].undelegatedAt = undelegatedAt;
-    }
-
-    function seize(
-        uint256 amountToSeize,
-        uint256 rewardMultiplier,
-        address tattletale,
-        address[] memory misbehavedOperators
-    ) external override {
-        require(amountToSeize > 0, "Amount to slash must be greater than zero");
-        // assumed only one will be slashed (per call)
-        require(
-            misbehavedOperators.length == 1,
-            "Only one operator per call in tests"
-        );
-        address operator = misbehavedOperators[0];
-        operators[operator].amount -= amountToSeize;
-        tattletales[tattletale] += amountToSeize.percent(5).percent(
-            rewardMultiplier
-        );
-    }
-
-    function getDelegationInfo(address operator)
-        external
-        view
-        override
-        returns (
-            uint256 amount,
-            uint256 createdAt,
-            uint256 undelegatedAt
-        )
-    {
-        amount = operators[operator].amount;
-        createdAt = operators[operator].createdAt;
-        undelegatedAt = operators[operator].undelegatedAt;
-    }
-
-    function ownerOf(address operator)
-        external
-        view
-        override
-        returns (address)
-    {
-        return operators[operator].owner;
-    }
-
-    function beneficiaryOf(address operator)
-        external
-        view
-        override
-        returns (address payable)
-    {
-        return operators[operator].beneficiary;
-    }
-
-    function authorizerOf(address operator)
-        external
-        view
-        override
-        returns (address)
-    {
-        return operators[operator].authorizer;
-    }
-
-    function eligibleStake(address operator, address operatorContract)
-        external
-        view
-        override
-        returns (uint256 balance)
-    {
-        OperatorStruct storage operatorStrut = operators[operator];
-        if (operatorStrut.eligibility[operatorContract]) {
-            return operatorStrut.amount;
-        }
-        return 0;
-    }
-}
-
-contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
-    struct StakerStruct {
-        uint256 value;
-        address stakingProvider;
-    }
-
-    mapping(address => StakerStruct) public stakers;
-    mapping(address => uint256) public investigators;
-
-    function setStaker(address staker, uint256 value) external {
-        stakers[staker].value = value;
-    }
-
-    function slashStaker(
-        address staker,
-        uint256 penalty,
-        address investigator,
-        uint256 reward
-    ) external override {
-        require(penalty > 0, "Amount to slash must be greater than zero");
-        stakers[staker].value -= penalty;
-        investigators[investigator] += reward;
-    }
-
-    function requestMerge(address staker, address stakingProvider)
-        external
-        override
-        returns (uint256)
-    {
-        StakerStruct storage stakerStruct = stakers[staker];
-        require(
-            stakerStruct.stakingProvider == address(0) ||
-                stakerStruct.stakingProvider == stakingProvider,
-            "Another provider was already set for this staker"
-        );
-        if (stakerStruct.stakingProvider == address(0)) {
-            stakerStruct.stakingProvider = stakingProvider;
-        }
-        return stakers[staker].value;
-    }
-
-    function getAllTokens(address staker)
-        external
-        view
-        override
-        returns (uint256)
-    {
-        return stakers[staker].value;
-    }
-
-    function stakerInfo(address staker)
-        public
-        view
-        returns (StakerStruct memory)
-    {
-        return stakers[staker];
-    }
-}
 
 contract VendingMachineMock {
     uint256 public constant FLOATING_POINT_DIVISOR = 10**15;
@@ -263,6 +76,14 @@ contract ApplicationMock is IApplication {
         );
     }
 
+    function availableRewards(address) external pure returns (uint96) {
+        return 0;
+    }
+
+    function minimumAuthorization() external pure returns (uint96) {
+        return 0;
+    }
+
     function involuntaryAuthorizationDecrease(
         address stakingProvider,
         uint96,
@@ -282,14 +103,6 @@ contract ApplicationMock is IApplication {
             stakingProviderStruct.deauthorizingTo = 0;
         }
         stakingProviderStruct.authorized = toAmount;
-    }
-
-    function availableRewards(address) external pure returns (uint96) {
-        return 0;
-    }
-
-    function minimumAuthorization() external pure returns (uint96) {
-        return 0;
     }
 }
 
@@ -336,22 +149,8 @@ contract ManagedGrantMock {
 }
 
 contract ExtendedTokenStaking is TokenStaking {
-    constructor(
-        T _token,
-        IKeepTokenStaking _keepStakingContract,
-        INuCypherStakingEscrow _nucypherStakingContract,
-        VendingMachine _keepVendingMachine,
-        VendingMachine _nucypherVendingMachine,
-        KeepStake _keepStake
-    )
-        TokenStaking(
-            _token,
-            _keepStakingContract,
-            _nucypherStakingContract,
-            _keepVendingMachine,
-            _nucypherVendingMachine,
-            _keepStake
-        )
+    constructor(T _token, VendingMachine _nucypherVendingMachine)
+        TokenStaking(_token, _nucypherVendingMachine)
     {}
 
     function cleanAuthorizedApplications(
@@ -391,5 +190,74 @@ contract ExtendedTokenStaking is TokenStaking {
         returns (address[] memory)
     {
         return stakingProviders[stakingProvider].authorizedApplications;
+    }
+}
+
+contract LegacyTokenStaking is TokenStaking {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(T _token, VendingMachine _nucypherVendingMachine)
+        TokenStaking(_token, _nucypherVendingMachine)
+    {}
+
+    function setLegacyStakingProviderDefault(address stakingProvider) external {
+        setLegacyStakingProvider(
+            stakingProvider,
+            stakingProvider,
+            payable(stakingProvider),
+            stakingProvider
+        );
+    }
+
+    function addLegacyStake(
+        address stakingProvider,
+        uint96 keepInTStake,
+        uint96 nuInTStake
+    ) external {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        stakingProviderStruct.keepInTStake += keepInTStake;
+        stakingProviderStruct.nuInTStake += nuInTStake;
+        if (stakingProviderStruct.startStakingTimestamp == 0) {
+            /* solhint-disable-next-line not-rely-on-time */
+            stakingProviderStruct.startStakingTimestamp = block.timestamp;
+        }
+        increaseStakeCheckpoint(stakingProvider, keepInTStake + nuInTStake);
+    }
+
+    function forceIncreaseAuthorization(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) external {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        uint96 fromAmount = authorization.authorized;
+        if (fromAmount == 0) {
+            stakingProviderStruct.authorizedApplications.push(application);
+        }
+        authorization.authorized += amount;
+        IApplication(application).authorizationIncreased(
+            stakingProvider,
+            fromAmount,
+            authorization.authorized
+        );
+    }
+
+    function setLegacyStakingProvider(
+        address stakingProvider,
+        address owner,
+        address payable beneficiary,
+        address authorizer
+    ) public {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        stakingProviderStruct.owner = owner;
+        stakingProviderStruct.authorizer = authorizer;
+        stakingProviderStruct.beneficiary = beneficiary;
     }
 }

@@ -16,9 +16,7 @@
 pragma solidity 0.8.9;
 
 import "./IApplication.sol";
-import "./ILegacyTokenStaking.sol";
 import "./IStaking.sol";
-import "./KeepStake.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
 import "../utils/PercentUtils.sol";
@@ -86,23 +84,17 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IKeepTokenStaking internal immutable keepStakingContract;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    KeepStake internal immutable keepStake;
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    INuCypherStakingEscrow internal immutable nucypherStakingContract;
 
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 internal immutable keepRatio;
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 internal immutable nucypherRatio;
 
     address public governance;
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
-    uint96 public stakeDiscrepancyPenalty;
-    uint256 public stakeDiscrepancyRewardMultiplier;
+    // slither-disable-next-line constable-states
+    uint96 private legacyStakeDiscrepancyPenalty;
+    // slither-disable-next-line constable-states
+    uint256 private legacyStakeDiscrepancyRewardMultiplier;
 
     uint256 public notifiersTreasury;
     uint256 public notificationReward;
@@ -164,7 +156,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint96 amount,
         bool indexed discrepancy
     );
-    event StakeDiscrepancyPenaltySet(uint96 penalty, uint256 rewardMultiplier);
     event NotificationRewardSet(uint96 reward);
     event NotificationRewardPushed(uint96 reward);
     event NotificationRewardWithdrawn(address recipient, uint96 amount);
@@ -173,11 +164,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address indexed caller,
         uint256 count,
         uint256 tAmount
-    );
-    event OwnerRefreshed(
-        address indexed stakingProvider,
-        address indexed oldOwner,
-        address indexed newOwner
     );
     event GovernanceTransferred(address oldGovernance, address newGovernance);
 
@@ -224,34 +210,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @param _token Address of T token contract
-    /// @param _keepStakingContract Address of Keep staking contract
-    /// @param _nucypherStakingContract Address of NuCypher staking contract
-    /// @param _keepVendingMachine Address of Keep vending machine
     /// @param _nucypherVendingMachine Address of NuCypher vending machine
-    /// @param _keepStake Address of Keep contract with grant owners
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        T _token,
-        IKeepTokenStaking _keepStakingContract,
-        INuCypherStakingEscrow _nucypherStakingContract,
-        VendingMachine _keepVendingMachine,
-        VendingMachine _nucypherVendingMachine,
-        KeepStake _keepStake
-    ) {
+    constructor(T _token, VendingMachine _nucypherVendingMachine) {
         // calls to check contracts are working
-        require(
-            _token.totalSupply() > 0 &&
-                _keepStakingContract.ownerOf(address(0)) == address(0) &&
-                _nucypherStakingContract.getAllTokens(address(0)) == 0 &&
-                AddressUpgradeable.isContract(address(_keepStake)),
-            "Wrong input parameters"
-        );
+        require(_token.totalSupply() > 0, "Wrong input parameters");
         token = _token;
-        keepStakingContract = _keepStakingContract;
-        keepStake = _keepStake;
-        nucypherStakingContract = _nucypherStakingContract;
 
-        keepRatio = _keepVendingMachine.ratio();
         nucypherRatio = _nucypherVendingMachine.ratio();
     }
 
@@ -285,11 +250,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
-            stakingProvider
-        );
         require(
-            createdAt == 0 && stakingProviderStruct.owner == address(0),
+            stakingProviderStruct.owner == address(0),
             "Provider is already in use"
         );
         require(
@@ -315,98 +277,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             amount
         );
         token.safeTransferFrom(msg.sender, address(this), amount);
-    }
-
-    /// @notice Copies delegation from the legacy KEEP staking contract to T
-    ///         staking contract. No tokens are transferred. Caches the active
-    ///         stake amount from KEEP staking contract. Can be called by
-    ///         anyone.
-    /// @dev The staking provider in T staking contract is the legacy KEEP
-    ///      staking contract operator.
-    function stakeKeep(address stakingProvider) external override {
-        require(stakingProvider != address(0), "Parameters must be specified");
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-
-        require(
-            stakingProviderStruct.owner == address(0),
-            "Provider is already in use"
-        );
-
-        uint96 tAmount = getKeepAmountInT(stakingProvider);
-        require(tAmount != 0, "Nothing to sync");
-
-        stakingProviderStruct.keepInTStake = tAmount;
-        stakingProviderStruct.owner = keepStake.resolveOwner(stakingProvider);
-        stakingProviderStruct.authorizer = keepStakingContract.authorizerOf(
-            stakingProvider
-        );
-        stakingProviderStruct.beneficiary = keepStakingContract.beneficiaryOf(
-            stakingProvider
-        );
-
-        /* solhint-disable-next-line not-rely-on-time */
-        stakingProviderStruct.startStakingTimestamp = block.timestamp;
-
-        increaseStakeCheckpoint(stakingProvider, tAmount);
-
-        emit Staked(
-            StakeType.KEEP,
-            stakingProviderStruct.owner,
-            stakingProvider,
-            stakingProviderStruct.beneficiary,
-            stakingProviderStruct.authorizer,
-            tAmount
-        );
-    }
-
-    /// @notice Copies delegation from the legacy NU staking contract to T
-    ///         staking contract, additionally appointing beneficiary and
-    ///         authorizer roles. Caches the amount staked in NU staking
-    ///         contract. Can be called only by the original delegation owner.
-    function stakeNu(
-        address stakingProvider,
-        address payable beneficiary,
-        address authorizer
-    ) external override {
-        require(
-            stakingProvider != address(0) &&
-                beneficiary != address(0) &&
-                authorizer != address(0),
-            "Parameters must be specified"
-        );
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        (, uint256 createdAt, ) = keepStakingContract.getDelegationInfo(
-            stakingProvider
-        );
-        require(
-            createdAt == 0 && stakingProviderStruct.owner == address(0),
-            "Provider is already in use"
-        );
-
-        uint96 tAmount = getNuAmountInT(msg.sender, stakingProvider);
-        require(tAmount > 0, "Nothing to sync");
-
-        stakingProviderStruct.nuInTStake = tAmount;
-        stakingProviderStruct.owner = msg.sender;
-        stakingProviderStruct.authorizer = authorizer;
-        stakingProviderStruct.beneficiary = beneficiary;
-        /* solhint-disable-next-line not-rely-on-time */
-        stakingProviderStruct.startStakingTimestamp = block.timestamp;
-
-        increaseStakeCheckpoint(stakingProvider, tAmount);
-
-        emit Staked(
-            StakeType.NU,
-            msg.sender,
-            stakingProvider,
-            beneficiary,
-            authorizer,
-            tAmount
-        );
     }
 
     /// @notice Allows the Governance to set the minimum required stake amount.
@@ -722,55 +592,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
-    /// @notice Propagates information about stake top-up from the legacy KEEP
-    ///         staking contract to T staking contract. Can be called only by
-    ///         the owner or the staking provider.
-    function topUpKeep(address stakingProvider)
-        external
-        override
-        onlyOwnerOrStakingProvider(stakingProvider)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 tAmount = getKeepAmountInT(stakingProvider);
-        require(
-            tAmount > stakingProviderStruct.keepInTStake,
-            "Nothing to top-up"
-        );
-
-        uint96 toppedUp = tAmount - stakingProviderStruct.keepInTStake;
-        emit ToppedUp(stakingProvider, toppedUp);
-        stakingProviderStruct.keepInTStake = tAmount;
-        increaseStakeCheckpoint(stakingProvider, toppedUp);
-    }
-
-    /// @notice Propagates information about stake top-up from the legacy NU
-    ///         staking contract to T staking contract. Can be called only by
-    ///         the owner or the staking provider.
-    function topUpNu(address stakingProvider)
-        external
-        override
-        onlyOwnerOf(stakingProvider)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 tAmount = getNuAmountInT(
-            stakingProviderStruct.owner,
-            stakingProvider
-        );
-        require(
-            tAmount > stakingProviderStruct.nuInTStake,
-            "Nothing to top-up"
-        );
-
-        uint96 toppedUp = tAmount - stakingProviderStruct.nuInTStake;
-        emit ToppedUp(stakingProvider, toppedUp);
-        stakingProviderStruct.nuInTStake = tAmount;
-        increaseStakeCheckpoint(stakingProvider, toppedUp);
-    }
-
     //
     //
     // Undelegating a stake (unstaking)
@@ -837,35 +658,27 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             getMinStaked(stakingProvider, StakeType.KEEP) == 0,
             "Keep stake still authorized"
         );
-        require(
-            stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
-                /* solhint-disable-next-line not-rely-on-time */
-                block.timestamp,
-            "Can't unstake earlier than 24h"
-        );
 
         emit Unstaked(stakingProvider, keepInTStake);
         stakingProviderStruct.keepInTStake = 0;
         decreaseStakeCheckpoint(stakingProvider, keepInTStake);
     }
 
-    /// @notice Reduces cached legacy NU stake amount by the provided amount.
-    ///         Reverts if there is at least one authorization higher than the
-    ///         sum of remaining legacy NU stake and liquid T stake for that
-    ///         staking provider or if the untaked amount is higher than the
-    ///         cached legacy stake amount. If succeeded, the legacy NU stake
-    ///         can be partially or fully undelegated on the legacy staking
-    ///         contract. This function allows to unstake from NU staking
-    ///         contract and still being able to operate in T network and
-    ///         earning rewards based on the liquid T staked. Can be called only
-    ///         by the delegation owner or the staking provider. Can only be
-    ///         called when 24h passed since the stake has been delegated.
+    /// @notice Sets to 0 the amount of T that is cached from the legacy
+    ///         NU staking contract. Reverts if there is at least one
+    ///         authorization higher than the sum of remaining legacy NU stake
+    ///         and native T stake for that staking provider or if the unstaked
+    ///         amount is higher than the cached legacy stake amount. If succeeded,
+    ///         the legacy NU stake can be partially or fully undelegated on
+    ///         the legacy NU staking contract. This function allows to unstake
+    ///         from NU staking contract while still being able to operate in
+    ///         T network and earning rewards based on the native T staked.
+    ///         Can be called only by the stake owner or the staking provider.
     /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
     ///         in NuCypher staking contract. Otherwise NU tokens can't be
     ///         unlocked.
     /// @param stakingProvider Staking provider address
-    /// @param amount Amount of NU to unstake in T denomination
-    function unstakeNu(address stakingProvider, uint96 amount)
+    function unstakeNu(address stakingProvider)
         external
         override
         onlyOwnerOrStakingProvider(stakingProvider)
@@ -873,26 +686,16 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        // rounding amount to guarantee exact T<>NU conversion in both ways,
-        // so there's no remainder after unstaking
-        (, uint96 tRemainder) = convertFromT(amount, nucypherRatio);
-        amount -= tRemainder;
+        uint96 nuInTStake = stakingProviderStruct.nuInTStake;
+        require(nuInTStake != 0, "Nothing to unstake");
         require(
-            amount > 0 &&
-                amount + getMinStaked(stakingProvider, StakeType.NU) <=
-                stakingProviderStruct.nuInTStake,
-            "Too much to unstake"
-        );
-        require(
-            stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
-                /* solhint-disable-next-line not-rely-on-time */
-                block.timestamp,
-            "Can't unstake earlier than 24h"
+            getMinStaked(stakingProvider, StakeType.NU) == 0,
+            "NU stake still authorized"
         );
 
-        stakingProviderStruct.nuInTStake -= amount;
-        decreaseStakeCheckpoint(stakingProvider, amount);
-        emit Unstaked(stakingProvider, amount);
+        stakingProviderStruct.nuInTStake = 0;
+        decreaseStakeCheckpoint(stakingProvider, nuInTStake);
+        emit Unstaked(stakingProvider, nuInTStake);
     }
 
     /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
@@ -935,125 +738,20 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
+    /// @notice Involuntary decrease authorization for all application up to T
+    ///         stake amount for all staking providers in the list.
+    ///         Sets cached legacy stake amount to 0. Can be called by anyone
+    function forceUnstakeLegacy(address[] memory _stakingProviders) external {
+        for (uint256 i = 0; i < _stakingProviders.length; i++) {
+            forceUnstakeLegacy(_stakingProviders[i]);
+        }
+    }
+
     //
     //
     // Keeping information in sync
     //
     //
-
-    /// @notice Notifies about the discrepancy between legacy KEEP active stake
-    ///         and the amount cached in T staking contract. Slashes the staking
-    ///         provider in case the amount cached is higher than the actual
-    ///         active stake amount in KEEP staking contract. Needs to update
-    ///         authorizations of all affected applications and execute an
-    ///         involuntary authorization decrease on all affected applications.
-    ///         Can be called by anyone, notifier receives a reward.
-    function notifyKeepStakeDiscrepancy(address stakingProvider)
-        external
-        override
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        require(stakingProviderStruct.keepInTStake > 0, "Nothing to slash");
-
-        (uint256 keepStakeAmount, , uint256 undelegatedAt) = keepStakingContract
-            .getDelegationInfo(stakingProvider);
-
-        (uint96 realKeepInTStake, ) = convertToT(keepStakeAmount, keepRatio);
-        uint96 oldKeepInTStake = stakingProviderStruct.keepInTStake;
-
-        require(
-            oldKeepInTStake > realKeepInTStake || undelegatedAt != 0,
-            "There is no discrepancy"
-        );
-        stakingProviderStruct.keepInTStake = realKeepInTStake;
-        seizeKeep(
-            stakingProviderStruct,
-            stakingProvider,
-            stakeDiscrepancyPenalty,
-            stakeDiscrepancyRewardMultiplier
-        );
-
-        uint96 slashedAmount = realKeepInTStake -
-            stakingProviderStruct.keepInTStake;
-        emit TokensSeized(stakingProvider, slashedAmount, true);
-        if (undelegatedAt != 0) {
-            stakingProviderStruct.keepInTStake = 0;
-        }
-
-        decreaseStakeCheckpoint(
-            stakingProvider,
-            oldKeepInTStake - stakingProviderStruct.keepInTStake
-        );
-
-        authorizationDecrease(
-            stakingProvider,
-            stakingProviderStruct,
-            slashedAmount
-        );
-    }
-
-    /// @notice Notifies about the discrepancy between legacy NU active stake
-    ///         and the amount cached in T staking contract. Slashes the
-    ///         staking provider in case the amount cached is higher than the
-    ///         actual active stake amount in NU staking contract. Needs to
-    ///         update authorizations of all affected applications and execute an
-    ///         involuntary authorization decrease on all affected applications.
-    ///         Can be called by anyone, notifier receives a reward.
-    /// @dev    Real discrepancy between T and Nu is impossible.
-    ///         This method is a safeguard in case of bugs in NuCypher staking
-    ///         contract
-    function notifyNuStakeDiscrepancy(address stakingProvider)
-        external
-        override
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        require(stakingProviderStruct.nuInTStake > 0, "Nothing to slash");
-
-        uint256 nuStakeAmount = nucypherStakingContract.getAllTokens(
-            stakingProviderStruct.owner
-        );
-        (uint96 realNuInTStake, ) = convertToT(nuStakeAmount, nucypherRatio);
-        uint96 oldNuInTStake = stakingProviderStruct.nuInTStake;
-        require(oldNuInTStake > realNuInTStake, "There is no discrepancy");
-
-        stakingProviderStruct.nuInTStake = realNuInTStake;
-        seizeNu(
-            stakingProviderStruct,
-            stakeDiscrepancyPenalty,
-            stakeDiscrepancyRewardMultiplier
-        );
-
-        uint96 slashedAmount = realNuInTStake -
-            stakingProviderStruct.nuInTStake;
-        emit TokensSeized(stakingProvider, slashedAmount, true);
-        authorizationDecrease(
-            stakingProvider,
-            stakingProviderStruct,
-            slashedAmount
-        );
-        decreaseStakeCheckpoint(
-            stakingProvider,
-            oldNuInTStake - stakingProviderStruct.nuInTStake
-        );
-    }
-
-    /// @notice Sets the penalty amount for stake discrepancy and reward
-    ///         multiplier for reporting it. The penalty is seized from the
-    ///         delegated stake, and 5% of the penalty, scaled by the
-    ///         multiplier, is given to the notifier. The rest of the tokens are
-    ///         burned. Can only be called by the Governance. See `seize` function.
-    function setStakeDiscrepancyPenalty(
-        uint96 penalty,
-        uint256 rewardMultiplier
-    ) external override onlyGovernance {
-        stakeDiscrepancyPenalty = penalty;
-        stakeDiscrepancyRewardMultiplier = rewardMultiplier;
-        emit StakeDiscrepancyPenaltySet(penalty, rewardMultiplier);
-    }
 
     /// @notice Sets reward in T tokens for notification of misbehaviour
     ///         of one staking provider. Can only be called by the governance.
@@ -1315,22 +1013,87 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
     }
 
+    /// @notice Involuntary decrease authorization for all application up to T
+    ///         stake amount. Sets cached legacy stake amount to 0.
+    ///         Can be called by anyone
+    function forceUnstakeLegacy(address stakingProvider) public {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        uint96 legacyStake = stakingProviderStruct.keepInTStake +
+            stakingProviderStruct.nuInTStake;
+        require(legacyStake > 0, "No legacy stake");
+
+        // similar to authorizationDecrease method
+        uint256 applicationsToDelete = 0;
+        for (
+            uint256 i = 0;
+            i < stakingProviderStruct.authorizedApplications.length;
+            i++
+        ) {
+            address authorizedApplication = stakingProviderStruct
+                .authorizedApplications[i];
+            AppAuthorization storage authorization = stakingProviderStruct
+                .authorizations[authorizedApplication];
+            uint96 fromAmount = authorization.authorized;
+
+            if (fromAmount <= stakingProviderStruct.tStake) {
+                continue;
+            }
+            authorization.authorized = stakingProviderStruct.tStake;
+
+            bool successful = true;
+            //slither-disable-next-line calls-loop
+            try
+                IApplication(authorizedApplication)
+                    .involuntaryAuthorizationDecrease{
+                    gas: GAS_LIMIT_AUTHORIZATION_DECREASE
+                }(stakingProvider, fromAmount, authorization.authorized)
+            {} catch {
+                successful = false;
+            }
+            if (authorization.deauthorizing > authorization.authorized) {
+                authorization.deauthorizing = authorization.authorized;
+            }
+            emit AuthorizationInvoluntaryDecreased(
+                stakingProvider,
+                authorizedApplication,
+                fromAmount,
+                authorization.authorized,
+                successful
+            );
+            if (authorization.authorized == 0) {
+                applicationsToDelete++;
+            }
+        }
+        if (applicationsToDelete > 0) {
+            cleanAuthorizedApplications(
+                stakingProviderStruct,
+                applicationsToDelete
+            );
+        }
+
+        emit Unstaked(stakingProvider, legacyStake);
+        stakingProviderStruct.keepInTStake = 0;
+        stakingProviderStruct.nuInTStake = 0;
+        decreaseStakeCheckpoint(stakingProvider, legacyStake);
+    }
+
     /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
     /// @dev For example, suppose the given staking provider has 10 T, 20 T worth
     ///      of KEEP, and 30 T worth of NU all staked, and the maximum
     ///      application authorization is 40 T, then `getMinStaked` for
     ///      that staking provider returns:
     ///          * 0 T if KEEP stake type specified i.e.
-    ///            min = 40 T max - (10 T + 30 T worth of NU) = 0 T
+    ///            min = 40 T max - (10 T) = 30 T
     ///          * 10 T if NU stake type specified i.e.
-    ///            min = 40 T max - (10 T + 20 T worth of KEEP) = 10 T
+    ///            min = 40 T max - (10 T) = 30 T
     ///          * 0 T if T stake type specified i.e.
-    ///            min = 40 T max - (20 T worth of KEEP + 30 T worth of NU) < 0 T
+    ///            min = 40 T max = 40 T
     ///      In other words, the minimum stake amount for the specified
     ///      stake type is the minimum amount of stake of the given type
     ///      needed to satisfy the maximum application authorization given
-    ///      the staked amounts of the other stake types for that staking
-    ///      provider.
+    ///      the staked amounts of the T stake types for that staking provider.
     function getMinStaked(address stakingProvider, StakeType stakeTypes)
         public
         view
@@ -1364,18 +1127,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 stakingProviderStruct.tStake
             );
         }
-        if (stakeTypes != StakeType.NU) {
-            maxAuthorization -= MathUpgradeable.min(
-                maxAuthorization,
-                stakingProviderStruct.nuInTStake
-            );
-        }
-        if (stakeTypes != StakeType.KEEP) {
-            maxAuthorization -= MathUpgradeable.min(
-                maxAuthorization,
-                stakingProviderStruct.keepInTStake
-            );
-        }
         return maxAuthorization.toUint96();
     }
 
@@ -1388,13 +1139,15 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        availableTValue =
-            stakingProviderStruct.tStake +
-            stakingProviderStruct.keepInTStake +
-            stakingProviderStruct.nuInTStake;
-        availableTValue -= stakingProviderStruct
+        availableTValue = stakingProviderStruct.tStake;
+        uint96 authorized = stakingProviderStruct
             .authorizations[application]
             .authorized;
+        if (authorized <= availableTValue) {
+            availableTValue -= authorized;
+        } else {
+            availableTValue = 0;
+        }
     }
 
     /// @notice Delegate voting power from the stake associated to the
@@ -1491,40 +1244,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             stakingProviderStruct.keepInTStake +
             stakingProviderStruct.nuInTStake;
         // slash T
-        if (stakingProviderStruct.tStake > 0) {
-            if (tAmountToSlash <= stakingProviderStruct.tStake) {
-                tAmountToBurn = tAmountToSlash;
-            } else {
-                tAmountToBurn = stakingProviderStruct.tStake;
-            }
-            stakingProviderStruct.tStake -= tAmountToBurn;
-            tAmountToSlash -= tAmountToBurn;
-        }
-
-        // slash KEEP
-        if (tAmountToSlash > 0 && stakingProviderStruct.keepInTStake > 0) {
-            (uint256 keepStakeAmount, , ) = keepStakingContract
-                .getDelegationInfo(slashing.stakingProvider);
-            (uint96 tAmount, ) = convertToT(keepStakeAmount, keepRatio);
-            stakingProviderStruct.keepInTStake = tAmount;
-
-            tAmountToSlash = seizeKeep(
-                stakingProviderStruct,
-                slashing.stakingProvider,
-                tAmountToSlash,
-                100
-            );
-        }
-
-        // slash NU
-        if (tAmountToSlash > 0 && stakingProviderStruct.nuInTStake > 0) {
-            // synchronization skipped due to impossibility of real discrepancy
-            tAmountToSlash = seizeNu(
-                stakingProviderStruct,
-                tAmountToSlash,
-                100
-            );
-        }
+        tAmountToBurn = MathUpgradeable
+            .min(tAmountToSlash, stakingProviderStruct.tStake)
+            .toUint96();
+        stakingProviderStruct.tStake -= tAmountToBurn;
+        tAmountToSlash -= tAmountToBurn;
 
         uint96 slashedAmount = slashing.amount - tAmountToSlash;
         emit TokensSeized(slashing.stakingProvider, slashedAmount, false);
@@ -1598,90 +1322,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 applicationsToDelete
             );
         }
-    }
-
-    /// @notice Convert amount from T to Keep and call `seize` in Keep staking contract.
-    ///         Returns remainder of slashing amount in T
-    /// @dev Note this internal function doesn't update stake checkpoints
-    function seizeKeep(
-        StakingProviderInfo storage stakingProviderStruct,
-        address stakingProvider,
-        uint96 tAmountToSlash,
-        uint256 rewardMultiplier
-    ) internal returns (uint96) {
-        if (stakingProviderStruct.keepInTStake == 0) {
-            return tAmountToSlash;
-        }
-
-        uint96 tPenalty;
-        if (tAmountToSlash <= stakingProviderStruct.keepInTStake) {
-            tPenalty = tAmountToSlash;
-        } else {
-            tPenalty = stakingProviderStruct.keepInTStake;
-        }
-
-        (uint256 keepPenalty, uint96 tRemainder) = convertFromT(
-            tPenalty,
-            keepRatio
-        );
-        if (keepPenalty == 0) {
-            return tAmountToSlash;
-        }
-        tPenalty -= tRemainder;
-        stakingProviderStruct.keepInTStake -= tPenalty;
-        tAmountToSlash -= tPenalty;
-
-        address[] memory stakingProviderWrapper = new address[](1);
-        stakingProviderWrapper[0] = stakingProvider;
-        keepStakingContract.seize(
-            keepPenalty,
-            rewardMultiplier,
-            msg.sender,
-            stakingProviderWrapper
-        );
-        return tAmountToSlash;
-    }
-
-    /// @notice Convert amount from T to NU and call `slashStaker` in NuCypher staking contract.
-    ///         Returns remainder of slashing amount in T
-    /// @dev Note this internal function doesn't update the stake checkpoints
-    function seizeNu(
-        StakingProviderInfo storage stakingProviderStruct,
-        uint96 tAmountToSlash,
-        uint256 rewardMultiplier
-    ) internal returns (uint96) {
-        if (stakingProviderStruct.nuInTStake == 0) {
-            return tAmountToSlash;
-        }
-
-        uint96 tPenalty;
-        if (tAmountToSlash <= stakingProviderStruct.nuInTStake) {
-            tPenalty = tAmountToSlash;
-        } else {
-            tPenalty = stakingProviderStruct.nuInTStake;
-        }
-
-        (uint256 nuPenalty, uint96 tRemainder) = convertFromT(
-            tPenalty,
-            nucypherRatio
-        );
-        if (nuPenalty == 0) {
-            return tAmountToSlash;
-        }
-        tPenalty -= tRemainder;
-        stakingProviderStruct.nuInTStake -= tPenalty;
-        tAmountToSlash -= tPenalty;
-
-        uint256 nuReward = nuPenalty.percent(SLASHING_REWARD_PERCENT).percent(
-            rewardMultiplier
-        );
-        nucypherStakingContract.slashStaker(
-            stakingProviderStruct.owner,
-            nuPenalty,
-            msg.sender,
-            nuReward
-        );
-        return tAmountToSlash;
     }
 
     /// @notice Removes application with zero authorization from authorized
@@ -1769,54 +1409,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         newStakeCheckpoint(_delegator, _amount, false);
     }
 
-    /// @notice Returns amount of Nu stake in the NuCypher staking contract for
-    ///         the specified staking provider.
-    ///         Resulting value in T denomination
-    function getNuAmountInT(address owner, address stakingProvider)
-        internal
-        returns (uint96)
-    {
-        uint256 nuStakeAmount = nucypherStakingContract.requestMerge(
-            owner,
-            stakingProvider
-        );
-        (uint96 tAmount, ) = convertToT(nuStakeAmount, nucypherRatio);
-        return tAmount;
-    }
-
     function _transferGovernance(address newGuvnor) internal virtual {
         address oldGuvnor = governance;
         governance = newGuvnor;
         emit GovernanceTransferred(oldGuvnor, newGuvnor);
-    }
-
-    /// @notice Returns amount of Keep stake in the Keep staking contract for
-    ///         the specified staking provider.
-    ///         Resulting value in T denomination
-    function getKeepAmountInT(address stakingProvider)
-        internal
-        view
-        returns (uint96)
-    {
-        uint256 keepStakeAmount = keepStakingContract.eligibleStake(
-            stakingProvider,
-            address(this)
-        );
-        (uint96 tAmount, ) = convertToT(keepStakeAmount, keepRatio);
-        return tAmount;
-    }
-
-    /// @notice Returns the T token amount that's obtained from `amount` legacy
-    ///         tokens for the given `ratio`, and the remainder that can't be
-    ///         converted.
-    function convertToT(uint256 amount, uint256 ratio)
-        internal
-        pure
-        returns (uint96 tAmount, uint256 remainder)
-    {
-        remainder = amount % CONVERSION_DIVISOR;
-        uint256 convertibleAmount = amount - remainder;
-        tAmount = ((convertibleAmount * ratio) / CONVERSION_DIVISOR).toUint96();
     }
 
     /// @notice Returns the amount of legacy tokens that's obtained from
