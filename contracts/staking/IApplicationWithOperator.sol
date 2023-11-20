@@ -40,9 +40,4 @@ interface IApplicationWithOperator is IApplication {
     ///         if function reverts if there is a pending authorization decrease for
     ///         the staking provider.
     function registerOperator(address operator) external;
-
-    // TODO consider that?
-    // /// @notice Used by additional role (owner for example) to set operator address that will
-    // ///         operate a node for the specified staking provider.
-    // function registerOperator(address stakingProvider, address operator) external;
 }
