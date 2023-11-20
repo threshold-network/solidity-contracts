@@ -282,9 +282,15 @@ protect against DoSing slashing queue. Can only be called by the governance.
 
 ==== `topUp(address stakingProvider, uint96 amount) external`
 
-Increases the amount of the stake for the given staking provider. The sender of this
-transaction needs to have the amount approved to transfer to the staking
-contract.
+Increases the amount of the stake for the given staking provider.  If `autoIncrease` 
+flag is true then the amount will be added for  all authorized applications.
+The sender of this transaction needs to have the amount approved to transfer 
+to the staking contract.
+
+==== `toggleAutoAuthorizationIncrease(address stakingProvider) external`
+
+Toggle auto authorization increase flag. If true then all amount in top-up 
+will be added to already authorized applications.
 
 === Undelegating a stake (unstaking)
 
@@ -373,6 +379,12 @@ are in T denomination.
 Returns start staking timestamp for T/NU stake. This value is set at most once, 
 and only when a stake is created with T or NU tokens. If a stake is created 
 from a legacy KEEP stake, this value will remain as zero.
+
+
+==== `getAutoIncreaseFlag(address stakingProvider) external view returns (bool)`
+
+Returns auto-increase flag. If flag is true then any topped up amount will be added to
+existing authorizations.
 
 ==== `stakedNu(address stakingProvider) external view returns (uint256)`
 

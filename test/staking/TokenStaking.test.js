@@ -2140,6 +2140,16 @@ describe("TokenStaking", () => {
             amount
           )
         blockTimestamp = await lastBlockTime()
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(staker)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
 
         await tokenStaking
           .connect(staker)
@@ -2183,13 +2193,13 @@ describe("TokenStaking", () => {
             stakingProvider.address,
             application1Mock.address
           )
-        ).to.equal(expectedAmount)
+        ).to.equal(topUpAmount)
       })
 
       it("should not increase min staked amount", async () => {
         expect(
           await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
-        ).to.equal(0)
+        ).to.equal(amount)
         expect(
           await tokenStaking.getMinStaked(
             stakingProvider.address,
@@ -2242,6 +2252,9 @@ describe("TokenStaking", () => {
             amount
           )
         blockTimestamp = await lastBlockTime()
+        await tokenStaking
+          .connect(staker)
+          .toggleAutoAuthorizationIncrease(stakingProvider.address)
 
         await increaseTime(86400) // +24h
 
@@ -2455,6 +2468,225 @@ describe("TokenStaking", () => {
         expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
           expectedAmount
         )
+      })
+    })
+
+    context("when auto increase flag is enabled", () => {
+      const amount = initialStakerBalance.div(2)
+      const topUpAmount = initialStakerBalance
+      const expectedAmount = amount.add(topUpAmount)
+      const authorized1 = amount
+      const authorized2 = amount.div(2)
+      let tx
+
+      beforeEach(async () => {
+        await tToken.connect(staker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(staker)
+          .stake(
+            stakingProvider.address,
+            beneficiary.address,
+            authorizer.address,
+            amount
+          )
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application1Mock.address)
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application2Mock.address)
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            authorized1
+          )
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application2Mock.address,
+            authorized2
+          )
+        await tokenStaking
+          .connect(authorizer)
+          .toggleAutoAuthorizationIncrease(stakingProvider.address)
+
+        await tToken
+          .connect(deployer)
+          .transfer(stakingProvider.address, topUpAmount)
+        await tToken
+          .connect(stakingProvider)
+          .approve(tokenStaking.address, topUpAmount)
+        tx = await tokenStaking
+          .connect(stakingProvider)
+          .topUp(stakingProvider.address, topUpAmount)
+      })
+
+      it("should update T staked amount", async () => {
+        await assertStakes(stakingProvider.address, expectedAmount, Zero, Zero)
+      })
+
+      it("should not increase available amount to authorize", async () => {
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getAvailableToAuthorize(
+            stakingProvider.address,
+            application2Mock.address
+          )
+        ).to.equal(amount.sub(authorized2))
+      })
+
+      it("should increase min staked amount", async () => {
+        expect(
+          await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
+        ).to.equal(expectedAmount)
+        expect(
+          await tokenStaking.getMinStaked(
+            stakingProvider.address,
+            StakeTypes.NU
+          )
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getMinStaked(
+            stakingProvider.address,
+            StakeTypes.KEEP
+          )
+        ).to.equal(0)
+      })
+
+      it("should emit ToppedUp event", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "ToppedUp")
+          .withArgs(stakingProvider.address, topUpAmount)
+      })
+
+      it("should increase authorized amounts", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(expectedAmount)
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application2Mock.address
+          )
+        ).to.equal(authorized2.add(topUpAmount))
+      })
+
+      it("should inform application", async () => {
+        await assertApplicationStakingProviders(
+          application1Mock,
+          stakingProvider.address,
+          expectedAmount,
+          Zero
+        )
+        await assertApplicationStakingProviders(
+          application2Mock,
+          stakingProvider.address,
+          authorized2.add(topUpAmount),
+          Zero
+        )
+      })
+
+      it("should emit AuthorizationIncreased", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationIncreased")
+          .withArgs(
+            stakingProvider.address,
+            application1Mock.address,
+            authorized1,
+            expectedAmount
+          )
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationIncreased")
+          .withArgs(
+            stakingProvider.address,
+            application2Mock.address,
+            authorized2,
+            authorized2.add(topUpAmount)
+          )
+      })
+    })
+  })
+
+  describe("toggleAutoAuthorizationIncrease", () => {
+    const amount = initialStakerBalance
+
+    beforeEach(async () => {
+      await tToken.connect(staker).approve(tokenStaking.address, amount)
+      await tokenStaking
+        .connect(staker)
+        .stake(
+          stakingProvider.address,
+          beneficiary.address,
+          authorizer.address,
+          amount
+        )
+    })
+
+    context("when caller is not authorizer", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(stakingProvider)
+            .toggleAutoAuthorizationIncrease(stakingProvider.address)
+        ).to.be.revertedWith("Not authorizer")
+      })
+    })
+
+    context("when method called first time", () => {
+      let tx
+
+      beforeEach(async () => {
+        tx = await tokenStaking
+          .connect(authorizer)
+          .toggleAutoAuthorizationIncrease(stakingProvider.address)
+      })
+
+      it("should enable auto increase flag", async () => {
+        expect(
+          await tokenStaking.getAutoIncreaseFlag(stakingProvider.address)
+        ).to.equal(true)
+      })
+
+      it("should emit AutoIncreaseToggled", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AutoIncreaseToggled")
+          .withArgs(stakingProvider.address, true)
+      })
+    })
+
+    context("when method called second time", () => {
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .toggleAutoAuthorizationIncrease(stakingProvider.address)
+        tx = await tokenStaking
+          .connect(authorizer)
+          .toggleAutoAuthorizationIncrease(stakingProvider.address)
+      })
+
+      it("should enable auto increase flag", async () => {
+        expect(
+          await tokenStaking.getAutoIncreaseFlag(stakingProvider.address)
+        ).to.equal(false)
+      })
+
+      it("should emit AutoIncreaseToggled", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AutoIncreaseToggled")
+          .withArgs(stakingProvider.address, false)
       })
     })
   })
