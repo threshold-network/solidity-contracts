@@ -940,6 +940,354 @@
           }
         }
       }
+    },
+    "3579d70bc8c21d7cbecdefc34d616f4dfaf506e9c53438abaa4565b75c860547": {
+      "address": "0x4d333B9ECB75252342d82B7aF3610951f81e0888",
+      "txHash": "0xe05e8db03259711ea7c6bd785517f7e5eadf0bca7e0670bd557b8631f3f95cbc",
+      "layout": {
+        "solcVersion": "0.8.9",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:39"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:44"
+          },
+          {
+            "label": "_delegates",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "Checkpoints",
+            "src": "contracts/governance/Checkpoints.sol:49"
+          },
+          {
+            "label": "_checkpoints",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_array(t_uint128)dyn_storage)",
+            "contract": "Checkpoints",
+            "src": "contracts/governance/Checkpoints.sol:49"
+          },
+          {
+            "label": "_totalSupplyCheckpoints",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_uint128)dyn_storage",
+            "contract": "Checkpoints",
+            "src": "contracts/governance/Checkpoints.sol:51"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_array(t_uint256)47_storage",
+            "contract": "Checkpoints",
+            "src": "contracts/governance/Checkpoints.sol:61"
+          },
+          {
+            "label": "governance",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:104"
+          },
+          {
+            "label": "minTStakeAmount",
+            "offset": 20,
+            "slot": "51",
+            "type": "t_uint96",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:104"
+          },
+          {
+            "label": "authorizationCeiling",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_uint256",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:105"
+          },
+          {
+            "label": "legacyStakeDiscrepancyPenalty",
+            "offset": 0,
+            "slot": "53",
+            "type": "t_uint96",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:111",
+            "renamedFrom": "stakeDiscrepancyPenalty"
+          },
+          {
+            "label": "legacyStakeDiscrepancyRewardMultiplier",
+            "offset": 0,
+            "slot": "54",
+            "type": "t_uint256",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:120",
+            "renamedFrom": "stakeDiscrepancyRewardMultiplier"
+          },
+          {
+            "label": "notifiersTreasury",
+            "offset": 0,
+            "slot": "55",
+            "type": "t_uint256",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:122"
+          },
+          {
+            "label": "notificationReward",
+            "offset": 0,
+            "slot": "56",
+            "type": "t_uint256",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:123"
+          },
+          {
+            "label": "stakingProviders",
+            "offset": 0,
+            "slot": "57",
+            "type": "t_mapping(t_address,t_struct(StakingProviderInfo)4178_storage)",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:126"
+          },
+          {
+            "label": "applicationInfo",
+            "offset": 0,
+            "slot": "58",
+            "type": "t_mapping(t_address,t_struct(ApplicationInfo)4189_storage)",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:127"
+          },
+          {
+            "label": "applications",
+            "offset": 0,
+            "slot": "59",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:129"
+          },
+          {
+            "label": "slashingQueue",
+            "offset": 0,
+            "slot": "60",
+            "type": "t_array(t_struct(SlashingEvent)4194_storage)dyn_storage",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:131"
+          },
+          {
+            "label": "slashingQueueIndex",
+            "offset": 0,
+            "slot": "61",
+            "type": "t_uint256",
+            "contract": "TokenStaking",
+            "src": "contracts/staking/TokenStaking.sol:132"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_address_payable": {
+            "label": "address payable",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(SlashingEvent)4194_storage)dyn_storage": {
+            "label": "struct TokenStaking.SlashingEvent[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint128)dyn_storage": {
+            "label": "uint128[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)47_storage": {
+            "label": "uint256[47]",
+            "numberOfBytes": "1504"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_enum(ApplicationStatus)4153": {
+            "label": "enum TokenStaking.ApplicationStatus",
+            "members": [
+              "NOT_APPROVED",
+              "APPROVED",
+              "PAUSED",
+              "DISABLED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_uint128)dyn_storage)": {
+            "label": "mapping(address => uint128[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(AppAuthorization)4183_storage)": {
+            "label": "mapping(address => struct TokenStaking.AppAuthorization)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(ApplicationInfo)4189_storage)": {
+            "label": "mapping(address => struct TokenStaking.ApplicationInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(StakingProviderInfo)4178_storage)": {
+            "label": "mapping(address => struct TokenStaking.StakingProviderInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AppAuthorization)4183_storage": {
+            "label": "struct TokenStaking.AppAuthorization",
+            "members": [
+              {
+                "label": "authorized",
+                "type": "t_uint96",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "deauthorizing",
+                "type": "t_uint96",
+                "offset": 12,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(ApplicationInfo)4189_storage": {
+            "label": "struct TokenStaking.ApplicationInfo",
+            "members": [
+              {
+                "label": "status",
+                "type": "t_enum(ApplicationStatus)4153",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "panicButton",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(SlashingEvent)4194_storage": {
+            "label": "struct TokenStaking.SlashingEvent",
+            "members": [
+              {
+                "label": "stakingProvider",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint96",
+                "offset": 20,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(StakingProviderInfo)4178_storage": {
+            "label": "struct TokenStaking.StakingProviderInfo",
+            "members": [
+              {
+                "label": "nuInTStake",
+                "type": "t_uint96",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "owner",
+                "type": "t_address",
+                "offset": 12,
+                "slot": "0"
+              },
+              {
+                "label": "keepInTStake",
+                "type": "t_uint96",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "beneficiary",
+                "type": "t_address_payable",
+                "offset": 12,
+                "slot": "1"
+              },
+              {
+                "label": "tStake",
+                "type": "t_uint96",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "authorizer",
+                "type": "t_address",
+                "offset": 12,
+                "slot": "2"
+              },
+              {
+                "label": "authorizations",
+                "type": "t_mapping(t_address,t_struct(AppAuthorization)4183_storage)",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "authorizedApplications",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "startStakingTimestamp",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "autoIncrease",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_uint128": {
+            "label": "uint128",
+            "numberOfBytes": "16"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint96": {
+            "label": "uint96",
+            "numberOfBytes": "12"
+          }
+        },
+        "namespaces": {}
+      }
     }
   }
 }
