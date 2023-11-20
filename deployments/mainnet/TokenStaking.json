@@ -11,23 +11,7 @@
         },
         {
           "type": "address",
-          "name": "_keepStakingContract"
-        },
-        {
-          "type": "address",
-          "name": "_nucypherStakingContract"
-        },
-        {
-          "type": "address",
-          "name": "_keepVendingMachine"
-        },
-        {
-          "type": "address",
           "name": "_nucypherVendingMachine"
-        },
-        {
-          "type": "address",
-          "name": "_keepStake"
         }
       ]
     },
@@ -176,6 +160,23 @@
     {
       "type": "event",
       "anonymous": false,
+      "name": "AutoIncreaseToggled",
+      "inputs": [
+        {
+          "type": "address",
+          "name": "stakingProvider",
+          "indexed": true
+        },
+        {
+          "type": "bool",
+          "name": "autoIncrease",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
       "name": "DelegateChanged",
       "inputs": [
         {
@@ -307,28 +308,6 @@
     {
       "type": "event",
       "anonymous": false,
-      "name": "OwnerRefreshed",
-      "inputs": [
-        {
-          "type": "address",
-          "name": "stakingProvider",
-          "indexed": true
-        },
-        {
-          "type": "address",
-          "name": "oldOwner",
-          "indexed": true
-        },
-        {
-          "type": "address",
-          "name": "newOwner",
-          "indexed": true
-        }
-      ]
-    },
-    {
-      "type": "event",
-      "anonymous": false,
       "name": "PanicButtonSet",
       "inputs": [
         {
@@ -361,23 +340,6 @@
         {
           "type": "uint256",
           "name": "tAmount",
-          "indexed": false
-        }
-      ]
-    },
-    {
-      "type": "event",
-      "anonymous": false,
-      "name": "StakeDiscrepancyPenaltySet",
-      "inputs": [
-        {
-          "type": "uint96",
-          "name": "penalty",
-          "indexed": false
-        },
-        {
-          "type": "uint256",
-          "name": "rewardMultiplier",
           "indexed": false
         }
       ]
@@ -679,6 +641,32 @@
     },
     {
       "type": "function",
+      "name": "forceUnstakeLegacy",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "stakingProvider"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "forceUnstakeLegacy",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address[]",
+          "name": "_stakingProviders"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
       "name": "getApplicationsLength",
       "constant": true,
       "stateMutability": "view",
@@ -687,6 +675,24 @@
       "outputs": [
         {
           "type": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getAutoIncreaseFlag",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "stakingProvider"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "bool"
         }
       ]
     },
@@ -907,32 +913,6 @@
     },
     {
       "type": "function",
-      "name": "notifyKeepStakeDiscrepancy",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "stakingProvider"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
-      "name": "notifyNuStakeDiscrepancy",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "stakingProvider"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
       "name": "numCheckpoints",
       "constant": true,
       "stateMutability": "view",
@@ -1132,23 +1112,6 @@
     },
     {
       "type": "function",
-      "name": "setStakeDiscrepancyPenalty",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "uint96",
-          "name": "penalty"
-        },
-        {
-          "type": "uint256",
-          "name": "rewardMultiplier"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
       "name": "slash",
       "constant": false,
       "payable": false,
@@ -1226,66 +1189,6 @@
     },
     {
       "type": "function",
-      "name": "stakeDiscrepancyPenalty",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [],
-      "outputs": [
-        {
-          "type": "uint96"
-        }
-      ]
-    },
-    {
-      "type": "function",
-      "name": "stakeDiscrepancyRewardMultiplier",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [],
-      "outputs": [
-        {
-          "type": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "function",
-      "name": "stakeKeep",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "stakingProvider"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
-      "name": "stakeNu",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "stakingProvider"
-        },
-        {
-          "type": "address",
-          "name": "beneficiary"
-        },
-        {
-          "type": "address",
-          "name": "authorizer"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
       "name": "stakedNu",
       "constant": true,
       "stateMutability": "view",
@@ -1332,6 +1235,19 @@
     },
     {
       "type": "function",
+      "name": "toggleAutoAuthorizationIncrease",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "stakingProvider"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
       "name": "topUp",
       "constant": false,
       "payable": false,
@@ -1343,32 +1259,6 @@
         {
           "type": "uint96",
           "name": "amount"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
-      "name": "topUpKeep",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "stakingProvider"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
-      "name": "topUpNu",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "stakingProvider"
         }
       ],
       "outputs": []
@@ -1421,10 +1311,6 @@
         {
           "type": "address",
           "name": "stakingProvider"
-        },
-        {
-          "type": "uint96",
-          "name": "amount"
         }
       ],
       "outputs": []
