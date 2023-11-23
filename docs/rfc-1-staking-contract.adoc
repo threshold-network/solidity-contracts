@@ -235,7 +235,7 @@ for the given provider and application.
 Requests decrease of all authorizations for the given provider on all 
 applications by all authorized amount. Calls `authorizationDecreaseRequested(address stakingProvider, uint256 amount)`
 for each authorized application. It may not change the authorized amount
-immediatelly.  When it happens depends on the application. Can only be called by
+immediately.  When it happens depends on the application. Can only be called by
 the given staking provider’s  authorizer. Overwrites pending authorization
 decrease for the given staking provider and  application.
 
@@ -443,6 +443,6 @@ happen right away but it also may happen several months later.
 
 Used by T staking contract to inform the application the authorization has
 been decreased for the given staking provider to the given amount involuntarily,
-as a result of slashing. Lets the application to do any housekeeping neccessary.
+as a result of slashing. Lets the application to do any housekeeping necessary.
 Called with 250k gas limit and does not revert the transaction if 
 `involuntaryAuthorizationDecrease` call failed.
