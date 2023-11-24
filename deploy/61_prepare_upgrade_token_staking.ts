@@ -4,8 +4,8 @@ import { DeployFunction } from "hardhat-deploy/types"
 import { ethers, upgrades } from "hardhat"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployments } = hre
-  const { log } = deployments
+  const { getNamedAccounts, deployments } = hre
+  const { log, execute } = deployments
 
   const T = await deployments.get("T")
   const VendingMachineNuCypher = await deployments.get("VendingMachineNuCypher")
@@ -51,6 +51,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       }
     )
 
+    // initialize implementation
+    const { deployer } = await getNamedAccounts()
+    await execute(
+      "TokenStaking",
+      { from: deployer, to: implAddress },
+      "initialize"
+    )
   }
 }
 
