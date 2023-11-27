@@ -2,15 +2,10 @@ const { expect } = require("chai")
 
 const { helpers } = require("hardhat")
 const { lastBlockTime, mineBlocks, increaseTime } = helpers.time
-const { to1e18, to1ePrecision } = helpers.number
+const { to1e18 } = helpers.number
 
 const { AddressZero, Zero } = ethers.constants
 
-const StakeTypes = {
-  NU: 0,
-  KEEP: 1,
-  T: 2,
-}
 const ApplicationStatus = {
   NOT_APPROVED: 0,
   APPROVED: 1,
@@ -21,28 +16,10 @@ const { upgrades } = require("hardhat")
 
 describe("TokenStaking", () => {
   let tToken
-  let nucypherVendingMachine
   let application1Mock
   let application2Mock
 
-  const floatingPointDivisor = to1ePrecision(1, 15)
   const tAllocation = to1e18("4500000000") // 4.5 Billion
-  const maxKeepWrappedTokens = to1e18("1100000000") // 1.1 Billion
-  const maxNuWrappedTokens = to1e18("900000000") // 0.9 Billion
-  const keepRatio = floatingPointDivisor
-    .mul(tAllocation)
-    .div(maxKeepWrappedTokens)
-  const nuRatio = floatingPointDivisor.mul(tAllocation).div(maxNuWrappedTokens)
-
-  function convertToT(amount, ratio) {
-    amount = ethers.BigNumber.from(amount)
-    const wrappedRemainder = amount.mod(floatingPointDivisor)
-    amount = amount.sub(wrappedRemainder)
-    return {
-      result: amount.mul(ratio).div(floatingPointDivisor),
-      remainder: wrappedRemainder,
-    }
-  }
 
   function rewardFromPenalty(penalty, rewardMultiplier) {
     return penalty.mul(5).div(100).mul(rewardMultiplier).div(100)
@@ -88,20 +65,13 @@ describe("TokenStaking", () => {
       .connect(deployer)
       .transfer(otherStaker.address, initialStakerBalance)
 
-    const VendingMachine = await ethers.getContractFactory("VendingMachineMock")
-    nucypherVendingMachine = await VendingMachine.deploy(
-      maxNuWrappedTokens,
-      tAllocation
-    )
-    await nucypherVendingMachine.deployed()
-
-    const TokenStaking = await ethers.getContractFactory("LegacyTokenStaking")
+    const TokenStaking = await ethers.getContractFactory("TokenStaking")
     const tokenStakingInitializerArgs = []
     tokenStaking = await upgrades.deployProxy(
       TokenStaking,
       tokenStakingInitializerArgs,
       {
-        constructorArgs: [tToken.address, nucypherVendingMachine.address],
+        constructorArgs: [tToken.address],
       }
     )
     await tokenStaking.deployed()
@@ -292,10 +262,7 @@ describe("TokenStaking", () => {
         })
 
         it("should set value of stakes", async () => {
-          await assertStakes(stakingProvider.address, amount, Zero, Zero)
-          expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
-            0
-          )
+          await assertStake(stakingProvider.address, amount)
         })
 
         it("should start staking timestamp", async () => {
@@ -321,7 +288,6 @@ describe("TokenStaking", () => {
           await expect(tx)
             .to.emit(tokenStaking, "Staked")
             .withArgs(
-              StakeTypes.T,
               staker.address,
               stakingProvider.address,
               beneficiary.address,
@@ -643,27 +609,9 @@ describe("TokenStaking", () => {
                   application1Mock.address
                 )
               ).to.equal(authorizedAmount)
-            })
-
-            it("should increase min staked amount in T", async () => {
               expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.T
-                )
+                await tokenStaking.getMaxAuthorization(stakingProvider.address)
               ).to.equal(authorizedAmount)
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.NU
-                )
-              ).to.equal(0)
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.KEEP
-                )
-              ).to.equal(0)
             })
 
             it("should decrease available amount to authorize for one application", async () => {
@@ -756,6 +704,9 @@ describe("TokenStaking", () => {
                   application1Mock.address
                 )
               ).to.equal(amount)
+              expect(
+                await tokenStaking.getMaxAuthorization(stakingProvider.address)
+              ).to.equal(amount)
             })
 
             it("should decrease available amount to authorize for one application", async () => {
@@ -771,27 +722,6 @@ describe("TokenStaking", () => {
                   application2Mock.address
                 )
               ).to.equal(amount)
-            })
-
-            it("should increase min staked amount in T", async () => {
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.T
-                )
-              ).to.equal(amount)
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.NU
-                )
-              ).to.equal(0)
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.KEEP
-                )
-              ).to.equal(0)
             })
 
             it("should inform application", async () => {
@@ -867,245 +797,6 @@ describe("TokenStaking", () => {
                 )
               ).to.equal(amount)
             })
-          })
-        })
-      }
-    )
-
-    context(
-      "when caller is authorizer of staking provider with mixed stake",
-      () => {
-        const tStake = initialStakerBalance
-        const keepStake = initialStakerBalance
-        const keepInTStake = convertToT(keepStake, keepRatio).result
-        const nuStake = initialStakerBalance
-        const nuInTStake = convertToT(nuStake, nuRatio).result
-
-        beforeEach(async () => {
-          await tokenStaking
-            .connect(deployer)
-            .approveApplication(application1Mock.address)
-
-          await tokenStaking.setLegacyStakingProvider(
-            stakingProvider.address,
-            staker.address,
-            beneficiary.address,
-            authorizer.address
-          )
-          await tokenStaking.addLegacyStake(
-            stakingProvider.address,
-            keepInTStake,
-            nuInTStake
-          )
-
-          await tToken.connect(staker).approve(tokenStaking.address, tStake)
-          await tokenStaking
-            .connect(staker)
-            .topUp(stakingProvider.address, tStake)
-        })
-
-        context("when authorize more than not legacy staked amount", () => {
-          it("should revert", async () => {
-            await expect(
-              tokenStaking
-                .connect(authorizer)
-                .increaseAuthorization(
-                  stakingProvider.address,
-                  application1Mock.address,
-                  tStake.add(1)
-                )
-            ).to.be.revertedWith("Not enough stake to authorize")
-          })
-        })
-
-        context("when authorize staked tokens in one tx", () => {
-          let tx
-          const notAuthorized = tStake.sub(to1e18(1))
-          const authorizedAmount = tStake.sub(notAuthorized)
-
-          beforeEach(async () => {
-            tx = await tokenStaking
-              .connect(authorizer)
-              .increaseAuthorization(
-                stakingProvider.address,
-                application1Mock.address,
-                authorizedAmount
-              )
-          })
-
-          it("should increase authorization", async () => {
-            expect(
-              await tokenStaking.authorizedStake(
-                stakingProvider.address,
-                application1Mock.address
-              )
-            ).to.equal(authorizedAmount)
-          })
-
-          it("should increase min staked amount in T only", async () => {
-            expect(
-              await tokenStaking.getMinStaked(
-                stakingProvider.address,
-                StakeTypes.T
-              )
-            ).to.equal(authorizedAmount)
-            expect(
-              await tokenStaking.getMinStaked(
-                stakingProvider.address,
-                StakeTypes.NU
-              )
-            ).to.equal(0)
-            expect(
-              await tokenStaking.getMinStaked(
-                stakingProvider.address,
-                StakeTypes.KEEP
-              )
-            ).to.equal(0)
-          })
-
-          it("should decrease available amount to authorize for one application", async () => {
-            expect(
-              await tokenStaking.getAvailableToAuthorize(
-                stakingProvider.address,
-                application1Mock.address
-              )
-            ).to.equal(notAuthorized)
-            expect(
-              await tokenStaking.getAvailableToAuthorize(
-                stakingProvider.address,
-                application2Mock.address
-              )
-            ).to.equal(tStake)
-          })
-
-          it("should inform application", async () => {
-            await assertApplicationStakingProviders(
-              application1Mock,
-              stakingProvider.address,
-              authorizedAmount,
-              Zero
-            )
-          })
-
-          it("should emit AuthorizationIncreased", async () => {
-            await expect(tx)
-              .to.emit(tokenStaking, "AuthorizationIncreased")
-              .withArgs(
-                stakingProvider.address,
-                application1Mock.address,
-                0,
-                authorizedAmount
-              )
-          })
-
-          context("when authorize to the second application", () => {
-            let tx2
-
-            beforeEach(async () => {
-              await tokenStaking
-                .connect(deployer)
-                .approveApplication(application2Mock.address)
-
-              tx2 = await tokenStaking
-                .connect(authorizer)
-                .increaseAuthorization(
-                  stakingProvider.address,
-                  application2Mock.address,
-                  tStake
-                )
-            })
-
-            it("should increase only one authorization", async () => {
-              expect(
-                await tokenStaking.authorizedStake(
-                  stakingProvider.address,
-                  application1Mock.address
-                )
-              ).to.equal(authorizedAmount)
-              expect(
-                await tokenStaking.authorizedStake(
-                  stakingProvider.address,
-                  application2Mock.address
-                )
-              ).to.equal(tStake)
-            })
-
-            it("should set min staked amount equal to T stake", async () => {
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.T
-                )
-              ).to.equal(tStake)
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.NU
-                )
-              ).to.equal(0)
-              expect(
-                await tokenStaking.getMinStaked(
-                  stakingProvider.address,
-                  StakeTypes.KEEP
-                )
-              ).to.equal(0)
-            })
-
-            it("should decrease available amount to authorize for the second application", async () => {
-              expect(
-                await tokenStaking.getAvailableToAuthorize(
-                  stakingProvider.address,
-                  application1Mock.address
-                )
-              ).to.equal(notAuthorized)
-              expect(
-                await tokenStaking.getAvailableToAuthorize(
-                  stakingProvider.address,
-                  application2Mock.address
-                )
-              ).to.equal(0)
-            })
-
-            it("should inform second application", async () => {
-              await assertApplicationStakingProviders(
-                application2Mock,
-                stakingProvider.address,
-                tStake,
-                Zero
-              )
-            })
-
-            it("should emit AuthorizationIncreased", async () => {
-              await expect(tx2)
-                .to.emit(tokenStaking, "AuthorizationIncreased")
-                .withArgs(
-                  stakingProvider.address,
-                  application2Mock.address,
-                  0,
-                  tStake
-                )
-            })
-          })
-        })
-
-        context("when authorize more than staked amount in several txs", () => {
-          it("should revert", async () => {
-            await tokenStaking
-              .connect(authorizer)
-              .increaseAuthorization(
-                stakingProvider.address,
-                application1Mock.address,
-                tStake.sub(1)
-              )
-            await expect(
-              tokenStaking
-                .connect(authorizer)
-                .increaseAuthorization(
-                  stakingProvider.address,
-                  application1Mock.address,
-                  2
-                )
-            ).to.be.revertedWith("Not enough stake to authorize")
           })
         })
       }
@@ -1520,24 +1211,9 @@ describe("TokenStaking", () => {
             application1Mock.address
           )
         ).to.equal(expectedToAmount)
-      })
-
-      it("should decrease min staked amount in T", async () => {
         expect(
-          await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
+          await tokenStaking.getMaxAuthorization(stakingProvider.address)
         ).to.equal(expectedToAmount)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.NU
-          )
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.KEEP
-          )
-        ).to.equal(0)
       })
 
       it("should emit AuthorizationDecreaseApproved", async () => {
@@ -1594,27 +1270,9 @@ describe("TokenStaking", () => {
               application2Mock.address
             )
           ).to.equal(otherAmount)
-        })
-
-        it("should decrease min staked amount in T", async () => {
           expect(
-            await tokenStaking.getMinStaked(
-              stakingProvider.address,
-              StakeTypes.T
-            )
+            await tokenStaking.getMaxAuthorization(stakingProvider.address)
           ).to.equal(otherAmount)
-          expect(
-            await tokenStaking.getMinStaked(
-              stakingProvider.address,
-              StakeTypes.NU
-            )
-          ).to.equal(0)
-          expect(
-            await tokenStaking.getMinStaked(
-              stakingProvider.address,
-              StakeTypes.KEEP
-            )
-          ).to.equal(0)
         })
 
         it("should emit AuthorizationDecreaseApproved", async () => {
@@ -2166,7 +1824,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        await assertStakes(stakingProvider.address, expectedAmount, Zero, Zero)
+        await assertStake(stakingProvider.address, expectedAmount)
       })
 
       it("should not update roles", async () => {
@@ -2196,22 +1854,10 @@ describe("TokenStaking", () => {
         ).to.equal(topUpAmount)
       })
 
-      it("should not increase min staked amount", async () => {
+      it("should not increase authorized amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
+          await tokenStaking.getMaxAuthorization(stakingProvider.address)
         ).to.equal(amount)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.NU
-          )
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.KEEP
-          )
-        ).to.equal(0)
       })
 
       it("should emit ToppedUp event", async () => {
@@ -2258,14 +1904,16 @@ describe("TokenStaking", () => {
 
         await increaseTime(86400) // +24h
 
-        await tokenStaking.connect(staker).unstakeAll(stakingProvider.address)
+        await tokenStaking
+          .connect(staker)
+          .unstakeT(stakingProvider.address, amount)
         tx = await tokenStaking
           .connect(staker)
           .topUp(stakingProvider.address, amount)
       })
 
       it("should update T staked amount", async () => {
-        await assertStakes(stakingProvider.address, amount, Zero, Zero)
+        await assertStake(stakingProvider.address, amount)
       })
 
       it("should not update start staking timestamp", async () => {
@@ -2278,196 +1926,6 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ToppedUp")
           .withArgs(stakingProvider.address, amount)
-      })
-    })
-
-    context("when staking provider has Keep stake", () => {
-      const keepAmount = initialStakerBalance
-      const keepInTAmount = convertToT(keepAmount, keepRatio).result
-      const topUpAmount = initialStakerBalance.mul(2)
-      const expectedAmount = keepInTAmount.add(topUpAmount)
-      let tx
-      let blockTimestamp
-
-      beforeEach(async () => {
-        await tokenStaking
-          .connect(deployer)
-          .setMinimumStakeAmount(topUpAmount.add(1))
-
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          keepInTAmount,
-          0
-        )
-        blockTimestamp = await lastBlockTime()
-
-        await tokenStaking
-          .connect(staker)
-          .delegateVoting(stakingProvider.address, delegatee.address)
-        await tToken.connect(deployer).transfer(authorizer.address, topUpAmount)
-        await tToken
-          .connect(authorizer)
-          .approve(tokenStaking.address, topUpAmount)
-        tx = await tokenStaking
-          .connect(authorizer)
-          .topUp(stakingProvider.address, topUpAmount)
-      })
-
-      it("should update only T staked amount", async () => {
-        await assertStakes(
-          stakingProvider.address,
-          topUpAmount,
-          keepInTAmount,
-          Zero
-        )
-      })
-
-      it("should not update roles", async () => {
-        expect(
-          await tokenStaking.rolesOf(stakingProvider.address)
-        ).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
-      })
-
-      it("should not update start staking timestamp", async () => {
-        expect(
-          await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(blockTimestamp)
-      })
-
-      it("should increase available amount to authorize", async () => {
-        expect(
-          await tokenStaking.getAvailableToAuthorize(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(topUpAmount)
-      })
-
-      it("should transfer tokens to the staking contract", async () => {
-        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
-          topUpAmount
-        )
-      })
-
-      it("should emit ToppedUp event", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "ToppedUp")
-          .withArgs(stakingProvider.address, topUpAmount)
-      })
-
-      it("should increase the delegatee voting power", async () => {
-        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
-          expectedAmount
-        )
-      })
-
-      it("should increase the total voting power", async () => {
-        const lastBlock = await mineBlocks(1)
-        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
-          expectedAmount
-        )
-      })
-    })
-
-    context("when staking provider has NuCypher stake", () => {
-      const nuAmount = initialStakerBalance
-      const nuInTAmount = convertToT(nuAmount, nuRatio).result
-      const topUpAmount = initialStakerBalance.mul(2)
-      const expectedAmount = nuInTAmount.add(topUpAmount)
-      let tx
-      let blockTimestamp
-
-      beforeEach(async () => {
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          staker.address,
-          staker.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          0,
-          nuInTAmount
-        )
-        blockTimestamp = await lastBlockTime()
-
-        await tokenStaking
-          .connect(staker)
-          .delegateVoting(stakingProvider.address, delegatee.address)
-        await tToken
-          .connect(deployer)
-          .transfer(stakingProvider.address, topUpAmount)
-        await tToken
-          .connect(stakingProvider)
-          .approve(tokenStaking.address, topUpAmount)
-        tx = await tokenStaking
-          .connect(stakingProvider)
-          .topUp(stakingProvider.address, topUpAmount)
-      })
-
-      it("should update only T staked amount", async () => {
-        await assertStakes(
-          stakingProvider.address,
-          topUpAmount,
-          Zero,
-          nuInTAmount
-        )
-      })
-
-      it("should not update roles", async () => {
-        expect(
-          await tokenStaking.rolesOf(stakingProvider.address)
-        ).to.deep.equal([staker.address, staker.address, staker.address])
-      })
-
-      it("should not update start staking timestamp", async () => {
-        expect(
-          await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(blockTimestamp)
-      })
-
-      it("should increase available amount to authorize", async () => {
-        expect(
-          await tokenStaking.getAvailableToAuthorize(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(topUpAmount)
-      })
-
-      it("should transfer tokens to the staking contract", async () => {
-        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(
-          topUpAmount
-        )
-      })
-
-      it("should emit ToppedUp event", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "ToppedUp")
-          .withArgs(stakingProvider.address, topUpAmount)
-      })
-
-      it("should increase the delegatee voting power", async () => {
-        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(
-          expectedAmount
-        )
-      })
-
-      it("should increase the total voting power", async () => {
-        const lastBlock = await mineBlocks(1)
-        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
-          expectedAmount
-        )
       })
     })
 
@@ -2525,7 +1983,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        await assertStakes(stakingProvider.address, expectedAmount, Zero, Zero)
+        await assertStake(stakingProvider.address, expectedAmount)
       })
 
       it("should not increase available amount to authorize", async () => {
@@ -2543,22 +2001,10 @@ describe("TokenStaking", () => {
         ).to.equal(amount.sub(authorized2))
       })
 
-      it("should increase min staked amount", async () => {
+      it("should increase authorized amount", async () => {
         expect(
-          await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
+          await tokenStaking.getMaxAuthorization(stakingProvider.address)
         ).to.equal(expectedAmount)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.NU
-          )
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.KEEP
-          )
-        ).to.equal(0)
       })
 
       it("should emit ToppedUp event", async () => {
@@ -2738,29 +2184,6 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when stake is only in Keep and Nu", () => {
-      it("should revert", async () => {
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          initialStakerBalance,
-          initialStakerBalance
-        )
-
-        const amountToUnstake = 1
-        await expect(
-          tokenStaking
-            .connect(stakingProvider)
-            .unstakeT(stakingProvider.address, amountToUnstake)
-        ).to.be.revertedWith("Too much to unstake")
-      })
-    })
-
     context("when amount to unstake is more than not authorized", () => {
       it("should revert", async () => {
         const amount = initialStakerBalance
@@ -2843,24 +2266,6 @@ describe("TokenStaking", () => {
           ).to.be.revertedWith("Can't unstake earlier than 24h")
         })
       })
-
-      context("when another stake type was topped-up", () => {
-        it("should revert", async () => {
-          const nuAmount = initialStakerBalance
-          await tokenStaking.addLegacyStake(
-            stakingProvider.address,
-            0,
-            nuAmount
-          )
-
-          const amountToUnstake = amount
-          await expect(
-            tokenStaking
-              .connect(staker)
-              .unstakeT(stakingProvider.address, amountToUnstake)
-          ).to.be.revertedWith("Can't unstake earlier than 24h")
-        })
-      })
     })
 
     context("when unstake after minimum staking time passes", () => {
@@ -2890,7 +2295,7 @@ describe("TokenStaking", () => {
       })
 
       it("should update T staked amount", async () => {
-        await assertStakes(stakingProvider.address, Zero, Zero, Zero)
+        await assertStake(stakingProvider.address, Zero)
       })
 
       it("should not update roles", async () => {
@@ -2920,727 +2325,6 @@ describe("TokenStaking", () => {
           .withArgs(stakingProvider.address, amount)
       })
     })
-  })
-
-  describe("unstakeKeep", () => {
-    context("when staking provider has no stake", () => {
-      it("should revert", async () => {
-        await expect(
-          tokenStaking.unstakeKeep(deployer.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when caller is not owner or staking provider", () => {
-      it("should revert", async () => {
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            stakingProvider.address,
-            beneficiary.address,
-            authorizer.address,
-            initialStakerBalance
-          )
-        await expect(
-          tokenStaking.connect(authorizer).unstakeKeep(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when stake is only in T and Nu", () => {
-      it("should revert", async () => {
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            stakingProvider.address,
-            beneficiary.address,
-            authorizer.address,
-            initialStakerBalance
-          )
-
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          0,
-          initialStakerBalance
-        )
-
-        await expect(
-          tokenStaking
-            .connect(stakingProvider)
-            .unstakeKeep(stakingProvider.address)
-        ).to.be.revertedWith("Nothing to unstake")
-      })
-    })
-
-    context("when authorized amount is more than non-Keep stake", () => {
-      it("should revert", async () => {
-        const tAmount = initialStakerBalance
-        const keepAmount = initialStakerBalance
-
-        await tokenStaking
-          .connect(deployer)
-          .approveApplication(application1Mock.address)
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          keepAmount,
-          0
-        )
-
-        await tToken.connect(staker).approve(tokenStaking.address, tAmount)
-        await tokenStaking
-          .connect(staker)
-          .topUp(stakingProvider.address, tAmount)
-
-        const authorized = tAmount.add(1)
-        await tokenStaking
-          .connect(authorizer)
-          .forceIncreaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized
-          )
-
-        await expect(
-          tokenStaking.connect(staker).unstakeKeep(stakingProvider.address)
-        ).to.be.revertedWith("Keep stake still authorized")
-      })
-    })
-
-    context("when authorized amount is less than non-Keep stake", () => {
-      const tAmount = initialStakerBalance
-      const keepAmount = initialStakerBalance
-      const keepInTAmount = convertToT(keepAmount, keepRatio).result
-      const authorized = tAmount
-      let tx
-      let blockTimestamp
-
-      beforeEach(async () => {
-        await tokenStaking
-          .connect(deployer)
-          .approveApplication(application1Mock.address)
-
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          keepInTAmount,
-          0
-        )
-        blockTimestamp = await lastBlockTime()
-
-        await tokenStaking
-          .connect(staker)
-          .delegateVoting(stakingProvider.address, delegatee.address)
-
-        await tToken.connect(staker).approve(tokenStaking.address, tAmount)
-        await tokenStaking
-          .connect(staker)
-          .topUp(stakingProvider.address, tAmount)
-
-        await tokenStaking
-          .connect(authorizer)
-          .increaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized
-          )
-
-        tx = await tokenStaking
-          .connect(stakingProvider)
-          .unstakeKeep(stakingProvider.address)
-      })
-
-      it("should set Keep staked amount to zero", async () => {
-        await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
-      })
-
-      it("should not update roles", async () => {
-        expect(
-          await tokenStaking.rolesOf(stakingProvider.address)
-        ).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
-      })
-
-      it("should not update start staking timestamp", async () => {
-        expect(
-          await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(blockTimestamp)
-      })
-
-      it("should decrease available amount to authorize", async () => {
-        expect(
-          await tokenStaking.getAvailableToAuthorize(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(tAmount.sub(authorized))
-      })
-
-      it("should update min staked amount", async () => {
-        expect(
-          await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
-        ).to.equal(tAmount)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.NU
-          )
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.KEEP
-          )
-        ).to.equal(0)
-      })
-
-      it("should emit Unstaked", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "Unstaked")
-          .withArgs(stakingProvider.address, keepInTAmount)
-      })
-
-      it("should decrease the delegatee voting power", async () => {
-        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
-      })
-
-      it("should decrease the total voting power", async () => {
-        const lastBlock = await mineBlocks(1)
-        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
-          tAmount
-        )
-      })
-    })
-  })
-
-  describe("unstakeNu", () => {
-    context("when staking provider has no stake", () => {
-      it("should revert", async () => {
-        await expect(
-          tokenStaking.unstakeNu(deployer.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when caller is not owner or staking provider", () => {
-      it("should revert", async () => {
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          0,
-          initialStakerBalance
-        )
-        await expect(
-          tokenStaking.connect(authorizer).unstakeNu(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when stake is only in Keep and T", () => {
-      it("should revert", async () => {
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          initialStakerBalance,
-          0
-        )
-
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .topUp(stakingProvider.address, initialStakerBalance)
-
-        await expect(
-          tokenStaking
-            .connect(stakingProvider)
-            .unstakeNu(stakingProvider.address)
-        ).to.be.revertedWith("Nothing to unstake")
-      })
-    })
-
-    context("when amount to unstake is more than not authorized", () => {
-      it("should revert", async () => {
-        const nuAmount = initialStakerBalance
-        const nuInTAmount = convertToT(nuAmount, nuRatio).result
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          0,
-          nuInTAmount
-        )
-
-        const authorized = nuInTAmount.div(3)
-        await tokenStaking
-          .connect(authorizer)
-          .forceIncreaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized
-          )
-
-        await expect(
-          tokenStaking
-            .connect(stakingProvider)
-            .unstakeNu(stakingProvider.address)
-        ).to.be.revertedWith("NU stake still authorized")
-      })
-    })
-
-    context("when amount to unstake is less than not authorized", () => {
-      const tAmount = initialStakerBalance
-      const nuAmount = initialStakerBalance
-      const nuInTAmount = convertToT(nuAmount, nuRatio).result
-      const authorized = tAmount
-      const expectedNuAmount = 0
-      const expectedNuInTAmount = 0
-      const expectedUnstaked = nuInTAmount
-      let tx
-      let blockTimestamp
-
-      beforeEach(async () => {
-        await tokenStaking.connect(deployer).setMinimumStakeAmount(1)
-        await tokenStaking
-          .connect(deployer)
-          .approveApplication(application1Mock.address)
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          0,
-          nuInTAmount
-        )
-        blockTimestamp = await lastBlockTime()
-
-        await tokenStaking
-          .connect(staker)
-          .delegateVoting(stakingProvider.address, delegatee.address)
-        await tToken.connect(staker).approve(tokenStaking.address, tAmount)
-        await tokenStaking
-          .connect(staker)
-          .topUp(stakingProvider.address, tAmount)
-
-        await tokenStaking
-          .connect(authorizer)
-          .increaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized
-          )
-
-        await increaseTime(86400) // +24h
-        tx = await tokenStaking
-          .connect(stakingProvider)
-          .unstakeNu(stakingProvider.address)
-      })
-
-      it("should update Nu staked amount", async () => {
-        await assertStakes(
-          stakingProvider.address,
-          tAmount,
-          Zero,
-          expectedNuInTAmount
-        )
-        expect(await tokenStaking.stakedNu(stakingProvider.address)).to.equal(
-          expectedNuAmount
-        )
-      })
-
-      it("should not update roles", async () => {
-        expect(
-          await tokenStaking.rolesOf(stakingProvider.address)
-        ).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
-      })
-
-      it("should start staking timestamp", async () => {
-        expect(
-          await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(blockTimestamp)
-      })
-
-      it("should decrease available amount to authorize", async () => {
-        expect(
-          await tokenStaking.getAvailableToAuthorize(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(0)
-      })
-
-      it("should update min staked amount", async () => {
-        expect(
-          await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
-        ).to.equal(tAmount)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.NU
-          )
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.KEEP
-          )
-        ).to.equal(0)
-      })
-
-      it("should emit Unstaked", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "Unstaked")
-          .withArgs(stakingProvider.address, expectedUnstaked)
-      })
-
-      it("should decrease the delegatee voting power", async () => {
-        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
-      })
-
-      it("should decrease the total voting power", async () => {
-        const lastBlock = await mineBlocks(1)
-        expect(await tokenStaking.getPastTotalSupply(lastBlock - 1)).to.equal(
-          tAmount
-        )
-      })
-    })
-  })
-
-  describe("unstakeAll", () => {
-    context("when staking provider has no stake", () => {
-      it("should revert", async () => {
-        await expect(
-          tokenStaking.unstakeAll(deployer.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when caller is not owner or staking provider", () => {
-      it("should revert", async () => {
-        await tToken
-          .connect(staker)
-          .approve(tokenStaking.address, initialStakerBalance)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            stakingProvider.address,
-            beneficiary.address,
-            authorizer.address,
-            initialStakerBalance
-          )
-        await expect(
-          tokenStaking.connect(authorizer).unstakeAll(stakingProvider.address)
-        ).to.be.revertedWith("Not owner or provider")
-      })
-    })
-
-    context("when authorized amount is not zero", () => {
-      it("should revert", async () => {
-        const amount = initialStakerBalance
-        await tokenStaking
-          .connect(deployer)
-          .approveApplication(application1Mock.address)
-        await tToken.connect(staker).approve(tokenStaking.address, amount)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            stakingProvider.address,
-            beneficiary.address,
-            authorizer.address,
-            amount
-          )
-        const authorized = 1
-        await tokenStaking
-          .connect(authorizer)
-          .increaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized
-          )
-
-        await expect(
-          tokenStaking
-            .connect(stakingProvider)
-            .unstakeAll(stakingProvider.address)
-        ).to.be.revertedWith("Stake still authorized")
-      })
-    })
-
-    context("when unstake T before minimum staking time passes", () => {
-      it("should revert", async () => {
-        const amount = initialStakerBalance
-        const minAmount = 1
-        await tToken.connect(staker).approve(tokenStaking.address, amount)
-        await tokenStaking
-          .connect(staker)
-          .stake(
-            stakingProvider.address,
-            beneficiary.address,
-            authorizer.address,
-            amount
-          )
-        await tokenStaking.connect(deployer).setMinimumStakeAmount(minAmount)
-
-        await expect(
-          tokenStaking.connect(staker).unstakeAll(stakingProvider.address)
-        ).to.be.revertedWith("Can't unstake earlier than 24h")
-      })
-    })
-
-    context("when unstake Nu before minimum staking time passes", () => {
-      it("should revert", async () => {
-        const nuAmount = initialStakerBalance
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(stakingProvider.address, 0, nuAmount)
-
-        await expect(
-          tokenStaking.connect(staker).unstakeAll(stakingProvider.address)
-        ).to.be.revertedWith("Can't unstake earlier than 24h")
-      })
-    })
-
-    context("when unstake Keep before minimum time passes", () => {
-      it("should revert", async () => {
-        const keepAmount = initialStakerBalance
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          keepAmount,
-          0
-        )
-
-        await expect(
-          tokenStaking.connect(staker).unstakeAll(stakingProvider.address)
-        ).to.be.revertedWith("Can't unstake earlier than 24h")
-      })
-    })
-
-    const contextUnstakeAll = (preparation, tAmount, nuAmount, keepAmount) => {
-      const nuInTAmount = convertToT(nuAmount, nuRatio).result
-      const keepInTAmount = convertToT(keepAmount, keepRatio).result
-      let tx
-      let blockTimestamp
-
-      beforeEach(async () => {
-        blockTimestamp = await preparation()
-
-        tx = await tokenStaking
-          .connect(stakingProvider)
-          .unstakeAll(stakingProvider.address)
-      })
-
-      it("should update staked amount", async () => {
-        await assertStakes(stakingProvider.address, Zero, Zero, Zero)
-      })
-
-      it("should not update roles", async () => {
-        expect(
-          await tokenStaking.rolesOf(stakingProvider.address)
-        ).to.deep.equal([
-          staker.address,
-          beneficiary.address,
-          authorizer.address,
-        ])
-      })
-
-      it("should not update start staking timestamp", async () => {
-        expect(
-          await tokenStaking.getStartStakingTimestamp(stakingProvider.address)
-        ).to.equal(blockTimestamp)
-      })
-
-      it("should transfer tokens to the staker address", async () => {
-        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
-        expect(await tToken.balanceOf(staker.address)).to.equal(
-          initialStakerBalance
-        )
-      })
-
-      it("should decrease available amount to authorize", async () => {
-        expect(
-          await tokenStaking.getAvailableToAuthorize(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(0)
-      })
-
-      it("should update min staked amount", async () => {
-        expect(
-          await tokenStaking.getMinStaked(stakingProvider.address, StakeTypes.T)
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.NU
-          )
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getMinStaked(
-            stakingProvider.address,
-            StakeTypes.KEEP
-          )
-        ).to.equal(0)
-      })
-
-      it("should emit Unstaked", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "Unstaked")
-          .withArgs(
-            stakingProvider.address,
-            nuInTAmount.add(keepInTAmount).add(tAmount)
-          )
-      })
-    }
-
-    context(
-      "when unstake after minimum staking time passes for T stake",
-      () => {
-        // subtracting arbitrary values just to keep them different
-        const tAmount = initialStakerBalance.sub(1)
-        const nuAmount = initialStakerBalance.sub(2)
-        const keepAmount = initialStakerBalance.sub(3)
-        const nuInTAmount = convertToT(nuAmount, nuRatio).result
-        const keepInTAmount = convertToT(keepAmount, keepRatio).result
-
-        contextUnstakeAll(
-          async () => {
-            await tokenStaking
-              .connect(deployer)
-              .approveApplication(application1Mock.address)
-            await tokenStaking.connect(deployer).setMinimumStakeAmount(1)
-
-            //
-            // stake T
-            //
-            await tToken.connect(staker).approve(tokenStaking.address, tAmount)
-            await tokenStaking
-              .connect(staker)
-              .stake(
-                stakingProvider.address,
-                beneficiary.address,
-                authorizer.address,
-                tAmount
-              )
-            const blockTimestamp = await lastBlockTime()
-
-            await tokenStaking.addLegacyStake(
-              stakingProvider.address,
-              keepInTAmount,
-              nuInTAmount
-            )
-
-            await increaseTime(86400) // +24h
-            return blockTimestamp
-          },
-          tAmount,
-          nuAmount,
-          keepAmount
-        )
-      }
-    )
-
-    context(
-      "when unstake after minimum staking time passes for NU and KEEP stake",
-      () => {
-        // subtracting arbitrary values just to keep them different
-        const tAmount = initialStakerBalance.sub(3)
-        const nuAmount = initialStakerBalance.sub(1)
-        const keepAmount = initialStakerBalance.sub(2)
-        const nuInTAmount = convertToT(nuAmount, nuRatio).result
-        const keepInTAmount = convertToT(keepAmount, keepRatio).result
-
-        contextUnstakeAll(
-          async () => {
-            await tokenStaking
-              .connect(deployer)
-              .approveApplication(application1Mock.address)
-            await tokenStaking.connect(deployer).setMinimumStakeAmount(1)
-
-            //
-            // legacy stake NU and KEEP
-            //
-            await tokenStaking.setLegacyStakingProvider(
-              stakingProvider.address,
-              staker.address,
-              beneficiary.address,
-              authorizer.address
-            )
-            await tokenStaking.addLegacyStake(
-              stakingProvider.address,
-              keepInTAmount,
-              nuInTAmount
-            )
-            const blockTimestamp = await lastBlockTime()
-
-            //
-            // top-up T
-            //
-            await tToken.connect(staker).approve(tokenStaking.address, tAmount)
-            await tokenStaking
-              .connect(staker)
-              .topUp(stakingProvider.address, tAmount)
-
-            await increaseTime(86400) // +24h
-            return blockTimestamp
-          },
-          tAmount,
-          nuAmount,
-          keepAmount
-        )
-      }
-    )
   })
 
   describe("setNotificationReward", () => {
@@ -4336,12 +3020,7 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          await assertStakes(
-            stakingProvider.address,
-            expectedAmount,
-            Zero,
-            Zero
-          )
+          await assertStake(stakingProvider.address, expectedAmount)
         })
 
         it("should decrease the delegatee voting power", async () => {
@@ -4462,7 +3141,7 @@ describe("TokenStaking", () => {
         })
 
         it("should update staked amount", async () => {
-          await assertStakes(otherStaker.address, Zero, Zero, Zero)
+          await assertStake(otherStaker.address, Zero)
         })
 
         it("should update index of queue", async () => {
@@ -4587,12 +3266,12 @@ describe("TokenStaking", () => {
           await increaseTime(86400) // +24h
           await tokenStaking
             .connect(stakingProvider)
-            .unstakeAll(stakingProvider.address)
+            .unstakeT(stakingProvider.address, tAmount)
           tx = await tokenStaking.connect(auxiliaryAccount).processSlashing(1)
         })
 
         it("should not update staked amount", async () => {
-          await assertStakes(stakingProvider.address, Zero, Zero, Zero)
+          await assertStake(stakingProvider.address, Zero)
         })
 
         it("should update index of queue", async () => {
@@ -4723,10 +3402,7 @@ describe("TokenStaking", () => {
       const ExtendedTokenStaking = await ethers.getContractFactory(
         "ExtendedTokenStaking"
       )
-      extendedTokenStaking = await ExtendedTokenStaking.deploy(
-        tToken.address,
-        nucypherVendingMachine.address
-      )
+      extendedTokenStaking = await ExtendedTokenStaking.deploy(tToken.address)
       await extendedTokenStaking.deployed()
     })
 
@@ -4843,324 +3519,10 @@ describe("TokenStaking", () => {
     )
   })
 
-  describe("forceUnstakeLegacy", () => {
-    const tAmount = initialStakerBalance
-    const keepInTStake = convertToT(initialStakerBalance, keepRatio).result
-    const nuInTStake = convertToT(initialStakerBalance, nuRatio).result
-
-    beforeEach(async () => {
-      await tokenStaking
-        .connect(deployer)
-        .approveApplication(application1Mock.address)
-      await tokenStaking
-        .connect(deployer)
-        .approveApplication(application2Mock.address)
-      await tToken
-        .connect(staker)
-        .approve(tokenStaking.address, initialStakerBalance)
-      await tokenStaking
-        .connect(staker)
-        .stake(stakingProvider.address, staker.address, staker.address, tAmount)
-    })
-
-    context("when no legacy stake", () => {
-      it("should revert", async () => {
-        await tokenStaking
-          .connect(staker)
-          .increaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            tAmount
-          )
-        await expect(
-          tokenStaking["forceUnstakeLegacy(address)"](stakingProvider.address)
-        ).to.be.revertedWith("No legacy stake")
-      })
-    })
-
-    context("when authorized only T stake", () => {
-      let tx
-
-      beforeEach(async () => {
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          keepInTStake,
-          nuInTStake
-        )
-        await tokenStaking
-          .connect(staker)
-          .increaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            tAmount
-          )
-        await tokenStaking
-          .connect(staker)
-          .delegateVoting(stakingProvider.address, delegatee.address)
-
-        tx = await tokenStaking["forceUnstakeLegacy(address)"](
-          stakingProvider.address
-        )
-      })
-
-      it("should update staked amount", async () => {
-        await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
-      })
-
-      it("should decrease the delegatee voting power", async () => {
-        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
-      })
-
-      it("should not decrease authorized amounts", async () => {
-        expect(
-          await tokenStaking.authorizedStake(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(tAmount)
-      })
-
-      it("should not inform application", async () => {
-        await assertApplicationStakingProviders(
-          application1Mock,
-          stakingProvider.address,
-          tAmount,
-          Zero
-        )
-      })
-
-      it("should emit Unstaked event", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "Unstaked")
-          .withArgs(stakingProvider.address, nuInTStake.add(keepInTStake))
-      })
-    })
-
-    context("when authorized T, KEEP and NU stakes", () => {
-      const authorized1 = tAmount.add(keepInTStake).add(nuInTStake)
-      const authorized2 = nuInTStake.add(keepInTStake)
-      const deauth = authorized1.sub(tAmount).sub(1)
-      let tx
-
-      beforeEach(async () => {
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          keepInTStake,
-          nuInTStake
-        )
-        await tokenStaking
-          .connect(staker)
-          .forceIncreaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized1
-          )
-        await tokenStaking
-          .connect(staker)
-          .forceIncreaseAuthorization(
-            stakingProvider.address,
-            application2Mock.address,
-            authorized2
-          )
-        await tokenStaking
-          .connect(staker)
-          ["requestAuthorizationDecrease(address,address,uint96)"](
-            stakingProvider.address,
-            application1Mock.address,
-            deauth
-          )
-        await tokenStaking
-          .connect(staker)
-          .delegateVoting(stakingProvider.address, delegatee.address)
-
-        tx = await tokenStaking["forceUnstakeLegacy(address)"](
-          stakingProvider.address
-        )
-      })
-
-      it("should update staked amount", async () => {
-        await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
-      })
-
-      it("should decrease the delegatee voting power", async () => {
-        expect(await tokenStaking.getVotes(delegatee.address)).to.equal(tAmount)
-      })
-
-      it("should decrease authorized amounts", async () => {
-        expect(
-          await tokenStaking.authorizedStake(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(tAmount)
-        expect(
-          await tokenStaking.authorizedStake(
-            stakingProvider.address,
-            application2Mock.address
-          )
-        ).to.equal(tAmount)
-      })
-
-      it("should inform application", async () => {
-        await assertApplicationStakingProviders(
-          application1Mock,
-          stakingProvider.address,
-          tAmount,
-          Zero
-        )
-        await assertApplicationStakingProviders(
-          application2Mock,
-          stakingProvider.address,
-          tAmount,
-          Zero
-        )
-      })
-
-      it("should emit Unstaked and AuthorizationInvoluntaryDecreased event", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "Unstaked")
-          .withArgs(stakingProvider.address, nuInTStake.add(keepInTStake))
-        await expect(tx)
-          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
-          .withArgs(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized1,
-            tAmount,
-            true
-          )
-        await expect(tx)
-          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
-          .withArgs(
-            stakingProvider.address,
-            application2Mock.address,
-            authorized2,
-            tAmount,
-            true
-          )
-      })
-    })
-
-    context("when unstake multiple legacy stakes", () => {
-      let tx
-
-      beforeEach(async () => {
-        await tokenStaking.addLegacyStake(
-          stakingProvider.address,
-          keepInTStake,
-          0
-        )
-        await tokenStaking.setLegacyStakingProvider(
-          stakingProvider.address,
-          staker.address,
-          beneficiary.address,
-          authorizer.address
-        )
-        await tokenStaking.addLegacyStake(otherStaker.address, 0, nuInTStake)
-
-        await tokenStaking
-          .connect(staker)
-          .forceIncreaseAuthorization(
-            stakingProvider.address,
-            application1Mock.address,
-            tAmount.add(keepInTStake)
-          )
-        await tokenStaking
-          .connect(staker)
-          .forceIncreaseAuthorization(
-            otherStaker.address,
-            application1Mock.address,
-            nuInTStake
-          )
-
-        tx = await tokenStaking["forceUnstakeLegacy(address[])"]([
-          stakingProvider.address,
-          otherStaker.address,
-        ])
-      })
-
-      it("should update staked amount", async () => {
-        await assertStakes(stakingProvider.address, tAmount, Zero, Zero)
-        await assertStakes(otherStaker.address, Zero, Zero, Zero)
-      })
-
-      it("should decrease authorized amounts", async () => {
-        expect(
-          await tokenStaking.authorizedStake(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(tAmount)
-        expect(
-          await tokenStaking.authorizedStake(
-            otherStaker.address,
-            application1Mock.address
-          )
-        ).to.equal(Zero)
-      })
-
-      it("should inform application", async () => {
-        await assertApplicationStakingProviders(
-          application1Mock,
-          stakingProvider.address,
-          tAmount,
-          Zero
-        )
-        await assertApplicationStakingProviders(
-          application1Mock,
-          otherStaker.address,
-          Zero,
-          Zero
-        )
-      })
-
-      it("should emit Unstaked and AuthorizationInvoluntaryDecreased event", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "Unstaked")
-          .withArgs(stakingProvider.address, keepInTStake)
-        await expect(tx)
-          .to.emit(tokenStaking, "Unstaked")
-          .withArgs(otherStaker.address, nuInTStake)
-        await expect(tx)
-          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
-          .withArgs(
-            stakingProvider.address,
-            application1Mock.address,
-            tAmount.add(keepInTStake),
-            tAmount,
-            true
-          )
-        await expect(tx)
-          .to.emit(tokenStaking, "AuthorizationInvoluntaryDecreased")
-          .withArgs(
-            otherStaker.address,
-            application1Mock.address,
-            nuInTStake,
-            Zero,
-            true
-          )
-      })
-    })
-  })
-
-  async function assertStakes(
-    address,
-    expectedTStake,
-    expectedKeepInTStake,
-    expectedNuInTStake
-  ) {
-    expect(
-      (await tokenStaking.stakes(address)).tStake,
-      "invalid tStake"
-    ).to.equal(expectedTStake)
-    expect(
-      (await tokenStaking.stakes(address)).keepInTStake,
-      "invalid keepInTStake"
-    ).to.equal(expectedKeepInTStake)
-    expect(
-      (await tokenStaking.stakes(address)).nuInTStake,
-      "invalid nuInTStake"
-    ).to.equal(expectedNuInTStake)
+  async function assertStake(address, expectedTStake) {
+    expect(await tokenStaking.tStake(address), "invalid tStake").to.equal(
+      expectedTStake
+    )
   }
 
   async function assertApplicationStakingProviders(
