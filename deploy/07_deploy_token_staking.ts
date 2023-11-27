@@ -9,12 +9,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts()
 
   const T = await deployments.get("T")
-  const VendingMachineNuCypher = await deployments.get("VendingMachineNuCypher")
 
-  const tokenStakingConstructorArgs = [
-    T.address,
-    VendingMachineNuCypher.address,
-  ]
+  const tokenStakingConstructorArgs = [T.address]
   const tokenStakingInitializerArgs = []
 
   // TODO: Consider upgradable deployment also for goerli/sepolia.
