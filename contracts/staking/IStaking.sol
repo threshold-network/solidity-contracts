@@ -168,10 +168,10 @@ interface IStaking {
     //
     //
 
-    /// @notice Reduces the liquid T stake amount by the provided amount and
+    /// @notice Reduces the T stake amount by the provided amount and
     ///         withdraws T to the owner. Reverts if there is at least one
-    ///         authorization higher than the remaining liquid T stake or
-    ///         if the unstake amount is higher than the liquid T stake amount.
+    ///         authorization higher than the remaining T stake or
+    ///         if the unstake amount is higher than the T stake amount.
     ///         Can be called only by the delegation owner or the staking
     ///         provider.
     function unstakeT(address stakingProvider, uint96 amount) external;
@@ -232,7 +232,10 @@ interface IStaking {
         returns (uint96);
 
     /// @notice Returns staked amount of T for the specified staking provider.
-    function tStake(address stakingProvider) external view returns (uint96);
+    function stakeAmount(address stakingProvider)
+        external
+        view
+        returns (uint96);
 
     /// @notice Returns start staking timestamp.
     /// @dev    This value is set at most once.
