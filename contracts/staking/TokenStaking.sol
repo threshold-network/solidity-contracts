@@ -28,8 +28,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
-///         Additionally, it serves as application manager for the apps
-///         that run on the Threshold Network.
+///         It serves as application manager for the apps that run on
+///         the Threshold Network.
 /// @dev TokenStaking is upgradeable, using OpenZeppelin's Upgradeability
 ///      framework. As such, it is required to satisfy OZ's guidelines, like
 ///      restrictions on constructors, immutable variables, base contracts and
@@ -39,6 +39,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     using PercentUtils for uint256;
     using SafeCastUpgradeable for uint256;
 
+    // enum is used for Staked event to have backward compatibility
+    enum StakeType {
+        NU,
+        KEEP,
+        T
+    }
+
     enum ApplicationStatus {
         NOT_APPROVED,
         APPROVED,
@@ -47,9 +54,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     struct StakingProviderInfo {
-        uint96 legacyNuInTStake;
+        uint96 nuInTStake;
         address owner;
-        uint96 legacyKeepInTStake;
+        uint96 keepInTStake;
         address payable beneficiary;
         uint96 tStake;
         address authorizer;
@@ -101,6 +108,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     uint256 public slashingQueueIndex;
 
     event Staked(
+        StakeType indexed stakeType,
         address indexed owner,
         address indexed stakingProvider,
         address beneficiary,
@@ -263,6 +271,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         increaseStakeCheckpoint(stakingProvider, amount);
 
         emit Staked(
+            StakeType.T,
             msg.sender,
             stakingProvider,
             beneficiary,
@@ -641,10 +650,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
     //
 
-    /// @notice Reduces the liquid T stake amount by the provided amount and
+    /// @notice Reduces the T stake amount by the provided amount and
     ///         withdraws T to the owner. Reverts if there is at least one
-    ///         authorization higher than the remaining liquid T stake or
-    ///         if the unstake amount is higher than the liquid T stake amount.
+    ///         authorization higher than the remaining T stake or
+    ///         if the unstake amount is higher than the T stake amount.
     ///         Can be called only by the delegation owner or the staking
     ///         provider.
     function unstakeT(address stakingProvider, uint96 amount)
@@ -814,7 +823,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Returns staked amount of T for the specified staking provider.
-    function tStake(address stakingProvider)
+    function stakeAmount(address stakingProvider)
         external
         view
         override
