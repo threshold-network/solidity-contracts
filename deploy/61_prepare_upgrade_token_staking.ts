@@ -27,8 +27,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       TokenStaking,
       {
         constructorArgs: tokenStakingConstructorArgs,
-        kind: 'transparent',
-      }
+        kind: "transparent",
+      },
     )
 
     log(`Deployed new TokenStaking implementation contract at ${implAddress}`)
@@ -50,7 +50,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         if (err) {
           console.log(err)
         }
-      }
+      },
     )
 
     // initialize implementation
@@ -58,7 +58,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await execute(
       "TokenStaking",
       { from: deployer, to: implAddress },
-      "initialize"
+      "initialize",
     )
   }
 }

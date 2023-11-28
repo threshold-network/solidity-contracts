@@ -27,10 +27,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       TokenStaking,
       {
         constructorArgs: tokenStakingConstructorArgs,
-      }
+      },
     )
 
-    log(`Current TokenStaking implementation is compatible with existing deployment at ${TokenStakingDeployment.address}`)
+    log(
+      `Current TokenStaking implementation is compatible with existing deployment at ${TokenStakingDeployment.address}`,
+    )
   }
 }
 
