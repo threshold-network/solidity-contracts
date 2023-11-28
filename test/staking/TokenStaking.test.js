@@ -6,6 +6,12 @@ const { to1e18 } = helpers.number
 
 const { AddressZero, Zero } = ethers.constants
 
+const StakeTypes = {
+  NU: 0,
+  KEEP: 1,
+  T: 2,
+}
+
 const ApplicationStatus = {
   NOT_APPROVED: 0,
   APPROVED: 1,
@@ -288,6 +294,7 @@ describe("TokenStaking", () => {
           await expect(tx)
             .to.emit(tokenStaking, "Staked")
             .withArgs(
+              StakeTypes.T,
               staker.address,
               stakingProvider.address,
               beneficiary.address,
@@ -3520,7 +3527,7 @@ describe("TokenStaking", () => {
   })
 
   async function assertStake(address, expectedTStake) {
-    expect(await tokenStaking.tStake(address), "invalid tStake").to.equal(
+    expect(await tokenStaking.stakeAmount(address), "invalid tStake").to.equal(
       expectedTStake
     )
   }

@@ -115,9 +115,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Resolve latest contracts
-        run: yarn upgrade @keep-network/keep-core@${{ github.event.inputs.environment }}
-
       - name: Configure tenderly
         env:
           TENDERLY_TOKEN: ${{ secrets.TENDERLY_TOKEN }}
@@ -197,7 +194,6 @@ jobs:
       # `etherscan-verify` plugins tries to verify them, which is not desired.
       - name: Prepare for verification on Etherscan
         run: |
-          rm -rf ./node_modules/@keep-network/keep-core
           rm -rf ./external/npm
 
       - name: Verify contracts on Etherscan
@@ -239,9 +235,6 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
-      - name: Resolve latest contracts
-        run: yarn upgrade @keep-network/keep-core@${{ github.event.inputs.environment }}
 
       - name: Deploy contracts
         env:

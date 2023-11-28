@@ -296,9 +296,9 @@ will be added to already authorized applications.
 
 ==== `unstakeT(address stakingProvider, uint96 amount) external onlyOwnerOrStakingProvider(stakingProvider)`
 
-Reduces the liquid T stake amount by `amount` and withdraws `amount` of T 
+Reduces the T stake amount by `amount` and withdraws `amount` of T 
 to the owner. Reverts if there is at least one authorization higher than the 
-remaining liquid T stake or if the `amount` is higher than the liquid T stake amount. 
+remaining T stake or if the `amount` is higher than the T stake amount. 
 Can be called only by the owner or the staking provider.
 
 === Keeping information in sync
@@ -342,7 +342,7 @@ each affected application.
 
 Returns the authorized stake amount of the staking provider for the application.
 
-==== `tStake(address stakingProvider) external view returns (uint96)`
+==== `stakeAmount(address stakingProvider) external view returns (uint96)`
 
 Returns staked amount of T for the specified staking provider.
 
