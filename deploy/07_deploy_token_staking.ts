@@ -17,7 +17,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   ]
   const tokenStakingInitializerArgs = []
 
-  // TODO: Consider upgradable deployment also for goerli/sepolia.
+  // TODO: Consider upgradable deployment also for sepolia.
   let tokenStakingAddress
   if (hre.network.name == "mainnet") {
     const TokenStaking = await ethers.getContractFactory("TokenStaking")
