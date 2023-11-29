@@ -1984,89 +1984,125 @@ describe("TokenStaking", () => {
         await tToken
           .connect(stakingProvider)
           .approve(tokenStaking.address, topUpAmount)
-        tx = await tokenStaking
-          .connect(stakingProvider)
-          .topUp(stakingProvider.address, topUpAmount)
       })
 
-      it("should update T staked amount", async () => {
-        await assertStake(stakingProvider.address, expectedAmount)
+      context("when one of applications is paused", () => {
+        it("should revert", async () => {
+          await tokenStaking
+            .connect(deployer)
+            .setPanicButton(application1Mock.address, panicButton.address)
+          await tokenStaking
+            .connect(panicButton)
+            .pauseApplication(application1Mock.address)
+
+          await expect(
+            tokenStaking
+              .connect(stakingProvider)
+              .topUp(stakingProvider.address, topUpAmount)
+          ).to.be.revertedWith("Application is not approved")
+        })
       })
 
-      it("should not increase available amount to authorize", async () => {
-        expect(
-          await tokenStaking.getAvailableToAuthorize(
+      context("when one of applications is disabled", () => {
+        it("should revert", async () => {
+          await tokenStaking
+            .connect(deployer)
+            .disableApplication(application2Mock.address)
+
+          await expect(
+            tokenStaking
+              .connect(stakingProvider)
+              .topUp(stakingProvider.address, topUpAmount)
+          ).to.be.revertedWith("Application is not approved")
+        })
+      })
+
+      context("when all applications are approved", () => {
+        beforeEach(async () => {
+          tx = await tokenStaking
+            .connect(stakingProvider)
+            .topUp(stakingProvider.address, topUpAmount)
+        })
+
+        it("should update T staked amount", async () => {
+          await assertStake(stakingProvider.address, expectedAmount)
+        })
+
+        it("should not increase available amount to authorize", async () => {
+          expect(
+            await tokenStaking.getAvailableToAuthorize(
+              stakingProvider.address,
+              application1Mock.address
+            )
+          ).to.equal(0)
+          expect(
+            await tokenStaking.getAvailableToAuthorize(
+              stakingProvider.address,
+              application2Mock.address
+            )
+          ).to.equal(amount.sub(authorized2))
+        })
+
+        it("should increase authorized amount", async () => {
+          expect(
+            await tokenStaking.getMaxAuthorization(stakingProvider.address)
+          ).to.equal(expectedAmount)
+        })
+
+        it("should emit ToppedUp event", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "ToppedUp")
+            .withArgs(stakingProvider.address, topUpAmount)
+        })
+
+        it("should increase authorized amounts", async () => {
+          expect(
+            await tokenStaking.authorizedStake(
+              stakingProvider.address,
+              application1Mock.address
+            )
+          ).to.equal(expectedAmount)
+          expect(
+            await tokenStaking.authorizedStake(
+              stakingProvider.address,
+              application2Mock.address
+            )
+          ).to.equal(authorized2.add(topUpAmount))
+        })
+
+        it("should inform application", async () => {
+          await assertApplicationStakingProviders(
+            application1Mock,
             stakingProvider.address,
-            application1Mock.address
+            expectedAmount,
+            Zero
           )
-        ).to.equal(0)
-        expect(
-          await tokenStaking.getAvailableToAuthorize(
+          await assertApplicationStakingProviders(
+            application2Mock,
             stakingProvider.address,
-            application2Mock.address
+            authorized2.add(topUpAmount),
+            Zero
           )
-        ).to.equal(amount.sub(authorized2))
-      })
+        })
 
-      it("should increase authorized amount", async () => {
-        expect(
-          await tokenStaking.getMaxAuthorization(stakingProvider.address)
-        ).to.equal(expectedAmount)
-      })
-
-      it("should emit ToppedUp event", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "ToppedUp")
-          .withArgs(stakingProvider.address, topUpAmount)
-      })
-
-      it("should increase authorized amounts", async () => {
-        expect(
-          await tokenStaking.authorizedStake(
-            stakingProvider.address,
-            application1Mock.address
-          )
-        ).to.equal(expectedAmount)
-        expect(
-          await tokenStaking.authorizedStake(
-            stakingProvider.address,
-            application2Mock.address
-          )
-        ).to.equal(authorized2.add(topUpAmount))
-      })
-
-      it("should inform application", async () => {
-        await assertApplicationStakingProviders(
-          application1Mock,
-          stakingProvider.address,
-          expectedAmount,
-          Zero
-        )
-        await assertApplicationStakingProviders(
-          application2Mock,
-          stakingProvider.address,
-          authorized2.add(topUpAmount),
-          Zero
-        )
-      })
-
-      it("should emit AuthorizationIncreased", async () => {
-        await expect(tx)
-          .to.emit(tokenStaking, "AuthorizationIncreased")
-          .withArgs(
-            stakingProvider.address,
-            application1Mock.address,
-            authorized1,
-            expectedAmount
-          )
-        await expect(tx)
-          .to.emit(tokenStaking, "AuthorizationIncreased")
-          .withArgs(
-            stakingProvider.address,
-            application2Mock.address,
-            authorized2,
-            authorized2.add(topUpAmount)
-          )
+        it("should emit AuthorizationIncreased", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "AuthorizationIncreased")
+            .withArgs(
+              stakingProvider.address,
+              application1Mock.address,
+              authorized1,
+              expectedAmount
+            )
+          await expect(tx)
+            .to.emit(tokenStaking, "AuthorizationIncreased")
+            .withArgs(
+              stakingProvider.address,
+              application2Mock.address,
+              authorized2,
+              authorized2.add(topUpAmount)
+            )
+        })
       })
     })
   })
@@ -2130,7 +2166,7 @@ describe("TokenStaking", () => {
           .toggleAutoAuthorizationIncrease(stakingProvider.address)
       })
 
-      it("should enable auto increase flag", async () => {
+      it("should disable auto increase flag", async () => {
         expect(
           await tokenStaking.getAutoIncreaseFlag(stakingProvider.address)
         ).to.equal(false)

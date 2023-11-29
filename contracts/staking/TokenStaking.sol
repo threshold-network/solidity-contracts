@@ -392,7 +392,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         application.
     /// @dev Calls `authorizationDecreaseRequested` callback
     ///      for each authorized application. See `IApplication`.
-    function requestAuthorizationDecrease(address stakingProvider) external {
+    function requestAuthorizationDecrease(address stakingProvider)
+        external
+        override
+    {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -608,6 +611,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             address application = stakingProviderStruct.authorizedApplications[
                 i
             ];
+            require(
+                applicationInfo[application].status ==
+                    ApplicationStatus.APPROVED,
+                "Application is not approved"
+            );
+
             AppAuthorization storage authorization = stakingProviderStruct
                 .authorizations[application];
             uint96 fromAmount = authorization.authorized;
