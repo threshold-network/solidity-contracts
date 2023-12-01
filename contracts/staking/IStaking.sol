@@ -27,12 +27,6 @@ pragma solidity ^0.8.9;
 ///         delegation optimizes the network throughput without compromising the
 ///         security of the owners’ stake.
 interface IStaking {
-    enum StakeType {
-        NU,
-        KEEP,
-        T
-    }
-
     //
     //
     // Delegating a stake
@@ -78,6 +72,14 @@ interface IStaking {
         address application,
         uint96 amount
     ) external;
+
+    /// @notice Increases the authorization of the given staking provider for
+    ///         all applications by all stake amount. Can only be called by
+    ///         the given staking provider’s authorizer.
+    /// @dev Calls `authorizationIncreased` callback on each application to
+    ///      notify the applications about authorization change.
+    ///      See `IApplication`.
+    function increaseAuthorization(address stakingProvider) external;
 
     /// @notice Requests decrease of the authorization for the given staking
     ///         provider on the given application by the provided amount.
@@ -174,41 +176,13 @@ interface IStaking {
     //
     //
 
-    /// @notice Reduces the liquid T stake amount by the provided amount and
+    /// @notice Reduces the T stake amount by the provided amount and
     ///         withdraws T to the owner. Reverts if there is at least one
-    ///         authorization higher than the sum of the legacy stake and
-    ///         remaining liquid T stake or if the unstake amount is higher than
-    ///         the liquid T stake amount. Can be called only by the delegation
-    ///         owner or the staking provider.
-    function unstakeT(address stakingProvider, uint96 amount) external;
-
-    /// @notice Sets the legacy KEEP staking contract active stake amount cached
-    ///         in T staking contract to 0. Reverts if the amount of liquid T
-    ///         staked in T staking contract is lower than the highest
-    ///         application authorization. This function allows to unstake from
-    ///         KEEP staking contract and still being able to operate in T
-    ///         network and earning rewards based on the liquid T staked. Can be
-    ///         called only by the delegation owner or the staking provider.
-    function unstakeKeep(address stakingProvider) external;
-
-    /// @notice Sets to 0 the amount of T that is cached from the legacy
-    ///         NU staking contract. Reverts if there is at least one
-    ///         authorization higher than the sum of remaining legacy NU stake
-    ///         and native T stake for that staking provider or if the unstaked
-    ///         amount is higher than the cached legacy stake amount. If succeeded,
-    ///         the legacy NU stake can be partially or fully undelegated on
-    ///         the legacy NU staking contract. This function allows to unstake
-    ///         from NU staking contract while still being able to operate in
-    ///         T network and earning rewards based on the native T staked.
-    ///         Can be called only by the stake owner or the staking provider.
-    function unstakeNu(address stakingProvider) external;
-
-    /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
-    ///         amount to 0 and withdraws all liquid T from the stake to the
-    ///         owner. Reverts if there is at least one non-zero authorization.
+    ///         authorization higher than the remaining T stake or
+    ///         if the unstake amount is higher than the T stake amount.
     ///         Can be called only by the delegation owner or the staking
     ///         provider.
-    function unstakeAll(address stakingProvider) external;
+    function unstakeT(address stakingProvider, uint96 amount) external;
 
     //
     //
@@ -265,17 +239,11 @@ interface IStaking {
         view
         returns (uint96);
 
-    /// @notice Returns staked amount of T, Keep and Nu for the specified
-    ///         staking provider.
-    /// @dev    All values are in T denomination
-    function stakes(address stakingProvider)
+    /// @notice Returns staked amount of T for the specified staking provider.
+    function stakeAmount(address stakingProvider)
         external
         view
-        returns (
-            uint96 tStake,
-            uint96 keepInTStake,
-            uint96 nuInTStake
-        );
+        returns (uint96);
 
     /// @notice Returns start staking timestamp.
     /// @dev    This value is set at most once.
@@ -289,9 +257,6 @@ interface IStaking {
         external
         view
         returns (bool);
-
-    /// @notice Returns staked amount of NU for the specified staking provider.
-    function stakedNu(address stakingProvider) external view returns (uint256);
 
     /// @notice Gets the stake owner, the beneficiary and the authorizer
     ///         for the specified staking provider address.
@@ -313,23 +278,8 @@ interface IStaking {
     /// @notice Returns length of slashing queue
     function getSlashingQueueLength() external view returns (uint256);
 
-    /// @notice Returns minimum possible stake for T, KEEP or NU in T
-    ///         denomination.
-    /// @dev For example, suppose the given staking provider has 10 T, 20 T worth
-    ///      of KEEP, and 30 T worth of NU all staked, and the maximum
-    ///      application authorization is 40 T, then `getMinStaked` for
-    ///      that staking provider returns:
-    ///          * 0 T if KEEP stake type specified i.e.
-    ///            min = 40 T max - (10 T) = 30 T
-    ///          * 10 T if NU stake type specified i.e.
-    ///            min = 40 T max - (10 T) = 30 T
-    ///          * 0 T if T stake type specified i.e.
-    ///            min = 40 T max = 40 T
-    ///      In other words, the minimum stake amount for the specified
-    ///      stake type is the minimum amount of stake of the given type
-    ///      needed to satisfy the maximum application authorization given
-    ///      the staked amounts of the T stake types for that staking provider.
-    function getMinStaked(address stakingProvider, StakeType stakeTypes)
+    /// @notice Returns the maximum application authorization
+    function getMaxAuthorization(address stakingProvider)
         external
         view
         returns (uint96);
