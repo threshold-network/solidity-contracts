@@ -73,6 +73,14 @@ interface IStaking {
         uint96 amount
     ) external;
 
+    /// @notice Increases the authorization of the given staking provider for
+    ///         all applications by all stake amount. Can only be called by
+    ///         the given staking provider’s authorizer.
+    /// @dev Calls `authorizationIncreased` callback on each application to
+    ///      notify the applications about authorization change.
+    ///      See `IApplication`.
+    function increaseAuthorization(address stakingProvider) external;
+
     /// @notice Requests decrease of the authorization for the given staking
     ///         provider on the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When

@@ -340,14 +340,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint96 amount
     ) external override onlyAuthorizerOf(stakingProvider) {
         require(amount > 0, "Parameters must be specified");
-        ApplicationInfo storage applicationStruct = applicationInfo[
-            application
-        ];
-        require(
-            applicationStruct.status == ApplicationStatus.APPROVED,
-            "Application is not approved"
-        );
-
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
@@ -369,18 +361,64 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             application
         );
         require(availableTValue >= amount, "Not enough stake to authorize");
-        authorization.authorized += amount;
-        emit AuthorizationIncreased(
-            stakingProvider,
-            application,
-            fromAmount,
-            authorization.authorized
+        increaseAuthorizationInternal(stakingProvider, application, amount);
+    }
+
+    /// @notice Increases the authorization of the given staking provider for
+    ///         all applications by all stake amount. Can only be called by
+    ///         the given staking provider’s authorizer.
+    /// @dev Calls `authorizationIncreased` callback on each application to
+    ///      notify the applications about authorization change.
+    ///      See `IApplication`.
+    function increaseAuthorization(address stakingProvider)
+        external
+        override
+        onlyAuthorizerOf(stakingProvider)
+    {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        bool increased = false;
+        uint96 tStake = stakingProviderStruct.tStake;
+        uint256 authorizedApplications = stakingProviderStruct
+            .authorizedApplications
+            .length;
+
+        for (uint256 i = 0; i < applications.length; i++) {
+            address application = applications[i];
+            if (
+                applicationInfo[application].status ==
+                ApplicationStatus.DISABLED
+            ) {
+                continue;
+            }
+
+            uint96 amount = getAvailableToAuthorize(
+                stakingProvider,
+                application
+            );
+
+            // new application
+            if (amount == tStake) {
+                stakingProviderStruct.authorizedApplications.push(application);
+                authorizedApplications++;
+            }
+            if (amount > 0) {
+                increaseAuthorizationInternal(
+                    stakingProvider,
+                    application,
+                    amount
+                );
+                increased = true;
+            }
+        }
+
+        require(
+            authorizationCeiling == 0 ||
+                authorizedApplications <= authorizationCeiling,
+            "Too many applications"
         );
-        IApplication(application).authorizationIncreased(
-            stakingProvider,
-            fromAmount,
-            authorization.authorized
-        );
+        require(increased, "Nothing to increase");
     }
 
     /// @notice Requests decrease of all authorizations for the given staking
@@ -399,7 +437,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        uint96 deauthorizing = 0;
+        bool deauthorizing = false;
         for (
             uint256 i = 0;
             i < stakingProviderStruct.authorizedApplications.length;
@@ -417,11 +455,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                     application,
                     authorized
                 );
-                deauthorizing += authorized;
+                deauthorizing = true;
             }
         }
 
-        require(deauthorizing > 0, "Nothing was authorized");
+        require(deauthorizing, "Nothing was authorized");
     }
 
     /// @notice Called by the application at its discretion to approve the
@@ -611,27 +649,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             address application = stakingProviderStruct.authorizedApplications[
                 i
             ];
-            require(
-                applicationInfo[application].status ==
-                    ApplicationStatus.APPROVED,
-                "Application is not approved"
-            );
-
-            AppAuthorization storage authorization = stakingProviderStruct
-                .authorizations[application];
-            uint96 fromAmount = authorization.authorized;
-            authorization.authorized += amount;
-            emit AuthorizationIncreased(
-                stakingProvider,
-                application,
-                fromAmount,
-                authorization.authorized
-            );
-            IApplication(application).authorizationIncreased(
-                stakingProvider,
-                fromAmount,
-                authorization.authorized
-            );
+            increaseAuthorizationInternal(stakingProvider, application, amount);
         }
     }
 
@@ -989,6 +1007,44 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         } else {
             availableTValue = 0;
         }
+    }
+
+    /// @notice Increases the authorization of the given staking provider for
+    ///         the given application by the given amount.
+    /// @dev Calls `authorizationIncreased` callback on the given application to
+    ///      notify the application about authorization change.
+    ///      See `IApplication`.
+    function increaseAuthorizationInternal(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) internal {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        uint96 fromAmount = authorization.authorized;
+        authorization.authorized += amount;
+        emit AuthorizationIncreased(
+            stakingProvider,
+            application,
+            fromAmount,
+            authorization.authorized
+        );
+        IApplication(application).authorizationIncreased(
+            stakingProvider,
+            fromAmount,
+            authorization.authorized
+        );
     }
 
     /// @notice Delegate voting power from the stake associated to the

@@ -222,6 +222,13 @@ the given amount. Calls `authorizationIncreased(address stakingProvider, uint96 
 callback on the given application to notify the application. Can only be called
 by the given provider's authorizer.
 
+==== `increaseAuthorization(address stakingProvider) external onlyAuthorizerOf(stakingProvider)`
+
+Increases the authorization of the given staking provider for all applications by all 
+stake amount. Calls `authorizationIncreased` callback on each application to notify 
+the applications about authorization change. Can only be called by the given staking 
+provider’s authorizer.
+
 ==== `requestAuthorizationDecrease(address stakingProvider, address application, uint96 amount) external onlyAuthorizerOf(stakingProvider)`
 
 Requests decrease of the authorization for the given staking provider on the given
