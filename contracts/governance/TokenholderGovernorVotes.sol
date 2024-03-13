@@ -20,7 +20,7 @@ import "./IVotesHistory.sol";
 
 /// @title TokenholderGovernorVotes
 /// @notice Tokenholder DAO voting power extraction from both liquid and staked
-///         T token positions, including legacy stakes (NU/KEEP).
+///         T token positions.
 abstract contract TokenholderGovernorVotes is GovernorParameters {
     IVotesHistory public immutable token;
     IVotesHistory public immutable staking;
@@ -35,10 +35,6 @@ abstract contract TokenholderGovernorVotes is GovernorParameters {
     ///         two voting power sources:
     ///          - Liquid T, tracked by the T token contract
     ///          - Stakes in the T network, tracked  by the T staking contract.
-    ///            Note that this also tracks legacy stakes (NU/KEEP); legacy
-    ///            stakes count for tokenholders' voting power, but not for the
-    ///            total voting power of the Tokenholder DAO
-    ///            (see {_getPastTotalSupply}).
     /// @param account Tokenholder account in the T network
     /// @param blockNumber The block number to get the vote balance at
     /// @dev See {IGovernor-getVotes}
@@ -57,10 +53,7 @@ abstract contract TokenholderGovernorVotes is GovernorParameters {
     /// @notice Compute the total voting power for Tokenholder DAO. Note how it
     ///         only uses the token total supply as source, as native T tokens
     ///         that are staked continue existing, but as deposits in the
-    ///         staking contract. However, legacy stakes can't contribute to the
-    ///         total voting power as they're already implicitly counted as part
-    ///         of Vending Machines' liquid balance; hence, we only need to read
-    ///         total voting power from the token.
+    ///         staking contract.
     /// @param blockNumber The block number to get the vote power at
     function _getPastTotalSupply(uint256 blockNumber)
         internal
