@@ -74,6 +74,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     struct ApplicationInfo {
         ApplicationStatus status;
         address panicButton;
+        uint96 authorizedOverall;
     }
 
     struct SlashingEvent {
@@ -328,6 +329,36 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
     }
 
+    /// @notice Update `authorizedOverall` field for each application.
+    ///         Can only be called by Governance. `authorizedOVerall` should be
+    ///         equal to the sum of all authorization for particular application.
+    // TODO remove after use
+    function updateAuthorizedOverall(int96[] memory authorizedOverallValues)
+        external
+        onlyGovernance
+    {
+        require(
+            authorizedOverallValues.length == applications.length,
+            "Wrong input parameters"
+        );
+        for (uint256 i = 0; i < applications.length; i++) {
+            address application = applications[i];
+            ApplicationInfo storage applicationStruct = applicationInfo[
+                application
+            ];
+            int96 authorizedOverall = authorizedOverallValues[i];
+            if (authorizedOverall >= 0) {
+                applicationStruct.authorizedOverall += uint96(
+                    authorizedOverall
+                );
+            } else {
+                applicationStruct.authorizedOverall -= uint96(
+                    -authorizedOverall
+                );
+            }
+        }
+    }
+
     /// @notice Increases the authorization of the given staking provider for
     ///         the given application by the given amount. Can only be called by
     ///         the given staking provider’s authorizer.
@@ -370,6 +401,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
         require(availableTValue >= amount, "Not enough stake to authorize");
         authorization.authorized += amount;
+        applicationStruct.authorizedOverall += amount;
         emit AuthorizationIncreased(
             stakingProvider,
             application,
@@ -446,6 +478,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
         uint96 fromAmount = authorization.authorized;
         authorization.authorized -= authorization.deauthorizing;
+        applicationStruct.authorizedOverall -= authorization.deauthorizing;
         authorization.deauthorizing = 0;
         emit AuthorizationDecreaseApproved(
             stakingProvider,
@@ -469,8 +502,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address stakingProvider,
         address application
     ) external override {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
         require(
-            applicationInfo[application].status == ApplicationStatus.DISABLED,
+            applicationStruct.status == ApplicationStatus.DISABLED,
             "Application is not disabled"
         );
 
@@ -483,6 +519,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         require(fromAmount > 0, "Application is not authorized");
         authorization.authorized = 0;
         authorization.deauthorizing = 0;
+        applicationStruct.authorizedOverall -= fromAmount;
 
         emit AuthorizationDecreaseApproved(
             stakingProvider,
@@ -612,6 +649,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                 .authorizations[application];
             uint96 fromAmount = authorization.authorized;
             authorization.authorized += amount;
+            //slither-disable-next-line reentrancy-benign
+            applicationInfo[application].authorizedOverall += amount;
             emit AuthorizationIncreased(
                 stakingProvider,
                 application,
@@ -1116,6 +1155,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             if (authorization.authorized > totalStake) {
                 authorization.authorized = totalStake;
             }
+            applicationInfo[authorizedApplication].authorizedOverall -=
+                fromAmount -
+                authorization.authorized;
 
             bool successful = true;
             //slither-disable-next-line calls-loop

@@ -407,9 +407,12 @@ describe("TokenStaking", () => {
       })
 
       it("should approve application", async () => {
-        expect(
-          await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([ApplicationStatus.APPROVED, AddressZero])
+        const info = await tokenStaking.applicationInfo(
+          application1Mock.address
+        )
+        expect(info.status).to.equal(ApplicationStatus.APPROVED)
+        expect(info.panicButton).to.equal(AddressZero)
+        expect(info.authorizedOverall).to.equal(0)
       })
 
       it("should add application to the list of all applications", async () => {
@@ -445,9 +448,12 @@ describe("TokenStaking", () => {
       })
 
       it("should enable application", async () => {
-        expect(
-          await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([ApplicationStatus.APPROVED, panicButton.address])
+        const info = await tokenStaking.applicationInfo(
+          application1Mock.address
+        )
+        expect(info.status).to.equal(ApplicationStatus.APPROVED)
+        expect(info.panicButton).to.equal(panicButton.address)
+        expect(info.authorizedOverall).to.equal(0)
       })
 
       it("should keep list of all applications unchanged", async () => {
@@ -461,6 +467,77 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "ApplicationStatusChanged")
           .withArgs(application1Mock.address, ApplicationStatus.APPROVED)
+      })
+    })
+  })
+
+  describe("updateAuthorizedOverall", () => {
+    beforeEach(async () => {
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application2Mock.address)
+    })
+
+    context("when caller is not the governance", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.connect(staker).updateAuthorizedOverall([])
+        ).to.be.revertedWith("Caller is not the governance")
+      })
+    })
+
+    context("when caller did not provide proper array", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(deployer)
+            .updateAuthorizedOverall([initialStakerBalance])
+        ).to.be.revertedWith("Wrong input parameters")
+      })
+    })
+
+    context("when setting new values", () => {
+      const amount1 = initialStakerBalance
+      const amount2 = amount1.div(3)
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(deployer)
+          .updateAuthorizedOverall([amount1, amount2])
+      })
+
+      it("should set new overall authorized for all applications", async () => {
+        let info = await tokenStaking.applicationInfo(application1Mock.address)
+        expect(info.authorizedOverall).to.equal(amount1)
+        info = await tokenStaking.applicationInfo(application2Mock.address)
+        expect(info.authorizedOverall).to.equal(amount2)
+      })
+    })
+
+    context("when updating old values", () => {
+      const amount1 = initialStakerBalance
+      const amount2 = amount1.div(3)
+      const addition1 = amount1.div(4)
+      const subtraction2 = amount2.div(4)
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(deployer)
+          .updateAuthorizedOverall([amount1, amount2])
+        await tokenStaking.connect(deployer).updateAuthorizedOverall([0, 0])
+        await tokenStaking
+          .connect(deployer)
+          .updateAuthorizedOverall([addition1, Zero.sub(subtraction2)])
+      })
+
+      it("should set new overall authorized for all applications", async () => {
+        let info = await tokenStaking.applicationInfo(application1Mock.address)
+        expect(info.authorizedOverall).to.equal(amount1.add(addition1))
+        info = await tokenStaking.applicationInfo(application2Mock.address)
+        expect(info.authorizedOverall).to.equal(amount2.sub(subtraction2))
       })
     })
   })
@@ -621,6 +698,17 @@ describe("TokenStaking", () => {
               ).to.equal(authorizedAmount)
             })
 
+            it("should increase overall authorization for one application", async () => {
+              let info = await tokenStaking.applicationInfo(
+                application1Mock.address
+              )
+              expect(info.authorizedOverall).to.equal(authorizedAmount)
+              info = await tokenStaking.applicationInfo(
+                application2Mock.address
+              )
+              expect(info.authorizedOverall).to.equal(0)
+            })
+
             it("should decrease available amount to authorize for one application", async () => {
               expect(
                 await tokenStaking.getAvailableToAuthorize(
@@ -716,6 +804,17 @@ describe("TokenStaking", () => {
               ).to.equal(amount)
             })
 
+            it("should increase overall authorization for one application", async () => {
+              let info = await tokenStaking.applicationInfo(
+                application1Mock.address
+              )
+              expect(info.authorizedOverall).to.equal(amount)
+              info = await tokenStaking.applicationInfo(
+                application2Mock.address
+              )
+              expect(info.authorizedOverall).to.equal(0)
+            })
+
             it("should decrease available amount to authorize for one application", async () => {
               expect(
                 await tokenStaking.getAvailableToAuthorize(
@@ -803,6 +902,17 @@ describe("TokenStaking", () => {
                   application2Mock.address
                 )
               ).to.equal(amount)
+            })
+
+            it("should increase overall authorization for one application", async () => {
+              let info = await tokenStaking.applicationInfo(
+                application1Mock.address
+              )
+              expect(info.authorizedOverall).to.equal(0)
+              info = await tokenStaking.applicationInfo(
+                application2Mock.address
+              )
+              expect(info.authorizedOverall).to.equal(amount)
             })
           })
         })
@@ -1223,6 +1333,13 @@ describe("TokenStaking", () => {
         ).to.equal(expectedToAmount)
       })
 
+      it("should decrease overall authorization", async () => {
+        const info = await tokenStaking.applicationInfo(
+          application1Mock.address
+        )
+        expect(info.authorizedOverall).to.equal(expectedToAmount)
+      })
+
       it("should emit AuthorizationDecreaseApproved", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
@@ -1282,6 +1399,15 @@ describe("TokenStaking", () => {
           ).to.equal(otherAmount)
         })
 
+        it("should decrease overall authorization for one app", async () => {
+          let info = await tokenStaking.applicationInfo(
+            application1Mock.address
+          )
+          expect(info.authorizedOverall).to.equal(0)
+          info = await tokenStaking.applicationInfo(application2Mock.address)
+          expect(info.authorizedOverall).to.equal(otherAmount)
+        })
+
         it("should emit AuthorizationDecreaseApproved", async () => {
           await expect(tx)
             .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
@@ -1335,6 +1461,15 @@ describe("TokenStaking", () => {
               application2Mock.address
             )
           ).to.equal(0)
+        })
+
+        it("should decrease overall authorization", async () => {
+          let info = await tokenStaking.applicationInfo(
+            application1Mock.address
+          )
+          expect(info.authorizedOverall).to.equal(0)
+          info = await tokenStaking.applicationInfo(application2Mock.address)
+          expect(info.authorizedOverall).to.equal(0)
         })
 
         it("should emit AuthorizationDecreaseApproved", async () => {
@@ -1472,6 +1607,13 @@ describe("TokenStaking", () => {
         ).to.equal(0)
       })
 
+      it("should decrease overall authorization", async () => {
+        const info = await tokenStaking.applicationInfo(
+          application1Mock.address
+        )
+        expect(info.authorizedOverall).to.equal(0)
+      })
+
       it("should allow to authorize more applications", async () => {
         await tokenStaking
           .connect(deployer)
@@ -1554,9 +1696,12 @@ describe("TokenStaking", () => {
       })
 
       it("should pause application", async () => {
-        expect(
-          await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([ApplicationStatus.PAUSED, panicButton.address])
+        const info = await tokenStaking.applicationInfo(
+          application1Mock.address
+        )
+        expect(info.status).to.equal(ApplicationStatus.PAUSED)
+        expect(info.panicButton).to.equal(panicButton.address)
+        expect(info.authorizedOverall).to.equal(0)
       })
 
       it("should keep list of all applications unchanged", async () => {
@@ -1629,9 +1774,12 @@ describe("TokenStaking", () => {
       })
 
       it("should disable application", async () => {
-        expect(
-          await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([ApplicationStatus.DISABLED, panicButton.address])
+        const info = await tokenStaking.applicationInfo(
+          application1Mock.address
+        )
+        expect(info.status).to.equal(ApplicationStatus.DISABLED)
+        expect(info.panicButton).to.equal(panicButton.address)
+        expect(info.authorizedOverall).to.equal(0)
       })
 
       it("should keep list of all applications unchanged", async () => {
@@ -1711,9 +1859,12 @@ describe("TokenStaking", () => {
       })
 
       it("should set address of panic button", async () => {
-        expect(
-          await tokenStaking.applicationInfo(application1Mock.address)
-        ).to.deep.equal([ApplicationStatus.APPROVED, panicButton.address])
+        const info = await tokenStaking.applicationInfo(
+          application1Mock.address
+        )
+        expect(info.status).to.equal(ApplicationStatus.APPROVED)
+        expect(info.panicButton).to.equal(panicButton.address)
+        expect(info.authorizedOverall).to.equal(0)
       })
 
       it("should emit PanicButtonSet", async () => {
@@ -1937,11 +2088,11 @@ describe("TokenStaking", () => {
     })
 
     context("when auto increase flag is enabled", () => {
-      const amount = initialStakerBalance.div(2)
+      const amount = initialStakerBalance.div(3)
       const topUpAmount = initialStakerBalance
       const expectedAmount = amount.add(topUpAmount)
       const authorized1 = amount
-      const authorized2 = amount.div(2)
+      const authorized2 = amount.div(3)
       let tx
 
       beforeEach(async () => {
@@ -2033,6 +2184,13 @@ describe("TokenStaking", () => {
             application2Mock.address
           )
         ).to.equal(authorized2.add(topUpAmount))
+      })
+
+      it("should increase overall authorization", async () => {
+        let info = await tokenStaking.applicationInfo(application1Mock.address)
+        expect(info.authorizedOverall).to.equal(expectedAmount)
+        info = await tokenStaking.applicationInfo(application2Mock.address)
+        expect(info.authorizedOverall).to.equal(authorized2.add(topUpAmount))
       })
 
       it("should inform application", async () => {
@@ -3085,6 +3243,19 @@ describe("TokenStaking", () => {
           ).to.equal(provider2Authorized2)
         })
 
+        it("should decrease overall authorization", async () => {
+          let info = await tokenStaking.applicationInfo(
+            application1Mock.address
+          )
+          expect(info.authorizedOverall).to.equal(
+            provider1Authorized1.add(provider2Authorized1).sub(amountToSlash)
+          )
+          info = await tokenStaking.applicationInfo(application2Mock.address)
+          expect(info.authorizedOverall).to.equal(
+            provider1Authorized2.add(provider2Authorized2).sub(amountToSlash)
+          )
+        })
+
         it("should not allow to authorize more applications", async () => {
           await tokenStaking
             .connect(deployer)
@@ -3199,6 +3370,19 @@ describe("TokenStaking", () => {
             otherStaker.address,
             Zero,
             Zero
+          )
+        })
+
+        it("should decrease overall authorization", async () => {
+          let info = await tokenStaking.applicationInfo(
+            application1Mock.address
+          )
+          expect(info.authorizedOverall).to.equal(
+            provider1Authorized1.sub(amountToSlash)
+          )
+          info = await tokenStaking.applicationInfo(application2Mock.address)
+          expect(info.authorizedOverall).to.equal(
+            provider1Authorized2.sub(amountToSlash)
           )
         })
 
@@ -3366,6 +3550,13 @@ describe("TokenStaking", () => {
             application2Mock.address
           )
         ).to.equal(0)
+      })
+
+      it("should decrease overall authorization", async () => {
+        let info = await tokenStaking.applicationInfo(application1Mock.address)
+        expect(info.authorizedOverall).to.equal(0)
+        info = await tokenStaking.applicationInfo(application2Mock.address)
+        expect(info.authorizedOverall).to.equal(0)
       })
 
       it("should allow to authorize one more application", async () => {
