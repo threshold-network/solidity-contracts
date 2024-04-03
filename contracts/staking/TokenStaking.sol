@@ -46,13 +46,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         T
     }
 
-    enum ApplicationStatus {
-        NOT_APPROVED,
-        APPROVED,
-        PAUSED,
-        DISABLED
-    }
-
     struct StakingProviderInfo {
         uint96 nuInTStake;
         address owner;
@@ -918,6 +911,24 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// @notice Returns length of application array
     function getApplicationsLength() external view override returns (uint256) {
         return applications.length;
+    }
+
+    /// @notice Returns status of the application
+    function getApplicationStatus(address application)
+        external
+        view
+        returns (ApplicationStatus)
+    {
+        return applicationInfo[application].status;
+    }
+
+    /// @notice Returns overall auhtorizaed value for the application
+    function getAuthorizedOverall(address application)
+        external
+        view
+        returns (uint96)
+    {
+        return applicationInfo[application].authorizedOverall;
     }
 
     /// @notice Returns length of slashing queue

@@ -27,6 +27,13 @@ pragma solidity ^0.8.9;
 ///         delegation optimizes the network throughput without compromising the
 ///         security of the owners’ stake.
 interface IStaking {
+    enum ApplicationStatus {
+        NOT_APPROVED,
+        APPROVED,
+        PAUSED,
+        DISABLED
+    }
+
     //
     //
     // Delegating a stake
@@ -266,6 +273,18 @@ interface IStaking {
 
     /// @notice Returns length of application array
     function getApplicationsLength() external view returns (uint256);
+
+    /// @notice Returns status of the application
+    function getApplicationStatus(address application)
+        external
+        view
+        returns (ApplicationStatus);
+
+    /// @notice Returns overall auhtorizaed value for the application
+    function getAuthorizedOverall(address application)
+        external
+        view
+        returns (uint96);
 
     /// @notice Returns length of slashing queue
     function getSlashingQueueLength() external view returns (uint256);
