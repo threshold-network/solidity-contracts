@@ -20,7 +20,7 @@ import "../staking/IStaking.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
-/// @title  Stable yield contract
+/// @title  StableYield contract
 /// @notice Contract that mints and distributes stable yield reward for participating in Threshold Network.
 ///         Periodically mints reward for each application based on authorization rate and destributes this rewards based on type of application.
 contract StableYield is OwnableUpgradeable {
@@ -124,7 +124,7 @@ contract StableYield is OwnableUpgradeable {
             status == IStaking.ApplicationStatus.APPROVED,
             "Application is not approved"
         );
-        uint96 reward = caclulateReward(application, info.stableYield);
+        uint96 reward = calculateReward(application, info.stableYield);
         /* solhint-disable-next-line not-rely-on-time */
         info.lastMint = block.timestamp;
         //slither-disable-next-line incorrect-equality
@@ -156,19 +156,19 @@ contract StableYield is OwnableUpgradeable {
         distributor.functionCall(data);
     }
 
-    function caclulateReward(address application, uint256 stableYield)
+    function calculateReward(address application, uint256 stableYield)
         internal
         view
         returns (uint96 reward)
     {
-        uint96 authrorizedOverall = tokenStaking.getAuthorizedOverall(
+        uint96 authorizedOverall = tokenStaking.getAuthorizedOverall(
             application
         );
         uint256 totalSupply = token.totalSupply();
         // stableYieldPercent * authorizationRate * authorizedOverall =
-        // (stableYield / STABLE_YIELD_BASE) * (authrorizedOverall / totalSupply) * authorizedOverall
+        // (stableYield / STABLE_YIELD_BASE) * (authorizedOverall  / totalSupply) * authorizedOverall
         reward = uint96(
-            (stableYield * authrorizedOverall * authrorizedOverall) /
+            (stableYield * authorizedOverall * authorizedOverall) /
                 totalSupply /
                 STABLE_YIELD_BASE
         );
