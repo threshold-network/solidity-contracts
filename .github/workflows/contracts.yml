@@ -40,10 +40,10 @@ jobs:
     outputs:
       system-tests: ${{ steps.filter.outputs.system-tests }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event_name == 'pull_request'
 
-      - uses: dorny/paths-filter@v2
+      - uses: dorny/paths-filter@v3
         if: github.event_name == 'pull_request'
         id: filter
         with:
@@ -55,9 +55,9 @@ jobs:
   contracts-build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
@@ -78,9 +78,9 @@ jobs:
   contracts-deployment-dry-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
@@ -101,9 +101,9 @@ jobs:
         && github.ref != 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
@@ -156,7 +156,7 @@ jobs:
           version: ${{ steps.npm-version-bump.outputs.version }}
 
       - name: Upload files needed for etherscan verification
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Artifacts for etherscan verifcation
           path: |
@@ -168,14 +168,14 @@ jobs:
     needs: [contracts-deployment-testnet]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Download files needed for etherscan verification
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: Artifacts for etherscan verifcation
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
@@ -212,9 +212,9 @@ jobs:
         && github.ref == 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
@@ -270,9 +270,9 @@ jobs:
       github.event_name != 'workflow_dispatch'
         && github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
@@ -280,7 +280,7 @@ jobs:
           node-version: "18.15.0"
           cache: "yarn"
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.10.8
 
