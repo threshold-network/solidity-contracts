@@ -342,6 +342,11 @@ each affected application.
 
 Returns the authorized stake amount of the staking provider for the application.
 
+==== `stakes(address stakingProvider) external view returns (uint96 tStake, uint96 keepInTStake, uint96 nuInTStake)`
+
+Returns staked amount of T for the specified staking provider. 
+Method is deprecated. Use `stakeAmount` instead.
+
 ==== `stakeAmount(address stakingProvider) external view returns (uint96)`
 
 Returns staked amount of T for the specified staking provider.
@@ -372,7 +377,7 @@ Returns length of slashing queue
 
 ==== `getMaxAuthorization(address stakingProvider) external view returns (uint96)`
 
-Returns the maximum application authorization
+Returns the maximum application authorization.
 
 ==== `getAvailableToAuthorize(address stakingProvider, address application) external view returns (uint96)`
 

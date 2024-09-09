@@ -823,6 +823,22 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @notice Returns staked amount of T for the specified staking provider.
+    /// @dev    Method is deprecated. Use `stakeAmount` instead
+    function stakes(address stakingProvider)
+        external
+        view
+        returns (
+            uint96 tStake,
+            uint96 keepInTStake,
+            uint96 nuInTStake
+        )
+    {
+        tStake = stakingProviders[stakingProvider].tStake;
+        keepInTStake = 0;
+        nuInTStake = 0;
+    }
+
+    /// @notice Returns staked amount of T for the specified staking provider.
     function stakeAmount(address stakingProvider)
         external
         view
