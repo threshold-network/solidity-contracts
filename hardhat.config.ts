@@ -80,7 +80,6 @@ const config: HardhatUserConfig = {
       // For hardhat environment we can fork the mainnet, so we need to point it
       // to the contract artifacts.
       hardhat: process.env.FORKING_URL ? ["./external/mainnet"] : [],
-      sepolia: ["./external/sepolia"],
       mainnet: ["./external/mainnet"],
     },
   },
@@ -92,10 +91,6 @@ const config: HardhatUserConfig = {
     },
     thresholdCouncil: {
       mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
-    },
-    keepRegistryKeeper: {
-      default: 1, // same as the deployer
-      sepolia: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
     },
   },
   mocha: {
