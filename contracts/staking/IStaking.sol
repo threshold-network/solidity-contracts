@@ -33,18 +33,6 @@ interface IStaking {
     //
     //
 
-    /// @notice Creates a delegation with `msg.sender` owner with the given
-    ///         staking provider, beneficiary, and authorizer. Transfers the
-    ///         given amount of T to the staking contract.
-    /// @dev The owner of the delegation needs to have the amount approved to
-    ///      transfer to the staking contract.
-    function stake(
-        address stakingProvider,
-        address payable beneficiary,
-        address authorizer,
-        uint96 amount
-    ) external;
-
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking
     ///         contract and individual applications are allowed to require
@@ -60,18 +48,6 @@ interface IStaking {
     /// @notice Allows the Governance to approve the particular application
     ///         before individual stake authorizers are able to authorize it.
     function approveApplication(address application) external;
-
-    /// @notice Increases the authorization of the given staking provider for
-    ///         the given application by the given amount. Can only be called by
-    ///         the authorizer for that staking provider.
-    /// @dev Calls `authorizationIncreased(address stakingProvider, uint256 amount)`
-    ///      on the given application to notify the application about
-    ///      authorization change. See `IApplication`.
-    function increaseAuthorization(
-        address stakingProvider,
-        address application,
-        uint96 amount
-    ) external;
 
     /// @notice Requests decrease of the authorization for the given staking
     ///         provider on the given application by the provided amount.
@@ -147,23 +123,6 @@ interface IStaking {
 
     //
     //
-    // Stake top-up
-    //
-    //
-
-    /// @notice Increases the amount of the stake for the given staking provider.
-    ///         If `autoIncrease` flag is true then the amount will be added for
-    ///         all authorized applications.
-    /// @dev The sender of this transaction needs to have the amount approved to
-    ///      transfer to the staking contract.
-    function topUp(address stakingProvider, uint96 amount) external;
-
-    /// @notice Toggle `autoIncrease` flag. If true then the complete amount
-    ///         in top-up will be added to already authorized applications.
-    function toggleAutoAuthorizationIncrease(address stakingProvider) external;
-
-    //
-    //
     // Undelegating a stake (unstaking)
     //
     //
@@ -182,41 +141,10 @@ interface IStaking {
     //
     //
 
-    /// @notice Sets reward in T tokens for notification of misbehaviour
-    ///         of one staking provider. Can only be called by the governance.
-    function setNotificationReward(uint96 reward) external;
-
-    /// @notice Transfer some amount of T tokens as reward for notifications
-    ///         of misbehaviour
-    function pushNotificationReward(uint96 reward) external;
-
     /// @notice Withdraw some amount of T tokens from notifiers treasury.
     ///         Can only be called by the governance.
     function withdrawNotificationReward(address recipient, uint96 amount)
         external;
-
-    /// @notice Adds staking providers to the slashing queue along with the
-    ///         amount that should be slashed from each one of them. Can only be
-    ///         called by application authorized for all staking providers in
-    ///         the array.
-    function slash(uint96 amount, address[] memory stakingProviders) external;
-
-    /// @notice Adds staking providers to the slashing queue along with the
-    ///         amount. The notifier will receive reward per each staking
-    ///         provider from notifiers treasury. Can only be called by
-    ///         application authorized for all staking providers in the array.
-    function seize(
-        uint96 amount,
-        uint256 rewardMultipier,
-        address notifier,
-        address[] memory stakingProviders
-    ) external;
-
-    /// @notice Takes the given number of queued slashing operations and
-    ///         processes them. Receives 5% of the slashed amount.
-    ///         Executes `involuntaryAllocationDecrease` function on each
-    ///         affected application.
-    function processSlashing(uint256 count) external;
 
     //
     //
@@ -244,12 +172,6 @@ interface IStaking {
         view
         returns (uint256);
 
-    /// @notice Returns auto-increase flag.
-    function getAutoIncreaseFlag(address stakingProvider)
-        external
-        view
-        returns (bool);
-
     /// @notice Gets the stake owner, the beneficiary and the authorizer
     ///         for the specified staking provider address.
     /// @return owner Stake owner address.
@@ -266,9 +188,6 @@ interface IStaking {
 
     /// @notice Returns length of application array
     function getApplicationsLength() external view returns (uint256);
-
-    /// @notice Returns length of slashing queue
-    function getSlashingQueueLength() external view returns (uint256);
 
     /// @notice Returns the maximum application authorization
     function getMaxAuthorization(address stakingProvider)
