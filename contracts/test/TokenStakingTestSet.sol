@@ -78,13 +78,10 @@ contract ApplicationMock is IApplication {
             toAmount != stakingProviderStruct.authorized,
             "Nothing to decrease"
         );
-        uint96 decrease = stakingProviderStruct.authorized - toAmount;
-        if (stakingProviderStruct.deauthorizingTo > decrease) {
-            stakingProviderStruct.deauthorizingTo -= decrease;
-        } else {
-            stakingProviderStruct.deauthorizingTo = 0;
-        }
         stakingProviderStruct.authorized = toAmount;
+        if (stakingProviderStruct.deauthorizingTo > toAmount) {
+            stakingProviderStruct.deauthorizingTo = toAmount;
+        }
     }
 }
 
@@ -213,7 +210,6 @@ contract ExtendedTokenStaking is TokenStaking {
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
-
     /// @notice Increases the authorization of the given staking provider for
     ///         the given application by the given amount. Can only be called by
     ///         the given staking provider’s authorizer.
@@ -279,6 +275,4 @@ contract ExtendedTokenStaking is TokenStaking {
     {
         newStakeCheckpoint(_delegator, _amount, true);
     }
-
-
 }

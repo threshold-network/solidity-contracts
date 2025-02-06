@@ -39,13 +39,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     using PercentUtils for uint256;
     using SafeCastUpgradeable for uint256;
 
-    // enum is used for Staked event to have backward compatibility
-    enum StakeType {
-        NU,
-        KEEP,
-        T
-    }
-
     enum ApplicationStatus {
         NOT_APPROVED,
         APPROVED,
@@ -81,10 +74,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint96 amount;
     }
 
-    uint256 internal constant SLASHING_REWARD_PERCENT = 5;
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
-    uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
-    uint256 internal constant CONVERSION_DIVISOR = 10**(18 - 3);
+    uint96 internal constant MAX_STAKE = 15 * 10**(18 + 6); // 15m T
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
@@ -109,7 +100,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     SlashingEvent[] private legacySlashingQueue;
     // slither-disable-next-line constable-states
     uint256 private legacySlashingQueueIndex;
-
 
     event MinimumStakeAmountSet(uint96 amount);
     event ApplicationStatusChanged(
@@ -361,6 +351,51 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         cleanAuthorizedApplications(stakingProviderStruct, 1);
     }
 
+    // TODO consider rename
+    // @dev decreases to 15m T
+    function forceCapDecreaseAuthorization(address stakingProvider) external {
+        //override {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        uint96 deauthorized = 0;
+        for (
+            uint256 i = 0;
+            i < stakingProviderStruct.authorizedApplications.length;
+            i++
+        ) {
+            address application = stakingProviderStruct.authorizedApplications[
+                i
+            ];
+            AppAuthorization storage authorization = stakingProviders[
+                stakingProvider
+            ].authorizations[application];
+            uint96 authorized = authorization.authorized;
+            if (authorized > MAX_STAKE) {
+                IApplication(application).involuntaryAuthorizationDecrease(
+                    stakingProvider,
+                    authorized,
+                    MAX_STAKE
+                );
+                authorization.authorized = MAX_STAKE;
+                if (authorization.authorized < authorization.deauthorizing) {
+                    authorization.deauthorizing = authorization.authorized;
+                }
+
+                deauthorized += authorized - MAX_STAKE;
+
+                emit AuthorizationDecreaseApproved(
+                    stakingProvider,
+                    application,
+                    authorized,
+                    MAX_STAKE
+                );
+            }
+        }
+
+        require(deauthorized > 0, "Nothing was deauthorized");
+    }
+
     /// @notice Pauses the given application’s eligibility to slash stakes.
     ///         Besides that stakers can't change authorization to the application.
     ///         Can be called only by the Panic Button of the particular
@@ -438,7 +473,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit AuthorizationCeilingSet(ceiling);
     }
 
-
     //
     //
     // Undelegating a stake (unstaking)
@@ -496,7 +530,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit NotificationRewardWithdrawn(recipient, amount);
         token.safeTransfer(recipient, amount);
     }
-
 
     /// @notice Delegate voting power from the stake associated to the
     ///         `stakingProvider` to a `delegatee` address. Caller must be the
