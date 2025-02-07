@@ -946,7 +946,7 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(authorizer)
-            .forceCapDecreaseAuthorization(stakingProvider.address)
+            ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
         ).to.be.revertedWith("Nothing was deauthorized")
       })
     })
@@ -978,7 +978,7 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          .forceCapDecreaseAuthorization(stakingProvider.address)
+          ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
       })
 
       it("should set authorized amount to max", async () => {
@@ -1008,10 +1008,10 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when previous deathorization is in process", () => {
+    context("when previous deauthorization is in process", () => {
       let tx
-      const amount2 = maxStake.div(3)
       const amountToDecrease = amount.div(20)
+      const amountToDecrease2 = maxStake.add(amountToDecrease)
 
       beforeEach(async () => {
         await tokenStaking
@@ -1031,7 +1031,7 @@ describe("TokenStaking", () => {
           .increaseAuthorization(
             stakingProvider.address,
             application2Mock.address,
-            amount2
+            amount
           )
 
         await tokenStaking
@@ -1046,12 +1046,12 @@ describe("TokenStaking", () => {
           ["requestAuthorizationDecrease(address,address,uint96)"](
             stakingProvider.address,
             application2Mock.address,
-            amountToDecrease
+            amountToDecrease2
           )
 
         tx = await tokenStaking
           .connect(deployer)
-          .forceCapDecreaseAuthorization(stakingProvider.address)
+          ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
       })
 
       it("should set authorized amount to max", async () => {
@@ -1066,22 +1066,22 @@ describe("TokenStaking", () => {
             stakingProvider.address,
             application2Mock.address
           )
-        ).to.equal(amount2)
+        ).to.equal(maxStake)
       })
 
       it("should send request to application with last amount", async () => {
-        await assertApplicationStakingProviders(
-          application1Mock,
-          stakingProvider.address,
-          maxStake,
-          maxStake
-        )
-        await assertApplicationStakingProviders(
-          application2Mock,
-          stakingProvider.address,
-          amount2,
-          amount2.sub(amountToDecrease)
-        )
+        expect(
+          await tokenStaking.getDeauthorizingAmount(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(0)
+        expect(
+          await tokenStaking.getDeauthorizingAmount(
+            stakingProvider.address,
+            application2Mock.address
+          )
+        ).to.equal(amountToDecrease)
       })
 
       it("should emit AuthorizationDecreaseApproved", async () => {
@@ -1089,6 +1089,81 @@ describe("TokenStaking", () => {
           .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
           .withArgs(
             stakingProvider.address,
+            application1Mock.address,
+            amount,
+            maxStake
+          )
+      })
+    })
+
+    context("when sending transaction for multiple staking providers", () => {
+      let tx
+
+      beforeEach(async () => {
+        await tToken.connect(deployer).transfer(otherStaker.address, amount)
+
+        await tToken.connect(otherStaker).approve(tokenStaking.address, amount)
+        await tokenStaking
+          .connect(otherStaker)
+          .stake(
+            otherStaker.address,
+            otherStaker.address,
+            otherStaker.address,
+            amount
+          )
+
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+
+        await tokenStaking
+          .connect(otherStaker)
+          .increaseAuthorization(
+            otherStaker.address,
+            application1Mock.address,
+            amount
+          )
+
+        tx = await tokenStaking
+          .connect(deployer)
+          ["forceCapDecreaseAuthorization(address[])"]([
+            stakingProvider.address,
+            otherStaker.address,
+          ])
+      })
+
+      it("should set authorized amount to max", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(maxStake)
+        expect(
+          await tokenStaking.authorizedStake(
+            otherStaker.address,
+            application1Mock.address
+          )
+        ).to.equal(maxStake)
+      })
+
+      it("should emit AuthorizationDecreaseApproved", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(
+            stakingProvider.address,
+            application1Mock.address,
+            amount,
+            maxStake
+          )
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(
+            otherStaker.address,
             application1Mock.address,
             amount,
             maxStake

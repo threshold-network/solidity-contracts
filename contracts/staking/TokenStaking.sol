@@ -353,7 +353,18 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     // TODO consider rename
     // @dev decreases to 15m T
-    function forceCapDecreaseAuthorization(address stakingProvider) external {
+    function forceCapDecreaseAuthorization(address[] memory _stakingProviders)
+        external
+    {
+        require(_stakingProviders.length > 0, "Wrong input parameters");
+        for (uint256 i = 0; i < _stakingProviders.length; i++) {
+            forceCapDecreaseAuthorization(_stakingProviders[i]);
+        }
+    }
+
+    // TODO consider rename
+    // @dev decreases to 15m T
+    function forceCapDecreaseAuthorization(address stakingProvider) public {
         //override {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
@@ -377,12 +388,17 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
                     authorized,
                     MAX_STAKE
                 );
-                authorization.authorized = MAX_STAKE;
-                if (authorization.authorized < authorization.deauthorizing) {
-                    authorization.deauthorizing = authorization.authorized;
+                uint96 decrease = authorized - MAX_STAKE;
+
+                if (authorization.deauthorizing >= decrease) {
+                    authorization.deauthorizing -= decrease;
+                } else {
+                    authorization.deauthorizing = 0;
+                    // TODO cancel deauth? how? check tBTC
                 }
 
-                deauthorized += authorized - MAX_STAKE;
+                authorization.authorized = MAX_STAKE;
+                deauthorized += decrease;
 
                 emit AuthorizationDecreaseApproved(
                     stakingProvider,

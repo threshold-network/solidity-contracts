@@ -275,4 +275,14 @@ contract ExtendedTokenStaking is TokenStaking {
     {
         newStakeCheckpoint(_delegator, _amount, true);
     }
+
+    function getDeauthorizingAmount(
+        address stakingProvider,
+        address application
+    ) external view returns (uint96) {
+        return
+            stakingProviders[stakingProvider]
+                .authorizations[application]
+                .deauthorizing;
+    }
 }
