@@ -335,18 +335,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        AppAuthorization storage authorization = stakingProviderStruct
-            .authorizations[application];
-        uint96 fromAmount = authorization.authorized;
-        require(fromAmount > 0, "Application is not authorized");
-        authorization.authorized = 0;
-        authorization.deauthorizing = 0;
-
-        emit AuthorizationDecreaseApproved(
+        forceDecreaseAuthorization(
             stakingProvider,
-            application,
-            fromAmount,
-            0
+            stakingProviderStruct,
+            application
         );
         cleanAuthorizedApplications(stakingProviderStruct, 1);
     }
@@ -362,8 +354,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
+    /// @notice Forced deauthorization of stake above 15m T.
+    ///         Can be called by anyone.
     // TODO consider rename
-    // @dev decreases to 15m T
     function forceCapDecreaseAuthorization(address stakingProvider) public {
         //override {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
@@ -378,9 +371,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             address application = stakingProviderStruct.authorizedApplications[
                 i
             ];
-            AppAuthorization storage authorization = stakingProviders[
-                stakingProvider
-            ].authorizations[application];
+            AppAuthorization storage authorization = stakingProviderStruct
+                .authorizations[application];
             uint96 authorized = authorization.authorized;
             if (authorized > MAX_STAKE) {
                 IApplication(application).involuntaryAuthorizationDecrease(
@@ -410,6 +402,47 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
 
         require(deauthorized > 0, "Nothing was deauthorized");
+    }
+
+    /// @notice Forced deauthorization of Beta staker.
+    ///         Can be called only by the governance.
+    function forceBetaStakersCapDecreaseAuthorization(address betaStaker)
+        public
+        onlyGovernance
+    {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            betaStaker
+        ];
+        uint256 authorizedApplications = stakingProviderStruct
+            .authorizedApplications
+            .length;
+
+        require(authorizedApplications > 0, "Nothing was authorized");
+        for (uint256 i = 0; i < authorizedApplications; i++) {
+            address application = stakingProviderStruct.authorizedApplications[
+                i
+            ];
+            forceDecreaseAuthorization(
+                betaStaker,
+                stakingProviderStruct,
+                application
+            );
+        }
+        cleanAuthorizedApplications(
+            stakingProviderStruct,
+            authorizedApplications
+        );
+    }
+
+    /// @notice Forced deauthorization of Beta stakers.
+    ///         Can be called only by the governance.
+    function forceBetaStakersCapDecreaseAuthorization(
+        address[] memory betaStakers
+    ) external {
+        require(betaStakers.length > 0, "Wrong input parameters");
+        for (uint256 i = 0; i < betaStakers.length; i++) {
+            forceBetaStakersCapDecreaseAuthorization(betaStakers[i]);
+        }
     }
 
     /// @notice Pauses the given application’s eligibility to slash stakes.
@@ -806,6 +839,28 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         for (index = newLength; index < length; index++) {
             stakingProviderStruct.authorizedApplications.pop();
         }
+    }
+
+    /// @notice Decreases the authorization for the given `stakingProvider` on
+    ///         the given `application`, for all authorized amount.
+    function forceDecreaseAuthorization(
+        address stakingProvider,
+        StakingProviderInfo storage stakingProviderStruct,
+        address application
+    ) internal {
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        uint96 fromAmount = authorization.authorized;
+        require(fromAmount > 0, "Application is not authorized");
+        authorization.authorized = 0;
+        authorization.deauthorizing = 0;
+
+        emit AuthorizationDecreaseApproved(
+            stakingProvider,
+            application,
+            fromAmount,
+            0
+        );
     }
 
     /// @notice Creates new checkpoints due to a change of stake amount
