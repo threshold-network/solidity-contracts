@@ -19,7 +19,6 @@ import "./IApplication.sol";
 import "./IStaking.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
-import "../utils/PercentUtils.sol";
 import "../utils/SafeTUpgradeable.sol";
 import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
@@ -36,7 +35,6 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 ///      libraries. See https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable
 contract TokenStaking is Initializable, IStaking, Checkpoints {
     using SafeTUpgradeable for T;
-    using PercentUtils for uint256;
     using SafeCastUpgradeable for uint256;
 
     enum ApplicationStatus {
