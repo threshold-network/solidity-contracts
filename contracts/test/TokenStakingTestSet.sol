@@ -149,9 +149,7 @@ contract ManagedGrantMock {
 }
 
 contract ExtendedTokenStaking is TokenStaking {
-    constructor(T _token, VendingMachine _nucypherVendingMachine)
-        TokenStaking(_token, _nucypherVendingMachine)
-    {}
+    constructor(T _token) TokenStaking(_token) {}
 
     function cleanAuthorizedApplications(
         address stakingProvider,
@@ -190,74 +188,5 @@ contract ExtendedTokenStaking is TokenStaking {
         returns (address[] memory)
     {
         return stakingProviders[stakingProvider].authorizedApplications;
-    }
-}
-
-contract LegacyTokenStaking is TokenStaking {
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(T _token, VendingMachine _nucypherVendingMachine)
-        TokenStaking(_token, _nucypherVendingMachine)
-    {}
-
-    function setLegacyStakingProviderDefault(address stakingProvider) external {
-        setLegacyStakingProvider(
-            stakingProvider,
-            stakingProvider,
-            payable(stakingProvider),
-            stakingProvider
-        );
-    }
-
-    function addLegacyStake(
-        address stakingProvider,
-        uint96 keepInTStake,
-        uint96 nuInTStake
-    ) external {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        stakingProviderStruct.keepInTStake += keepInTStake;
-        stakingProviderStruct.nuInTStake += nuInTStake;
-        if (stakingProviderStruct.startStakingTimestamp == 0) {
-            /* solhint-disable-next-line not-rely-on-time */
-            stakingProviderStruct.startStakingTimestamp = block.timestamp;
-        }
-        increaseStakeCheckpoint(stakingProvider, keepInTStake + nuInTStake);
-    }
-
-    function forceIncreaseAuthorization(
-        address stakingProvider,
-        address application,
-        uint96 amount
-    ) external {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        AppAuthorization storage authorization = stakingProviderStruct
-            .authorizations[application];
-        uint96 fromAmount = authorization.authorized;
-        if (fromAmount == 0) {
-            stakingProviderStruct.authorizedApplications.push(application);
-        }
-        authorization.authorized += amount;
-        IApplication(application).authorizationIncreased(
-            stakingProvider,
-            fromAmount,
-            authorization.authorized
-        );
-    }
-
-    function setLegacyStakingProvider(
-        address stakingProvider,
-        address owner,
-        address payable beneficiary,
-        address authorizer
-    ) public {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        stakingProviderStruct.owner = owner;
-        stakingProviderStruct.authorizer = authorizer;
-        stakingProviderStruct.beneficiary = beneficiary;
     }
 }

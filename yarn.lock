@@ -1269,14 +1269,6 @@
   resolved "https://registry.yarnpkg.com/@keep-network/hardhat-helpers/-/hardhat-helpers-0.6.0-pre.8.tgz#6e0722889a0132dabed5182fb32f6424ff4a77d0"
   integrity sha512-51oLHceBubutBYxfVk2pLjgyhvpcDC1ahKM3V9lOiTa9lbWyY18Dza7rnM9V04kq+8DbweQRM0M9/f+K26nl9g==
 
-"@keep-network/keep-core@>1.8.1-dev <1.8.1-goerli":
-  version "1.8.1-dev.0"
-  resolved "https://registry.yarnpkg.com/@keep-network/keep-core/-/keep-core-1.8.1-dev.0.tgz#d95864b25800214de43d8840376a68336cb12055"
-  integrity sha512-gFXkgN4PYOYCZ14AskL7fZHEFW5mu3BDd+TJKBuKZc1q9CgRMOK+dxpJnSctxmSH1tV+Ln9v9yqlSkfPCoiBHw==
-  dependencies:
-    "@openzeppelin/upgrades" "^2.7.2"
-    openzeppelin-solidity "2.4.0"
-
 "@keep-network/prettier-config-keep@github:keep-network/prettier-config-keep":
   version "0.0.1"
   resolved "https://codeload.github.com/keep-network/prettier-config-keep/tar.gz/a1a333e7ac49928a0f6ed39421906dd1e46ab0f3"
