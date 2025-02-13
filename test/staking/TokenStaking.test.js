@@ -600,7 +600,9 @@ describe("TokenStaking", () => {
         await tokenStaking
           .connect(authorizer)
           ["requestAuthorizationDecrease(address)"](stakingProvider.address)
-        application1Mock.approveAuthorizationDecrease(stakingProvider.address)
+        await application1Mock.approveAuthorizationDecrease(
+          stakingProvider.address
+        )
         await expect(
           application1Mock.approveAuthorizationDecrease(stakingProvider.address)
         ).to.be.revertedWith("No deauthorizing in process")
@@ -1172,7 +1174,284 @@ describe("TokenStaking", () => {
     })
   })
 
-  describe("forceBetaStakersCapDecreaseAuthorization", () => {
+  describe("optOutDecreaseAuthorization", () => {
+    const maxStake = to1e18("15000000") // 15m
+    const amount = maxStake.mul(2)
+
+    beforeEach(async () => {
+      await tToken.connect(deployer).transfer(staker.address, amount)
+
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+      await tToken.connect(staker).approve(tokenStaking.address, amount)
+      await tokenStaking
+        .connect(staker)
+        .stake(
+          stakingProvider.address,
+          beneficiary.address,
+          authorizer.address,
+          amount
+        )
+    })
+
+    context("when staking provider has no stake", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking.optOutDecreaseAuthorization(stakingProvider.address, 0)
+        ).to.be.revertedWith("Not owner or provider")
+      })
+    })
+
+    context("when amount to decrease is zero", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(stakingProvider)
+            .optOutDecreaseAuthorization(stakingProvider.address, 0)
+        ).to.be.revertedWith("Parameters must be specified")
+      })
+    })
+
+    context("when request too big amount for opt-out", () => {
+      const amount2 = maxStake.div(2)
+      const amountToOptOut = amount2.div(2)
+
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(stakingProvider)
+            .optOutDecreaseAuthorization(stakingProvider.address, 1)
+        ).to.be.revertedWith("Opt-out is not available")
+
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount2
+          )
+        await expect(
+          tokenStaking
+            .connect(stakingProvider)
+            .optOutDecreaseAuthorization(
+              stakingProvider.address,
+              amountToOptOut.add(1)
+            )
+        ).to.be.revertedWith("Opt-out is not available")
+
+        await tokenStaking
+          .connect(stakingProvider)
+          .optOutDecreaseAuthorization(stakingProvider.address, amountToOptOut)
+        await expect(
+          tokenStaking
+            .connect(stakingProvider)
+            .optOutDecreaseAuthorization(stakingProvider.address, 1)
+        ).to.be.revertedWith("Opt-out is not available")
+      })
+    })
+
+    context("when authorization is more than 15m for one application", () => {
+      let tx
+      const amount2 = maxStake.sub(1)
+      const amountToOptOut = maxStake.div(4)
+      const expectedAmount = maxStake.sub(amountToOptOut)
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(deployer)
+          .approveApplication(application2Mock.address)
+
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application2Mock.address,
+            amount2
+          )
+
+        tx = await tokenStaking
+          .connect(stakingProvider)
+          .optOutDecreaseAuthorization(stakingProvider.address, amountToOptOut)
+      })
+
+      it("should update authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(expectedAmount)
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application2Mock.address
+          )
+        ).to.equal(expectedAmount)
+      })
+
+      it("should update available opt-out amount", async () => {
+        expect(
+          await tokenStaking.getAvailableOptOutAmount(stakingProvider.address)
+        ).to.equal(maxStake.div(2).sub(amountToOptOut))
+      })
+
+      it("should emit AuthorizationDecreaseApproved", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(
+            stakingProvider.address,
+            application1Mock.address,
+            amount,
+            maxStake
+          )
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(
+            stakingProvider.address,
+            application1Mock.address,
+            maxStake,
+            expectedAmount
+          )
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(
+            stakingProvider.address,
+            application2Mock.address,
+            amount2,
+            expectedAmount
+          )
+      })
+
+      context("when use all opt-out amount and decrease after", () => {
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(stakingProvider)
+            .optOutDecreaseAuthorization(
+              stakingProvider.address,
+              maxStake.div(2).sub(amountToOptOut)
+            )
+
+          await tokenStaking
+            .connect(authorizer)
+            ["requestAuthorizationDecrease(address,address,uint96)"](
+              stakingProvider.address,
+              application1Mock.address,
+              maxStake.div(4)
+            )
+          await tokenStaking
+            .connect(authorizer)
+            ["requestAuthorizationDecrease(address,address,uint96)"](
+              stakingProvider.address,
+              application2Mock.address,
+              maxStake.div(4)
+            )
+          await application1Mock.approveAuthorizationDecrease(
+            stakingProvider.address
+          )
+          await application2Mock.approveAuthorizationDecrease(
+            stakingProvider.address
+          )
+        })
+
+        it("should update available opt-out amount", async () => {
+          expect(
+            await tokenStaking.getAvailableOptOutAmount(stakingProvider.address)
+          ).to.equal(0)
+        })
+
+        it("should revert when calling for more opt-out", async () => {
+          await expect(
+            tokenStaking
+              .connect(stakingProvider)
+              .optOutDecreaseAuthorization(stakingProvider.address, 1)
+          ).to.be.revertedWith("Opt-out is not available")
+        })
+      })
+    })
+
+    context("when calling transaction multiple times", () => {
+      let tx
+      const amountToDecrease = amount.div(20)
+      const amountToOptOut1 = maxStake.div(3)
+      const amountToOptOut2 = maxStake.div(6)
+      const expectedAmount = maxStake.sub(amountToOptOut1).sub(amountToOptOut2)
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+
+        await tokenStaking
+          .connect(authorizer)
+          ["requestAuthorizationDecrease(address,address,uint96)"](
+            stakingProvider.address,
+            application1Mock.address,
+            amountToDecrease
+          )
+
+        await tokenStaking
+          .connect(deployer)
+          ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
+
+        await tokenStaking
+          .connect(stakingProvider)
+          .optOutDecreaseAuthorization(stakingProvider.address, amountToOptOut1)
+        tx = await tokenStaking
+          .connect(stakingProvider)
+          .optOutDecreaseAuthorization(stakingProvider.address, amountToOptOut2)
+      })
+
+      it("should update authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(expectedAmount)
+      })
+
+      it("should update available opt-out amount", async () => {
+        expect(
+          await tokenStaking.getAvailableOptOutAmount(stakingProvider.address)
+        ).to.equal(maxStake.div(2).sub(amountToOptOut1).sub(amountToOptOut2))
+      })
+
+      it("should cancel deauthorization amount", async () => {
+        expect(
+          await tokenStaking.getDeauthorizingAmount(
+            stakingProvider.address,
+            application2Mock.address
+          )
+        ).to.equal(0)
+      })
+
+      it("should emit AuthorizationDecreaseApproved", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
+          .withArgs(
+            stakingProvider.address,
+            application1Mock.address,
+            maxStake.sub(amountToOptOut1),
+            maxStake.sub(amountToOptOut1).sub(amountToOptOut2)
+          )
+      })
+    })
+  })
+
+  describe("forceBetaStakerDecreaseAuthorization", () => {
     const amount = initialStakerBalance
 
     beforeEach(async () => {
@@ -1197,7 +1476,7 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(stakingProvider)
-            ["forceBetaStakersCapDecreaseAuthorization(address)"](
+            ["forceBetaStakerDecreaseAuthorization(address)"](
               stakingProvider.address
             )
         ).to.be.revertedWith("Caller is not the governance")
@@ -1209,7 +1488,7 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(deployer)
-            ["forceBetaStakersCapDecreaseAuthorization(address)"](
+            ["forceBetaStakerDecreaseAuthorization(address)"](
               stakingProvider.address
             )
         ).to.be.revertedWith("Nothing was authorized")
@@ -1243,7 +1522,7 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          ["forceBetaStakersCapDecreaseAuthorization(address)"](
+          ["forceBetaStakerDecreaseAuthorization(address)"](
             stakingProvider.address
           )
       })
@@ -1341,7 +1620,7 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          ["forceBetaStakersCapDecreaseAuthorization(address)"](
+          ["forceBetaStakerDecreaseAuthorization(address)"](
             stakingProvider.address
           )
       })
@@ -1445,7 +1724,7 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          ["forceBetaStakersCapDecreaseAuthorization(address[])"]([
+          ["forceBetaStakerDecreaseAuthorization(address[])"]([
             stakingProvider.address,
             otherStaker.address,
           ])

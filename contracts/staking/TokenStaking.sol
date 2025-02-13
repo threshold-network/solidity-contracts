@@ -57,6 +57,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address[] authorizedApplications;
         uint256 startStakingTimestamp;
         bool autoIncrease;
+        uint256 optOutAmount;
     }
 
     struct AppAuthorization {
@@ -76,6 +77,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
     uint96 internal constant MAX_STAKE = 15 * 10**(18 + 6); // 15m T
+    uint96 internal constant HALF_MAX_STAKE = MAX_STAKE / 2; // 7.5m T
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
@@ -344,7 +346,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     // TODO consider rename
-    // @dev decreases to 15m T
+    /// @notice Forced deauthorization of stake above 15m T.
+    ///         Can be called by anyone.
     function forceCapDecreaseAuthorization(address[] memory _stakingProviders)
         external
     {
@@ -354,94 +357,39 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
-    /// @notice Forced deauthorization of stake above 15m T.
-    ///         Can be called by anyone.
-    // TODO consider rename
-    function forceCapDecreaseAuthorization(address stakingProvider) public {
-        //override {
+    /// @notice Allows to instantly deauthorize up to 50% of max authorization.
+    ///         Can be called only by the delegation owner or the staking
+    ///         provider.
+    function optOutDecreaseAuthorization(address stakingProvider, uint96 amount)
+        external
+        onlyOwnerOrStakingProvider(stakingProvider)
+    {
+        require(amount > 0, "Parameters must be specified");
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        uint96 deauthorized = 0;
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            AppAuthorization storage authorization = stakingProviderStruct
-                .authorizations[application];
-            uint96 authorized = authorization.authorized;
-            if (authorized > MAX_STAKE) {
-                IApplication(application).involuntaryAuthorizationDecrease(
-                    stakingProvider,
-                    authorized,
-                    MAX_STAKE
-                );
-                uint96 decrease = authorized - MAX_STAKE;
-
-                if (authorization.deauthorizing >= decrease) {
-                    authorization.deauthorizing -= decrease;
-                } else {
-                    authorization.deauthorizing = 0;
-                    // TODO cancel deauth? how? check tBTC
-                }
-
-                authorization.authorized = MAX_STAKE;
-                deauthorized += decrease;
-
-                emit AuthorizationDecreaseApproved(
-                    stakingProvider,
-                    application,
-                    authorized,
-                    MAX_STAKE
-                );
-            }
+        (
+            uint96 availableToOptOut,
+            uint96 maxAuthorization
+        ) = getAvailableOptOutAmount(stakingProvider, stakingProviderStruct);
+        if (maxAuthorization > MAX_STAKE) {
+            forceDecreaseAuthorization(stakingProvider, MAX_STAKE);
+            maxAuthorization = MAX_STAKE;
+            availableToOptOut = HALF_MAX_STAKE;
         }
-
-        require(deauthorized > 0, "Nothing was deauthorized");
-    }
-
-    /// @notice Forced deauthorization of Beta staker.
-    ///         Can be called only by the governance.
-    function forceBetaStakersCapDecreaseAuthorization(address betaStaker)
-        public
-        onlyGovernance
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            betaStaker
-        ];
-        uint256 authorizedApplications = stakingProviderStruct
-            .authorizedApplications
-            .length;
-
-        require(authorizedApplications > 0, "Nothing was authorized");
-        for (uint256 i = 0; i < authorizedApplications; i++) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            forceDecreaseAuthorization(
-                betaStaker,
-                stakingProviderStruct,
-                application
-            );
-        }
-        cleanAuthorizedApplications(
-            stakingProviderStruct,
-            authorizedApplications
-        );
+        require(availableToOptOut >= amount, "Opt-out is not available"); // TODO rephrase
+        forceDecreaseAuthorization(stakingProvider, maxAuthorization - amount);
+        stakingProviderStruct.optOutAmount += amount;
     }
 
     /// @notice Forced deauthorization of Beta stakers.
     ///         Can be called only by the governance.
-    function forceBetaStakersCapDecreaseAuthorization(
-        address[] memory betaStakers
-    ) external {
+    function forceBetaStakerDecreaseAuthorization(address[] memory betaStakers)
+        external
+    {
         require(betaStakers.length > 0, "Wrong input parameters");
         for (uint256 i = 0; i < betaStakers.length; i++) {
-            forceBetaStakersCapDecreaseAuthorization(betaStakers[i]);
+            forceBetaStakerDecreaseAuthorization(betaStakers[i]);
         }
     }
 
@@ -732,6 +680,44 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
     }
 
+    /// @notice Forced deauthorization of Beta staker.
+    ///         Can be called only by the governance.
+    function forceBetaStakerDecreaseAuthorization(address betaStaker)
+        public
+        onlyGovernance
+    {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            betaStaker
+        ];
+        uint256 authorizedApplications = stakingProviderStruct
+            .authorizedApplications
+            .length;
+
+        require(authorizedApplications > 0, "Nothing was authorized");
+        for (uint256 i = 0; i < authorizedApplications; i++) {
+            address application = stakingProviderStruct.authorizedApplications[
+                i
+            ];
+            forceDecreaseAuthorization(
+                betaStaker,
+                stakingProviderStruct,
+                application
+            );
+        }
+        cleanAuthorizedApplications(
+            stakingProviderStruct,
+            authorizedApplications
+        );
+    }
+
+    /// @notice Forced deauthorization of stake above 15m T.
+    ///         Can be called by anyone.
+    // TODO consider rename
+    function forceCapDecreaseAuthorization(address stakingProvider) public {
+        //override {
+        forceDecreaseAuthorization(stakingProvider, MAX_STAKE);
+    }
+
     /// @notice Returns the maximum application authorization
     function getMaxAuthorization(address stakingProvider)
         public
@@ -777,6 +763,21 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         } else {
             availableTValue = 0;
         }
+    }
+
+    /// @notice Returns available amount to instantly deauthorize.
+    function getAvailableOptOutAmount(address stakingProvider)
+        public
+        view
+        returns (uint96 availableToOptOut)
+    {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        (availableToOptOut, ) = getAvailableOptOutAmount(
+            stakingProvider,
+            stakingProviderStruct
+        );
     }
 
     /// @notice Delegate voting power from the stake associated to the
@@ -904,5 +905,70 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address oldGuvnor = governance;
         governance = newGuvnor;
         emit GovernanceTransferred(oldGuvnor, newGuvnor);
+    }
+
+    function forceDecreaseAuthorization(
+        address stakingProvider,
+        uint96 amountTo
+    ) internal {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        uint96 deauthorized = 0;
+        for (
+            uint256 i = 0;
+            i < stakingProviderStruct.authorizedApplications.length;
+            i++
+        ) {
+            address application = stakingProviderStruct.authorizedApplications[
+                i
+            ];
+            AppAuthorization storage authorization = stakingProviderStruct
+                .authorizations[application];
+            uint96 authorized = authorization.authorized;
+            if (authorized > amountTo) {
+                IApplication(application).involuntaryAuthorizationDecrease(
+                    stakingProvider,
+                    authorized,
+                    amountTo
+                );
+                uint96 decrease = authorized - amountTo;
+
+                if (authorization.deauthorizing >= decrease) {
+                    authorization.deauthorizing -= decrease;
+                } else {
+                    authorization.deauthorizing = 0;
+                }
+
+                authorization.authorized = amountTo;
+                deauthorized += decrease;
+
+                emit AuthorizationDecreaseApproved(
+                    stakingProvider,
+                    application,
+                    authorized,
+                    amountTo
+                );
+            }
+        }
+
+        require(deauthorized > 0, "Nothing was deauthorized");
+    }
+
+    function getAvailableOptOutAmount(
+        address stakingProvider,
+        StakingProviderInfo storage stakingProviderStruct
+    )
+        internal
+        view
+        returns (uint96 availableToOptOut, uint96 maxAuthorization)
+    {
+        maxAuthorization = getMaxAuthorization(stakingProvider);
+        uint96 optOutAmount = stakingProviderStruct.optOutAmount.toUint96();
+        if (maxAuthorization < optOutAmount) {
+            availableToOptOut = 0;
+        } else {
+            availableToOptOut = (maxAuthorization - optOutAmount) / 2;
+        }
     }
 }
