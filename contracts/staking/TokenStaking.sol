@@ -82,7 +82,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     uint256 internal constant SLASHING_REWARD_PERCENT = 5;
-    uint256 internal constant MIN_STAKE_TIME = 24 hours;
+    uint256 internal constant MIN_STAKE_TIME = 120;
     uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
     uint256 internal constant CONVERSION_DIVISOR = 10**(18 - 3);
 
