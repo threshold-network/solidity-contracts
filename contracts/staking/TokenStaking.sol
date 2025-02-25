@@ -37,6 +37,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     using SafeTUpgradeable for T;
     using SafeCastUpgradeable for uint256;
 
+    // enum is used for Staked event to have backward compatibility
+    enum StakeType {
+        NU,
+        KEEP,
+        T
+    }
+
     enum ApplicationStatus {
         NOT_APPROVED,
         APPROVED,
@@ -101,10 +108,24 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     // slither-disable-next-line constable-states
     uint256 private legacySlashingQueueIndex;
 
+    event Staked(
+        StakeType indexed stakeType,
+        address indexed owner,
+        address indexed stakingProvider,
+        address beneficiary,
+        address authorizer,
+        uint96 amount
+    );
     event MinimumStakeAmountSet(uint96 amount);
     event ApplicationStatusChanged(
         address indexed application,
         ApplicationStatus indexed newStatus
+    );
+    event AuthorizationIncreased(
+        address indexed stakingProvider,
+        address indexed application,
+        uint96 fromAmount,
+        uint96 toAmount
     );
     event AuthorizationDecreaseRequested(
         address indexed stakingProvider,
@@ -130,8 +151,26 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address indexed panicButton
     );
     event AuthorizationCeilingSet(uint256 ceiling);
+    event ToppedUp(address indexed stakingProvider, uint96 amount);
+    event AutoIncreaseToggled(
+        address indexed stakingProvider,
+        bool autoIncrease
+    );
     event Unstaked(address indexed stakingProvider, uint96 amount);
+    event TokensSeized(
+        address indexed stakingProvider,
+        uint96 amount,
+        bool indexed discrepancy
+    );
+    event NotificationRewardSet(uint96 reward);
+    event NotificationRewardPushed(uint96 reward);
     event NotificationRewardWithdrawn(address recipient, uint96 amount);
+    event NotifierRewarded(address indexed notifier, uint256 amount);
+    event SlashingProcessed(
+        address indexed caller,
+        uint256 count,
+        uint256 tAmount
+    );
     event GovernanceTransferred(address oldGovernance, address newGovernance);
 
     modifier onlyGovernance() {
@@ -343,15 +382,14 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         cleanAuthorizedApplications(stakingProviderStruct, 1);
     }
 
-    // TODO consider rename
     /// @notice Forced deauthorization of stake above 15m T.
     ///         Can be called by anyone.
-    function forceCapDecreaseAuthorization(address[] memory _stakingProviders)
+    function forceAuthorizationCap(address[] memory _stakingProviders)
         external
     {
         require(_stakingProviders.length > 0, "Wrong input parameters");
         for (uint256 i = 0; i < _stakingProviders.length; i++) {
-            forceCapDecreaseAuthorization(_stakingProviders[i]);
+            forceAuthorizationCap(_stakingProviders[i]);
         }
     }
 
@@ -375,7 +413,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             maxAuthorization = MAX_STAKE;
             availableToOptOut = HALF_MAX_STAKE;
         }
-        require(availableToOptOut >= amount, "Opt-out is not available"); // TODO rephrase
+        require(availableToOptOut >= amount, "Opt-out amount too high");
         forceDecreaseAuthorization(stakingProvider, maxAuthorization - amount);
         stakingProviderStruct.optOutAmount += amount;
     }
@@ -710,9 +748,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// @notice Forced deauthorization of stake above 15m T.
     ///         Can be called by anyone.
-    // TODO consider rename
-    function forceCapDecreaseAuthorization(address stakingProvider) public {
-        //override {
+    function forceAuthorizationCap(address stakingProvider) public {
         forceDecreaseAuthorization(stakingProvider, MAX_STAKE);
     }
 
@@ -950,7 +986,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             }
         }
 
-        require(deauthorized > 0, "Nothing was deauthorized");
+        require(deauthorized > 0, "Nothing to deauthorize");
     }
 
     function getAvailableOptOutAmount(

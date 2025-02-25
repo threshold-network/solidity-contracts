@@ -161,14 +161,6 @@ contract ExtendedTokenStaking is TokenStaking {
             .authorizedApplications = _applications;
     }
 
-    function getAuthorizedApplications(address stakingProvider)
-        external
-        view
-        returns (address[] memory)
-    {
-        return stakingProviders[stakingProvider].authorizedApplications;
-    }
-
     /// @notice Creates a delegation with `msg.sender` owner with the given
     ///         staking provider, beneficiary, and authorizer. Transfers the
     ///         given amount of T to the staking contract.
@@ -267,13 +259,12 @@ contract ExtendedTokenStaking is TokenStaking {
         token.safeTransferFrom(msg.sender, address(this), reward);
     }
 
-    /// @notice Creates new checkpoints due to an increment of a stakers' stake
-    /// @param _delegator Address of the staking provider acting as delegator
-    /// @param _amount Amount of T to increment
-    function increaseStakeCheckpoint(address _delegator, uint96 _amount)
-        internal
+    function getAuthorizedApplications(address stakingProvider)
+        external
+        view
+        returns (address[] memory)
     {
-        newStakeCheckpoint(_delegator, _amount, true);
+        return stakingProviders[stakingProvider].authorizedApplications;
     }
 
     function getDeauthorizingAmount(
@@ -284,5 +275,14 @@ contract ExtendedTokenStaking is TokenStaking {
             stakingProviders[stakingProvider]
                 .authorizations[application]
                 .deauthorizing;
+    }
+
+    /// @notice Creates new checkpoints due to an increment of a stakers' stake
+    /// @param _delegator Address of the staking provider acting as delegator
+    /// @param _amount Amount of T to increment
+    function increaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
+        newStakeCheckpoint(_delegator, _amount, true);
     }
 }

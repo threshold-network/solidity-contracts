@@ -19,6 +19,16 @@ import "./IApplication.sol";
 
 /// @title  Interface for Threshold Network applications with operator role
 interface IApplicationWithOperator is IApplication {
+    /// @notice Used by staking provider to set operator address that will
+    ///         operate a node. The operator address must be unique.
+    ///         Reverts if the operator is already set for the staking provider
+    ///         or if the operator address is already in use.
+    /// @dev    Depending on application the given staking provider can set operator
+    ///         address only once or multiple times. Besides that, application can decide
+    ///         if function reverts if there is a pending authorization decrease for
+    ///         the staking provider.
+    function registerOperator(address operator) external;
+
     /// @notice Returns operator registered for the given staking provider.
     function stakingProviderToOperator(address stakingProvider)
         external
@@ -30,14 +40,4 @@ interface IApplicationWithOperator is IApplication {
         external
         view
         returns (address);
-
-    /// @notice Used by staking provider to set operator address that will
-    ///         operate a node. The operator address must be unique.
-    ///         Reverts if the operator is already set for the staking provider
-    ///         or if the operator address is already in use.
-    /// @dev    Depending on application the given staking provider can set operator
-    ///         address only once or multiple times. Besides that, application can decide
-    ///         if function reverts if there is a pending authorization decrease for
-    ///         the staking provider.
-    function registerOperator(address operator) external;
 }

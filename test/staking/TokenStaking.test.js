@@ -915,7 +915,7 @@ describe("TokenStaking", () => {
     })
   })
 
-  describe("forceCapDecreaseAuthorization", () => {
+  describe("forceAuthorizationCap", () => {
     const maxStake = to1e18("15000000") // 15m
     const amount = maxStake.mul(2)
 
@@ -948,8 +948,8 @@ describe("TokenStaking", () => {
         await expect(
           tokenStaking
             .connect(authorizer)
-            ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
-        ).to.be.revertedWith("Nothing was deauthorized")
+            ["forceAuthorizationCap(address)"](stakingProvider.address)
+        ).to.be.revertedWith("Nothing to deauthorize")
       })
     })
 
@@ -980,7 +980,7 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
+          ["forceAuthorizationCap(address)"](stakingProvider.address)
       })
 
       it("should set authorized amount to max", async () => {
@@ -1053,7 +1053,7 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
+          ["forceAuthorizationCap(address)"](stakingProvider.address)
       })
 
       it("should set authorized amount to max", async () => {
@@ -1132,7 +1132,7 @@ describe("TokenStaking", () => {
 
         tx = await tokenStaking
           .connect(deployer)
-          ["forceCapDecreaseAuthorization(address[])"]([
+          ["forceAuthorizationCap(address[])"]([
             stakingProvider.address,
             otherStaker.address,
           ])
@@ -1222,7 +1222,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(stakingProvider)
             .optOutDecreaseAuthorization(stakingProvider.address, 1)
-        ).to.be.revertedWith("Opt-out is not available")
+        ).to.be.revertedWith("Opt-out amount too high")
 
         await tokenStaking
           .connect(authorizer)
@@ -1238,7 +1238,7 @@ describe("TokenStaking", () => {
               stakingProvider.address,
               amountToOptOut.add(1)
             )
-        ).to.be.revertedWith("Opt-out is not available")
+        ).to.be.revertedWith("Opt-out amount too high")
 
         await tokenStaking
           .connect(stakingProvider)
@@ -1247,7 +1247,7 @@ describe("TokenStaking", () => {
           tokenStaking
             .connect(stakingProvider)
             .optOutDecreaseAuthorization(stakingProvider.address, 1)
-        ).to.be.revertedWith("Opt-out is not available")
+        ).to.be.revertedWith("Opt-out amount too high")
       })
     })
 
@@ -1373,7 +1373,7 @@ describe("TokenStaking", () => {
             tokenStaking
               .connect(stakingProvider)
               .optOutDecreaseAuthorization(stakingProvider.address, 1)
-          ).to.be.revertedWith("Opt-out is not available")
+          ).to.be.revertedWith("Opt-out amount too high")
         })
       })
     })
@@ -1404,7 +1404,7 @@ describe("TokenStaking", () => {
 
         await tokenStaking
           .connect(deployer)
-          ["forceCapDecreaseAuthorization(address)"](stakingProvider.address)
+          ["forceAuthorizationCap(address)"](stakingProvider.address)
 
         await tokenStaking
           .connect(stakingProvider)
