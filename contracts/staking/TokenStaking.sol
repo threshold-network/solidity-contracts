@@ -83,6 +83,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
     uint96 internal constant MAX_STAKE = 15 * 10**(18 + 6); // 15m T
     uint96 internal constant HALF_MAX_STAKE = MAX_STAKE / 2; // 7.5m T
+    address internal constant TACO_APPLICATION =
+        0x347CC7ede7e5517bD47D20620B2CF1b406edcF07;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
@@ -730,20 +732,22 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             .length;
 
         require(authorizedApplications > 0, "Nothing was authorized");
+        uint256 temp = 0;
         for (uint256 i = 0; i < authorizedApplications; i++) {
             address application = stakingProviderStruct.authorizedApplications[
                 i
             ];
+            if (skipApplication(application)) {
+                continue;
+            }
             forceDecreaseAuthorization(
                 betaStaker,
                 stakingProviderStruct,
                 application
             );
+            temp++;
         }
-        cleanAuthorizedApplications(
-            stakingProviderStruct,
-            authorizedApplications
-        );
+        cleanAuthorizedApplications(stakingProviderStruct, temp);
     }
 
     /// @notice Forced deauthorization of stake above 15m T.
@@ -771,6 +775,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             address application = stakingProviderStruct.authorizedApplications[
                 i
             ];
+            if (skipApplication(application)) {
+                continue;
+            }
             maxAuthorization = MathUpgradeable.max(
                 maxAuthorization,
                 stakingProviderStruct.authorizations[application].authorized
@@ -957,6 +964,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             address application = stakingProviderStruct.authorizedApplications[
                 i
             ];
+            if (skipApplication(application)) {
+                continue;
+            }
             AppAuthorization storage authorization = stakingProviderStruct
                 .authorizations[application];
             uint96 authorized = authorization.authorized;
@@ -1004,5 +1014,14 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         } else {
             availableToOptOut = (maxAuthorization - optOutAmount) / 2;
         }
+    }
+
+    function skipApplication(address application)
+        internal
+        pure
+        virtual
+        returns (bool)
+    {
+        return application != TACO_APPLICATION;
     }
 }

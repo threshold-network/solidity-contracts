@@ -285,4 +285,8 @@ contract ExtendedTokenStaking is TokenStaking {
     {
         newStakeCheckpoint(_delegator, _amount, true);
     }
+
+    function skipApplication(address) internal pure override returns (bool) {
+        return false;
+    }
 }
