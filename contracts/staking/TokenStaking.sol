@@ -260,66 +260,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
     //
 
-    /// @notice Allows the Governance to approve the particular application
-    ///         before individual stake authorizers are able to authorize it.
-    function approveApplication(address application)
-        external
-        override
-        onlyGovernance
-    {
-        require(application != address(0), "Parameters must be specified");
-        ApplicationInfo storage info = applicationInfo[application];
-        require(
-            info.status == ApplicationStatus.NOT_APPROVED ||
-                info.status == ApplicationStatus.PAUSED,
-            "Can't approve application"
-        );
-
-        if (info.status == ApplicationStatus.NOT_APPROVED) {
-            applications.push(application);
-        }
-        info.status = ApplicationStatus.APPROVED;
-        emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
-    }
-
-    /// @notice Requests decrease of all authorizations for the given staking
-    ///         provider on all applications by all authorized amount.
-    ///         It may not change the authorized amount immediatelly. When
-    ///         it happens depends on the application. Can only be called by the
-    ///         given staking provider’s authorizer. Overwrites pending
-    ///         authorization decrease for the given staking provider and
-    ///         application.
-    /// @dev Calls `authorizationDecreaseRequested` callback
-    ///      for each authorized application. See `IApplication`.
-    function requestAuthorizationDecrease(address stakingProvider) external {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 deauthorizing = 0;
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            uint96 authorized = stakingProviderStruct
-                .authorizations[application]
-                .authorized;
-            if (authorized > 0) {
-                requestAuthorizationDecrease(
-                    stakingProvider,
-                    application,
-                    authorized
-                );
-                deauthorizing += authorized;
-            }
-        }
-
-        require(deauthorizing > 0, "Nothing was authorized");
-    }
-
     /// @notice Called by the application at its discretion to approve the
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
@@ -399,8 +339,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         Can be called only by the delegation owner or the staking
     ///         provider.
     function optOutDecreaseAuthorization(address stakingProvider, uint96 amount)
-        external
-        onlyOwnerOrStakingProvider(stakingProvider)
+        public
+        onlyAuthorizerOf(stakingProvider)
     {
         require(amount > 0, "Parameters must be specified");
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
@@ -682,40 +622,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///      application. See `IApplication`.
     function requestAuthorizationDecrease(
         address stakingProvider,
-        address application,
+        address,
         uint96 amount
     ) public override onlyAuthorizerOf(stakingProvider) {
-        ApplicationInfo storage applicationStruct = applicationInfo[
-            application
-        ];
-        require(
-            applicationStruct.status == ApplicationStatus.APPROVED,
-            "Application is not approved"
-        );
-
-        require(amount > 0, "Parameters must be specified");
-
-        AppAuthorization storage authorization = stakingProviders[
-            stakingProvider
-        ].authorizations[application];
-        require(
-            authorization.authorized >= amount,
-            "Amount exceeds authorized"
-        );
-
-        authorization.deauthorizing = amount;
-        uint96 deauthorizingTo = authorization.authorized - amount;
-        emit AuthorizationDecreaseRequested(
-            stakingProvider,
-            application,
-            authorization.authorized,
-            deauthorizingTo
-        );
-        IApplication(application).authorizationDecreaseRequested(
-            stakingProvider,
-            authorization.authorized,
-            deauthorizingTo
-        );
+        optOutDecreaseAuthorization(stakingProvider, amount);
     }
 
     /// @notice Forced deauthorization of Beta staker.
@@ -1016,6 +926,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
+    // slither-disable-next-line dead-code
     function skipApplication(address application)
         internal
         pure

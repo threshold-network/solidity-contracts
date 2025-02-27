@@ -259,6 +259,55 @@ contract ExtendedTokenStaking is TokenStaking {
         token.safeTransferFrom(msg.sender, address(this), reward);
     }
 
+    /// @notice Allows the Governance to approve the particular application
+    ///         before individual stake authorizers are able to authorize it.
+    function approveApplication(address application) external {
+        require(application != address(0), "Parameters must be specified");
+        ApplicationInfo storage info = applicationInfo[application];
+        require(
+            info.status == ApplicationStatus.NOT_APPROVED ||
+                info.status == ApplicationStatus.PAUSED,
+            "Can't approve application"
+        );
+
+        if (info.status == ApplicationStatus.NOT_APPROVED) {
+            applications.push(application);
+        }
+        info.status = ApplicationStatus.APPROVED;
+        emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
+    }
+
+    function legacyRequestAuthorizationDecrease(address stakingProvider)
+        external
+    {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        uint96 deauthorizing = 0;
+        for (
+            uint256 i = 0;
+            i < stakingProviderStruct.authorizedApplications.length;
+            i++
+        ) {
+            address application = stakingProviderStruct.authorizedApplications[
+                i
+            ];
+            uint96 authorized = stakingProviderStruct
+                .authorizations[application]
+                .authorized;
+            if (authorized > 0) {
+                legacyRequestAuthorizationDecrease(
+                    stakingProvider,
+                    application,
+                    authorized
+                );
+                deauthorizing += authorized;
+            }
+        }
+
+        require(deauthorizing > 0, "Nothing was authorized");
+    }
+
     function getAuthorizedApplications(address stakingProvider)
         external
         view
@@ -275,6 +324,44 @@ contract ExtendedTokenStaking is TokenStaking {
             stakingProviders[stakingProvider]
                 .authorizations[application]
                 .deauthorizing;
+    }
+
+    function legacyRequestAuthorizationDecrease(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) public {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        require(amount > 0, "Parameters must be specified");
+
+        AppAuthorization storage authorization = stakingProviders[
+            stakingProvider
+        ].authorizations[application];
+        require(
+            authorization.authorized >= amount,
+            "Amount exceeds authorized"
+        );
+
+        authorization.deauthorizing = amount;
+        uint96 deauthorizingTo = authorization.authorized - amount;
+        emit AuthorizationDecreaseRequested(
+            stakingProvider,
+            application,
+            authorization.authorized,
+            deauthorizingTo
+        );
+        IApplication(application).authorizationDecreaseRequested(
+            stakingProvider,
+            authorization.authorized,
+            deauthorizingTo
+        );
     }
 
     /// @notice Creates new checkpoints due to an increment of a stakers' stake

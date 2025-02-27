@@ -45,10 +45,6 @@ interface IStaking {
     //
     //
 
-    /// @notice Allows the Governance to approve the particular application
-    ///         before individual stake authorizers are able to authorize it.
-    function approveApplication(address application) external;
-
     /// @notice Requests decrease of the authorization for the given staking
     ///         provider on the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When
@@ -65,17 +61,6 @@ interface IStaking {
         address application,
         uint96 amount
     ) external;
-
-    /// @notice Requests decrease of all authorizations for the given staking
-    ///         provider on all applications by all authorized amount.
-    ///         It may not change the authorized amount immediatelly. When
-    ///         it happens depends on the application. Can only be called by the
-    ///         given staking provider’s authorizer. Overwrites pending
-    ///         authorization decrease for the given staking provider and
-    ///         application.
-    /// @dev Calls `authorizationDecreaseRequested(address stakingProvider, uint256 amount)`
-    ///      for each authorized application. See `IApplication`.
-    function requestAuthorizationDecrease(address stakingProvider) external;
 
     /// @notice Called by the application at its discretion to approve the
     ///         previously requested authorization decrease request. Can only be
