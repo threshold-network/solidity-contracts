@@ -131,6 +131,23 @@ interface IStaking {
     function withdrawNotificationReward(address recipient, uint96 amount)
         external;
 
+    /// @notice Adds staking providers to the slashing queue along with the
+    ///         amount that should be slashed from each one of them. Can only be
+    ///         called by application authorized for all staking providers in
+    ///         the array.
+    function slash(uint96 amount, address[] memory stakingProviders) external;
+
+    /// @notice Adds staking providers to the slashing queue along with the
+    ///         amount. The notifier will receive reward per each staking
+    ///         provider from notifiers treasury. Can only be called by
+    ///         application authorized for all staking providers in the array.
+    function seize(
+        uint96 amount,
+        uint256 rewardMultipier,
+        address notifier,
+        address[] memory stakingProviders
+    ) external;
+
     //
     //
     // Auxiliary functions

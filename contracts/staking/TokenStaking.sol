@@ -174,6 +174,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint256 tAmount
     );
     event GovernanceTransferred(address oldGovernance, address newGovernance);
+    event NotificationReceived(
+        uint96 amount,
+        uint256 rewardMultipier,
+        address notifier,
+        address[] stakingProviders
+    );
 
     modifier onlyGovernance() {
         require(governance == msg.sender, "Caller is not the governance");
@@ -504,6 +510,29 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         notifiersTreasury -= amount;
         emit NotificationRewardWithdrawn(recipient, amount);
         token.safeTransfer(recipient, amount);
+    }
+
+    /// @notice Stub for legacy "slash" method
+    function slash(uint96 amount, address[] memory _stakingProviders)
+        external
+        override
+    {
+        emit NotificationReceived(amount, 0, address(0), _stakingProviders);
+    }
+
+    /// @notice Stub for legacy "seize" method
+    function seize(
+        uint96 amount,
+        uint256 rewardMultiplier,
+        address notifier,
+        address[] memory _stakingProviders
+    ) external override {
+        emit NotificationReceived(
+            amount,
+            rewardMultiplier,
+            notifier,
+            _stakingProviders
+        );
     }
 
     /// @notice Delegate voting power from the stake associated to the
