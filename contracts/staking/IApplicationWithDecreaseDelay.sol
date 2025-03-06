@@ -19,6 +19,12 @@ import "./IApplication.sol";
 
 /// @title  Interface for Threshold Network applications with delay after decrease request
 interface IApplicationWithDecreaseDelay is IApplication {
+    /// @notice Approves the previously registered authorization decrease
+    ///         request. Reverts if authorization decrease delay has not passed
+    ///         yet or if the authorization decrease was not requested for the
+    ///         given staking provider.
+    function approveAuthorizationDecrease(address stakingProvider) external;
+
     /// @notice Returns authorization-related parameters of the application.
     /// @dev The minimum authorization is also returned by `minimumAuthorization()`
     ///      function, as a requirement of `IApplication` interface.
@@ -59,10 +65,4 @@ interface IApplicationWithDecreaseDelay is IApplication {
         external
         view
         returns (uint64);
-
-    /// @notice Approves the previously registered authorization decrease
-    ///         request. Reverts if authorization decrease delay has not passed
-    ///         yet or if the authorization decrease was not requested for the
-    ///         given staking provider.
-    function approveAuthorizationDecrease(address stakingProvider) external;
 }
