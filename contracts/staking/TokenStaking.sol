@@ -330,53 +330,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         cleanAuthorizedApplications(stakingProviderStruct, 1);
     }
 
-    /// @notice Forced deauthorization of stake above 15m T.
-    ///         Can be called by anyone.
-    function forceAuthorizationCap(address[] memory _stakingProviders)
-        external
-    {
-        require(_stakingProviders.length > 0, "Wrong input parameters");
-        for (uint256 i = 0; i < _stakingProviders.length; i++) {
-            forceAuthorizationCap(_stakingProviders[i]);
-        }
-    }
-
-    /// @notice Allows to instantly deauthorize up to 50% of max authorization.
-    ///         Can be called only by the delegation owner or the staking
-    ///         provider.
-    function optOutDecreaseAuthorization(address stakingProvider, uint96 amount)
-        public
-        onlyAuthorizerOf(stakingProvider)
-    {
-        require(amount > 0, "Parameters must be specified");
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        (
-            uint96 availableToOptOut,
-            uint96 maxAuthorization
-        ) = getAvailableOptOutAmount(stakingProvider, stakingProviderStruct);
-        if (maxAuthorization > MAX_STAKE) {
-            forceDecreaseAuthorization(stakingProvider, MAX_STAKE);
-            maxAuthorization = MAX_STAKE;
-            availableToOptOut = HALF_MAX_STAKE;
-        }
-        require(availableToOptOut >= amount, "Opt-out amount too high");
-        forceDecreaseAuthorization(stakingProvider, maxAuthorization - amount);
-        stakingProviderStruct.optOutAmount += amount;
-    }
-
-    /// @notice Forced deauthorization of Beta stakers.
-    ///         Can be called only by the governance.
-    function forceBetaStakerDecreaseAuthorization(address[] memory betaStakers)
-        external
-    {
-        require(betaStakers.length > 0, "Wrong input parameters");
-        for (uint256 i = 0; i < betaStakers.length; i++) {
-            forceBetaStakerDecreaseAuthorization(betaStakers[i]);
-        }
-    }
-
     /// @notice Pauses the given application’s eligibility to slash stakes.
     ///         Besides that stakers can't change authorization to the application.
     ///         Can be called only by the Panic Button of the particular
@@ -651,48 +604,41 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///      application. See `IApplication`.
     function requestAuthorizationDecrease(
         address stakingProvider,
-        address,
+        address application,
         uint96 amount
     ) public override onlyAuthorizerOf(stakingProvider) {
-        optOutDecreaseAuthorization(stakingProvider, amount);
-    }
-
-    /// @notice Forced deauthorization of Beta staker.
-    ///         Can be called only by the governance.
-    function forceBetaStakerDecreaseAuthorization(address betaStaker)
-        public
-        onlyGovernance
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            betaStaker
+        require(!skipApplication(application), "Application is deprecated");
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
         ];
-        uint256 authorizedApplications = stakingProviderStruct
-            .authorizedApplications
-            .length;
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
 
-        require(authorizedApplications > 0, "Nothing was authorized");
-        uint256 temp = 0;
-        for (uint256 i = 0; i < authorizedApplications; i++) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            if (skipApplication(application)) {
-                continue;
-            }
-            forceDecreaseAuthorization(
-                betaStaker,
-                stakingProviderStruct,
-                application
-            );
-            temp++;
-        }
-        cleanAuthorizedApplications(stakingProviderStruct, temp);
-    }
+        require(amount > 0, "Parameters must be specified");
 
-    /// @notice Forced deauthorization of stake above 15m T.
-    ///         Can be called by anyone.
-    function forceAuthorizationCap(address stakingProvider) public {
-        forceDecreaseAuthorization(stakingProvider, MAX_STAKE);
+        AppAuthorization storage authorization = stakingProviders[
+            stakingProvider
+        ].authorizations[application];
+        require(
+            authorization.authorized >= amount,
+            "Amount exceeds authorized"
+        );
+
+        authorization.deauthorizing = amount;
+        uint96 deauthorizingTo = authorization.authorized - amount;
+        emit AuthorizationDecreaseRequested(
+            stakingProvider,
+            application,
+            authorization.authorized,
+            deauthorizingTo
+        );
+        IApplication(application).authorizationDecreaseRequested(
+            stakingProvider,
+            authorization.authorized,
+            deauthorizingTo
+        );
     }
 
     /// @notice Returns the maximum application authorization
@@ -743,21 +689,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         } else {
             availableTValue = 0;
         }
-    }
-
-    /// @notice Returns available amount to instantly deauthorize.
-    function getAvailableOptOutAmount(address stakingProvider)
-        public
-        view
-        returns (uint96 availableToOptOut)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        (availableToOptOut, ) = getAvailableOptOutAmount(
-            stakingProvider,
-            stakingProviderStruct
-        );
     }
 
     /// @notice Delegate voting power from the stake associated to the
@@ -936,23 +867,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
 
         require(deauthorized > 0, "Nothing to deauthorize");
-    }
-
-    function getAvailableOptOutAmount(
-        address stakingProvider,
-        StakingProviderInfo storage stakingProviderStruct
-    )
-        internal
-        view
-        returns (uint96 availableToOptOut, uint96 maxAuthorization)
-    {
-        maxAuthorization = getMaxAuthorization(stakingProvider);
-        uint96 optOutAmount = stakingProviderStruct.optOutAmount.toUint96();
-        if (maxAuthorization < optOutAmount) {
-            availableToOptOut = 0;
-        } else {
-            availableToOptOut = (maxAuthorization - optOutAmount) / 2;
-        }
     }
 
     // slither-disable-next-line dead-code
