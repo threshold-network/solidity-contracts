@@ -92,8 +92,16 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     address public governance;
     uint96 public minTStakeAmount;
     uint256 public authorizationCeiling;
+    
+    // This variable is deprecated, we keep it to respect existing state
+    // storage layout
+    /// @custom:oz-renamed-from stakeDiscrepancyPenalty
     // slither-disable-next-line constable-states
     uint96 private legacyStakeDiscrepancyPenalty;
+    
+    // This variable is deprecated, we keep it to respect existing state
+    // storage layout
+    /// @custom:oz-renamed-from stakeDiscrepancyRewardMultiplier
     // slither-disable-next-line constable-states
     uint256 private legacyStakeDiscrepancyRewardMultiplier;
 

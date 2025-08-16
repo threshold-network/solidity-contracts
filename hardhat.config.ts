@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config"
 
 import "@keep-network/hardhat-helpers"
+import "@nomicfoundation/hardhat-verify"
 import "@nomiclabs/hardhat-waffle"
 import "@openzeppelin/hardhat-upgrades"
 import "@tenderly/hardhat-tenderly"
@@ -74,6 +75,9 @@ const config: HardhatUserConfig = {
     etherscan: {
       apiKey: process.env.ETHERSCAN_API_KEY,
     },
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   external: {
     deployments: {

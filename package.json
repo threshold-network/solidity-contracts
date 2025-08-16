@@ -32,6 +32,7 @@
   "devDependencies": {
     "@keep-network/hardhat-helpers": "^0.6.0-pre.8",
     "@keep-network/prettier-config-keep": "github:keep-network/prettier-config-keep#d6ec02e",
+    "@nomicfoundation/hardhat-verify": "^2.0.1",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/hardhat-upgrades": "^1.12.0",

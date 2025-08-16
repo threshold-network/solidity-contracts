@@ -1,0 +1,27 @@
+name: OpenZeppelin Upgrades Validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  oz-upgrades:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Validate TokenStaking Upgrade
+        env:
+          CHAIN_API_URL: ${{ secrets.MAINNET_ETH_HOSTNAME_HTTP }}
+        run: yarn hardhat deploy --tags ValidateUpgradeTokenStaking --network mainnet
