@@ -520,6 +520,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         override
         returns (uint96)
     {
+        if (skipApplication(application)) {
+            return 0;
+        }
         return
             stakingProviders[stakingProvider]
                 .authorizations[application]
