@@ -291,7 +291,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
         uint96 fromAmount = authorization.authorized;
         authorization.authorized -= authorization.deauthorizing;
-        authorization.deauthorizing = 0;
         emit AuthorizationDecreaseApproved(
             stakingProvider,
             msg.sender,
@@ -304,6 +303,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             cleanAuthorizedApplications(stakingProviderStruct, 1);
         }
 
+        // Unstake
+        stakingProviderStruct.tStake -= authorization.deauthorizing;
+        decreaseStakeCheckpoint(stakingProvider, authorization.deauthorizing);
+        emit Unstaked(stakingProvider, authorization.deauthorizing);
+        token.safeTransfer(stakingProviderStruct.owner, authorization.deauthorizing);
+
+        authorization.deauthorizing = 0;
         return authorization.authorized;
     }
 

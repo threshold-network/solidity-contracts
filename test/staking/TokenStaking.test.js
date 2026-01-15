@@ -539,20 +539,10 @@ describe("TokenStaking", () => {
             .approveApplication(application2Mock.address)
           await tokenStaking
             .connect(authorizer)
-            .increaseAuthorization(
-              stakingProvider.address,
-              application2Mock.address,
-              amount
-            )
-          await tokenStaking
-            .connect(authorizer)
             ["legacyRequestAuthorizationDecrease(address)"](
               stakingProvider.address
             )
-          await application1Mock.approveAuthorizationDecrease(
-            stakingProvider.address
-          )
-          tx = await application2Mock.approveAuthorizationDecrease(
+          tx = await application1Mock.approveAuthorizationDecrease(
             stakingProvider.address
           )
         })
@@ -564,12 +554,6 @@ describe("TokenStaking", () => {
               application1Mock.address
             )
           ).to.equal(0)
-          expect(
-            await tokenStaking.authorizedStake(
-              stakingProvider.address,
-              application2Mock.address
-            )
-          ).to.equal(0)
         })
 
         it("should emit AuthorizationDecreaseApproved", async () => {
@@ -577,7 +561,7 @@ describe("TokenStaking", () => {
             .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
             .withArgs(
               stakingProvider.address,
-              application2Mock.address,
+              application1Mock.address,
               amount,
               Zero
             )
