@@ -494,6 +494,21 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
     }
 
+    /// Migration
+    function migrateAndRelease(address stakingProvider, uint96 amount) external {
+        require(msg.sender == TACO_APPLICATION, "Only TACo app can call this method");
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        decreaseStakeCheckpoint(stakingProvider, stakingProviderStruct.tStake);
+        emit Unstaked(stakingProvider, stakingProviderStruct.tStake - amount);
+        token.safeTransfer(stakingProviderStruct.owner, stakingProviderStruct.tStake - amount);
+        token.safeTransfer(TACO_APPLICATION, amount);
+        stakingProviderStruct.tStake = 0;
+    }
+
+
     /// @notice Delegate voting power from the stake associated to the
     ///         `stakingProvider` to a `delegatee` address. Caller must be the
     ///         owner of this stake.
