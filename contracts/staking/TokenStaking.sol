@@ -495,15 +495,18 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// Migration
-    function migrateAndRelease(address stakingProvider, uint96 amount) external {
+    function migrateAndRelease(address stakingProvider, uint96 amount) external override {
         require(msg.sender == TACO_APPLICATION, "Only TACo app can call this method");
 
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
         decreaseStakeCheckpoint(stakingProvider, stakingProviderStruct.tStake);
-        emit Unstaked(stakingProvider, stakingProviderStruct.tStake - amount);
-        token.safeTransfer(stakingProviderStruct.owner, stakingProviderStruct.tStake - amount);
+        uint96 toUnstake = stakingProviderStruct.tStake - amount;
+        if (toUnstake > 0) {
+            emit Unstaked(stakingProvider, toUnstake);
+            token.safeTransfer(stakingProviderStruct.owner, toUnstake);
+        }
         token.safeTransfer(TACO_APPLICATION, amount);
         stakingProviderStruct.tStake = 0;
     }

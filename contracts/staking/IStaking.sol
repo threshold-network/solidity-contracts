@@ -202,4 +202,9 @@ interface IStaking {
         address stakingProvider,
         address application
     ) external view returns (uint96);
+
+    /// @notice Called by the application at its discretion to approve the
+    ///         migration of stake to the application. Rest of stake is
+    ///         released to the owner.
+    function migrateAndRelease(address stakingProvider, uint96 amount) external;
 }
