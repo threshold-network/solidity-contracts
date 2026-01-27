@@ -503,12 +503,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         ];
         decreaseStakeCheckpoint(stakingProvider, stakingProviderStruct.tStake);
         uint96 toUnstake = stakingProviderStruct.tStake - amount;
+        stakingProviderStruct.tStake = 0;
+
         if (toUnstake > 0) {
             emit Unstaked(stakingProvider, toUnstake);
             token.safeTransfer(stakingProviderStruct.owner, toUnstake);
         }
         token.safeTransfer(TACO_APPLICATION, amount);
-        stakingProviderStruct.tStake = 0;
     }
 
 
