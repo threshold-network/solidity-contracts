@@ -83,6 +83,10 @@ contract ApplicationMock is IApplication {
             stakingProviderStruct.deauthorizingTo = toAmount;
         }
     }
+
+    function migrateAndRelease(address stakingProvider, uint96 amount) external {
+        tokenStaking.migrateAndRelease(stakingProvider, amount);
+    }
 }
 
 contract BrokenApplicationMock is ApplicationMock {
@@ -130,6 +134,8 @@ contract ManagedGrantMock {
 contract ExtendedTokenStaking is TokenStaking {
     using SafeTUpgradeable for T;
 
+    mapping(address => bool) public skipList;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(T _token) TokenStaking(_token) {}
 
@@ -159,6 +165,10 @@ contract ExtendedTokenStaking is TokenStaking {
     ) external {
         stakingProviders[stakingProvider]
             .authorizedApplications = _applications;
+    }
+
+    function addToSkipList(address application) external {
+        skipList[application] = true;
     }
 
     /// @notice Creates a delegation with `msg.sender` owner with the given
@@ -373,7 +383,7 @@ contract ExtendedTokenStaking is TokenStaking {
         newStakeCheckpoint(_delegator, _amount, true);
     }
 
-    function skipApplication(address) internal pure override returns (bool) {
-        return false;
+    function skipApplication(address application) internal view override returns (bool) {
+        return skipList[application];
     }
 }

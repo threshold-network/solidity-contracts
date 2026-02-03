@@ -1166,6 +1166,143 @@ describe("TokenStaking", () => {
     })
   })
 
+  describe("migrateAndRelease", () => {
+    beforeEach(async () => {
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application2Mock.address)
+      await tokenStaking.connect(staker).addToSkipList(application2Mock.address)
+
+      await tToken
+        .connect(staker)
+        .approve(tokenStaking.address, initialStakerBalance)
+      await tokenStaking
+        .connect(staker)
+        .stake(
+          stakingProvider.address,
+          beneficiary.address,
+          authorizer.address,
+          initialStakerBalance
+        )
+    })
+
+    context("when caller is not TACo app", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .migrateAndRelease(stakingProvider.address, 0)
+        ).to.be.revertedWith("Application is not approved")
+        await expect(
+          application2Mock
+            .connect(staker)
+            .migrateAndRelease(stakingProvider.address, 0)
+        ).to.be.revertedWith("Only TACo app can call this method")
+      })
+    })
+
+    context("when staker doesn't authorized requested amount", () => {
+      it("should revert", async () => {
+        await expect(
+          application1Mock
+            .connect(staker)
+            .migrateAndRelease(stakingProvider.address, 1)
+        ).to.be.revertedWith("Not enough authorization")
+      })
+    })
+
+    context("when amount to unstake is zero", () => {
+      const amount = initialStakerBalance
+      const amountToTransfer = amount
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+
+        await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amountToTransfer)
+      })
+
+      it("should update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should decrease authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(Zero)
+      })
+
+      it("should transfer tokens to the application address", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+        expect(await tToken.balanceOf(application1Mock.address)).to.equal(
+          amountToTransfer
+        )
+      })
+    })
+
+    context("when amount to unstake is not zero", () => {
+      const amount = initialStakerBalance
+      const amountToTransfer = amount.div(3)
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+
+        tx = await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amountToTransfer)
+      })
+
+      it("should update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should transfer tokens to the application address and staker", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+        expect(await tToken.balanceOf(application1Mock.address)).to.equal(
+          amountToTransfer
+        )
+        expect(await tToken.balanceOf(staker.address)).to.equal(
+          amount.sub(amountToTransfer)
+        )
+      })
+
+      it("should decrease authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(Zero)
+      })
+
+      it("should emit Unstaked", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, amount.sub(amountToTransfer))
+      })
+    })
+  })
+
   describe("withdrawNotificationReward", () => {
     context("when caller is not the governance", () => {
       it("should revert", async () => {

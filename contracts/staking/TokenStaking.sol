@@ -496,20 +496,31 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     /// Migration
     function migrateAndRelease(address stakingProvider, uint96 amount) external override {
-        require(msg.sender == TACO_APPLICATION, "Only TACo app can call this method");
+        ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        require(!skipApplication(msg.sender), "Only TACo app can call this method");
 
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[msg.sender];
+        require(authorization.authorized >= amount, "Not enough authorization");
+
         decreaseStakeCheckpoint(stakingProvider, stakingProviderStruct.tStake);
         uint96 toUnstake = stakingProviderStruct.tStake - amount;
         stakingProviderStruct.tStake = 0;
+        authorization.authorized = 0;
 
         if (toUnstake > 0) {
             emit Unstaked(stakingProvider, toUnstake);
             token.safeTransfer(stakingProviderStruct.owner, toUnstake);
         }
-        token.safeTransfer(TACO_APPLICATION, amount);
+        token.safeTransfer(msg.sender, amount);
     }
 
 
@@ -900,7 +911,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     // slither-disable-next-line dead-code
     function skipApplication(address application)
         internal
-        pure
+        view
         virtual
         returns (bool)
     {
