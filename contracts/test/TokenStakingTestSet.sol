@@ -58,6 +58,10 @@ contract ApplicationMock is IApplication {
             .approveAuthorizationDecrease(stakingProvider);
     }
 
+    function migrateAndRelease(address stakingProvider, uint96 amount) external {
+        tokenStaking.migrateAndRelease(stakingProvider, amount);
+    }
+
     function availableRewards(address) external pure returns (uint96) {
         return 0;
     }
@@ -82,10 +86,6 @@ contract ApplicationMock is IApplication {
         if (stakingProviderStruct.deauthorizingTo > toAmount) {
             stakingProviderStruct.deauthorizingTo = toAmount;
         }
-    }
-
-    function migrateAndRelease(address stakingProvider, uint96 amount) external {
-        tokenStaking.migrateAndRelease(stakingProvider, amount);
     }
 }
 
