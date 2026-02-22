@@ -307,7 +307,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         stakingProviderStruct.tStake -= authorization.deauthorizing;
         decreaseStakeCheckpoint(stakingProvider, authorization.deauthorizing);
         emit Unstaked(stakingProvider, authorization.deauthorizing);
-        token.safeTransfer(stakingProviderStruct.owner, authorization.deauthorizing);
+        token.safeTransfer(
+            stakingProviderStruct.owner,
+            authorization.deauthorizing
+        );
 
         authorization.deauthorizing = 0;
         return authorization.authorized;
@@ -495,23 +498,39 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// Migration
-    function migrateAndRelease(address stakingProvider, uint96 amount) external override {
+    function migrateAndRelease(address stakingProvider, uint96 amount)
+        external
+        override
+        returns (bool stakeless)
+    {
         ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
         require(
             applicationStruct.status == ApplicationStatus.APPROVED,
             "Application is not approved"
         );
 
-        require(!skipApplication(msg.sender), "Only TACo app can call this method");
+        require(
+            !skipApplication(msg.sender),
+            "Only TACo app can call this method"
+        );
 
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
+        require(
+            stakingProviderStruct.owner != address(0),
+            "Wrong staking provider"
+        );
         AppAuthorization storage authorization = stakingProviderStruct
             .authorizations[msg.sender];
+
+        // stakeless
+        if (authorization.authorized == 0) {
+            return true;
+        }
+
         require(authorization.authorized >= amount, "Not enough authorization");
 
-        decreaseStakeCheckpoint(stakingProvider, stakingProviderStruct.tStake);
         uint96 toUnstake = stakingProviderStruct.tStake - amount;
         stakingProviderStruct.tStake = 0;
         authorization.authorized = 0;
@@ -521,8 +540,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             token.safeTransfer(stakingProviderStruct.owner, toUnstake);
         }
         token.safeTransfer(msg.sender, amount);
+        return false;
     }
-
 
     /// @notice Delegate voting power from the stake associated to the
     ///         `stakingProvider` to a `delegatee` address. Caller must be the

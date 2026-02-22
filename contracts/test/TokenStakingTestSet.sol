@@ -25,6 +25,7 @@ contract ApplicationMock is IApplication {
 
     TokenStaking internal immutable tokenStaking;
     mapping(address => StakingProviderStruct) public stakingProviders;
+    mapping(address => bool) public stakeless;
 
     constructor(TokenStaking _tokenStaking) {
         tokenStaking = _tokenStaking;
@@ -58,8 +59,13 @@ contract ApplicationMock is IApplication {
             .approveAuthorizationDecrease(stakingProvider);
     }
 
-    function migrateAndRelease(address stakingProvider, uint96 amount) external {
-        tokenStaking.migrateAndRelease(stakingProvider, amount);
+    function migrateAndRelease(address stakingProvider, uint96 amount)
+        external
+    {
+        stakeless[stakingProvider] = tokenStaking.migrateAndRelease(
+            stakingProvider,
+            amount
+        );
     }
 
     function availableRewards(address) external pure returns (uint96) {
@@ -383,7 +389,12 @@ contract ExtendedTokenStaking is TokenStaking {
         newStakeCheckpoint(_delegator, _amount, true);
     }
 
-    function skipApplication(address application) internal view override returns (bool) {
+    function skipApplication(address application)
+        internal
+        view
+        override
+        returns (bool)
+    {
         return skipList[application];
     }
 }

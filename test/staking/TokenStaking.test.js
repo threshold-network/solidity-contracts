@@ -1204,12 +1204,22 @@ describe("TokenStaking", () => {
       })
     })
 
-    context("when staker doesn't authorized requested amount", () => {
+    context("when staker hasn't authorized requested amount", () => {
       it("should revert", async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            initialStakerBalance
+          )
         await expect(
           application1Mock
             .connect(staker)
-            .migrateAndRelease(stakingProvider.address, 1)
+            .migrateAndRelease(
+              stakingProvider.address,
+              initialStakerBalance.add(1)
+            )
         ).to.be.revertedWith("Not enough authorization")
       })
     })
@@ -1250,6 +1260,8 @@ describe("TokenStaking", () => {
         expect(await tToken.balanceOf(application1Mock.address)).to.equal(
           amountToTransfer
         )
+        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
+          .false
       })
     })
 
@@ -1284,6 +1296,8 @@ describe("TokenStaking", () => {
         expect(await tToken.balanceOf(staker.address)).to.equal(
           amount.sub(amountToTransfer)
         )
+        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
+          .false
       })
 
       it("should decrease authorized amount", async () => {
@@ -1299,6 +1313,41 @@ describe("TokenStaking", () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
           .withArgs(stakingProvider.address, amount.sub(amountToTransfer))
+      })
+    })
+
+    context("when authorization is stakeless", () => {
+      const amount = initialStakerBalance
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["legacyRequestAuthorizationDecrease(address)"](
+            stakingProvider.address
+          )
+        await application1Mock.approveAuthorizationDecrease(
+          stakingProvider.address
+        )
+
+        await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amount)
+      })
+
+      it("should not update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should return stakeless flag", async () => {
+        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
+          .true
       })
     })
   })
