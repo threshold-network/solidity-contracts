@@ -882,57 +882,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
-    function forceDecreaseAuthorization(
-        address stakingProvider,
-        uint96 amountTo
-    ) internal {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 deauthorized = 0;
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            if (skipApplication(application)) {
-                continue;
-            }
-            AppAuthorization storage authorization = stakingProviderStruct
-                .authorizations[application];
-            uint96 authorized = authorization.authorized;
-            if (authorized > amountTo) {
-                IApplication(application).involuntaryAuthorizationDecrease(
-                    stakingProvider,
-                    authorized,
-                    amountTo
-                );
-                uint96 decrease = authorized - amountTo;
-
-                if (authorization.deauthorizing >= decrease) {
-                    authorization.deauthorizing -= decrease;
-                } else {
-                    authorization.deauthorizing = 0;
-                }
-
-                authorization.authorized = amountTo;
-                deauthorized += decrease;
-
-                emit AuthorizationDecreaseApproved(
-                    stakingProvider,
-                    application,
-                    authorized,
-                    amountTo
-                );
-            }
-        }
-
-        require(deauthorized > 0, "Nothing to deauthorize");
-    }
-
     // slither-disable-next-line dead-code
     function skipApplication(address application)
         internal
