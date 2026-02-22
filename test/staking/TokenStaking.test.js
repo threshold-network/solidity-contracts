@@ -1350,6 +1350,110 @@ describe("TokenStaking", () => {
           .true
       })
     })
+
+    context("when amount to transfer is zero and no authorization", () => {
+      const amount = initialStakerBalance
+      const amountToTransfer = 0
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["legacyRequestAuthorizationDecrease(address)"](
+            stakingProvider.address
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["legacyApproveAuthorizationDecrease(address,address)"](
+            stakingProvider.address,
+            application1Mock.address
+          )
+
+        tx = await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amountToTransfer)
+      })
+
+      it("should update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should transfer tokens to the staker", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+        expect(await tToken.balanceOf(application1Mock.address)).to.equal(0)
+        expect(await tToken.balanceOf(staker.address)).to.equal(amount)
+      })
+
+      it("should decrease authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(Zero)
+      })
+
+      it("should emit Unstaked", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, amount)
+      })
+    })
+
+    context(
+      "when amount to transfer is zero and tokens still authorized",
+      () => {
+        const amount = initialStakerBalance
+        const amountToTransfer = 0
+        let tx
+
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(authorizer)
+            .increaseAuthorization(
+              stakingProvider.address,
+              application1Mock.address,
+              amount
+            )
+
+          tx = await application1Mock
+            .connect(staker)
+            .migrateAndRelease(stakingProvider.address, amountToTransfer)
+        })
+
+        it("should update T staked amount", async () => {
+          await assertStake(stakingProvider.address, Zero)
+        })
+
+        it("should transfer tokens to the staker", async () => {
+          expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+          expect(await tToken.balanceOf(application1Mock.address)).to.equal(0)
+          expect(await tToken.balanceOf(staker.address)).to.equal(amount)
+        })
+
+        it("should decrease authorized amount", async () => {
+          expect(
+            await tokenStaking.authorizedStake(
+              stakingProvider.address,
+              application1Mock.address
+            )
+          ).to.equal(Zero)
+        })
+
+        it("should emit Unstaked", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "Unstaked")
+            .withArgs(stakingProvider.address, amount)
+        })
+      }
+    )
   })
 
   describe("withdrawNotificationReward", () => {

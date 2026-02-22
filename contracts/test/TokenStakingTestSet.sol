@@ -324,6 +324,43 @@ contract ExtendedTokenStaking is TokenStaking {
         require(deauthorizing > 0, "Nothing was authorized");
     }
 
+    function legacyApproveAuthorizationDecrease(
+        address stakingProvider,
+        address application
+    ) external returns (uint96) {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        require(authorization.deauthorizing > 0, "No deauthorizing in process");
+
+        uint96 fromAmount = authorization.authorized;
+        authorization.authorized -= authorization.deauthorizing;
+        emit AuthorizationDecreaseApproved(
+            stakingProvider,
+            application,
+            fromAmount,
+            authorization.authorized
+        );
+
+        // remove application from an array
+        if (authorization.authorized == 0) {
+            cleanAuthorizedApplications(stakingProviderStruct, 1);
+        }
+
+        authorization.deauthorizing = 0;
+        return authorization.authorized;
+    }
+
     function getAuthorizedApplications(address stakingProvider)
         external
         view

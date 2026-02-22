@@ -521,26 +521,32 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             stakingProviderStruct.owner != address(0),
             "Wrong staking provider"
         );
+        uint96 toUnstake = stakingProviderStruct.tStake;
+        stakingProviderStruct.tStake = 0;
+
         AppAuthorization storage authorization = stakingProviderStruct
             .authorizations[msg.sender];
 
         // stakeless
         if (authorization.authorized == 0) {
-            return true;
+            stakeless = true;
+        } else {
+            require(
+                authorization.authorized >= amount,
+                "Not enough authorization"
+            );
+            toUnstake -= amount;
+            authorization.authorized = 0;
+            if (amount > 0) {
+                token.safeTransfer(msg.sender, amount);
+            }
+            stakeless = false;
         }
-
-        require(authorization.authorized >= amount, "Not enough authorization");
-
-        uint96 toUnstake = stakingProviderStruct.tStake - amount;
-        stakingProviderStruct.tStake = 0;
-        authorization.authorized = 0;
 
         if (toUnstake > 0) {
             emit Unstaked(stakingProvider, toUnstake);
             token.safeTransfer(stakingProviderStruct.owner, toUnstake);
         }
-        token.safeTransfer(msg.sender, amount);
-        return false;
     }
 
     /// @notice Delegate voting power from the stake associated to the
