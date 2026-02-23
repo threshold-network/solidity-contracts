@@ -523,6 +523,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
         uint96 toUnstake = stakingProviderStruct.tStake;
         stakingProviderStruct.tStake = 0;
+        decreaseStakeCheckpoint(stakingProvider, 0);
 
         AppAuthorization storage authorization = stakingProviderStruct
             .authorizations[msg.sender];
