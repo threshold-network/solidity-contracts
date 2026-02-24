@@ -523,7 +523,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
         uint96 toUnstake = stakingProviderStruct.tStake;
         stakingProviderStruct.tStake = 0;
-        decreaseStakeCheckpoint(stakingProvider, 0);
+        decreaseStakeCheckpoint(stakingProvider, toUnstake);
+        emit Unstaked(stakingProvider, toUnstake);
 
         AppAuthorization storage authorization = stakingProviderStruct
             .authorizations[msg.sender];
@@ -545,7 +546,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
 
         if (toUnstake > 0) {
-            emit Unstaked(stakingProvider, toUnstake);
             token.safeTransfer(stakingProviderStruct.owner, toUnstake);
         }
     }

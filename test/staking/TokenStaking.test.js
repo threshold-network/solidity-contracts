@@ -1187,6 +1187,9 @@ describe("TokenStaking", () => {
           authorizer.address,
           initialStakerBalance
         )
+      await tokenStaking
+        .connect(staker)
+        .delegateVoting(stakingProvider.address, stakingProvider.address)
     })
 
     context("when caller is not TACo app", () => {
@@ -1227,6 +1230,7 @@ describe("TokenStaking", () => {
     context("when amount to unstake is zero", () => {
       const amount = initialStakerBalance
       const amountToTransfer = amount
+      let tx
 
       beforeEach(async () => {
         await tokenStaking
@@ -1237,7 +1241,10 @@ describe("TokenStaking", () => {
             amount
           )
 
-        await application1Mock
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(
+          amount
+        )
+        tx = await application1Mock
           .connect(staker)
           .migrateAndRelease(stakingProvider.address, amountToTransfer)
       })
@@ -1263,6 +1270,16 @@ describe("TokenStaking", () => {
         expect(await application1Mock.stakeless(stakingProvider.address)).to.be
           .false
       })
+
+      it("should create a new checkpoint for staker", async () => {
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(0)
+      })
+
+      it("should emit Unstaked", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, amount)
+      })
     })
 
     context("when amount to unstake is not zero", () => {
@@ -1279,6 +1296,9 @@ describe("TokenStaking", () => {
             amount
           )
 
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(
+          amount
+        )
         tx = await application1Mock
           .connect(staker)
           .migrateAndRelease(stakingProvider.address, amountToTransfer)
@@ -1309,10 +1329,14 @@ describe("TokenStaking", () => {
         ).to.equal(Zero)
       })
 
+      it("should create a new checkpoint for staker", async () => {
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(0)
+      })
+
       it("should emit Unstaked", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
-          .withArgs(stakingProvider.address, amount.sub(amountToTransfer))
+          .withArgs(stakingProvider.address, amount)
       })
     })
 
@@ -1400,6 +1424,10 @@ describe("TokenStaking", () => {
         ).to.equal(Zero)
       })
 
+      it("should create a new checkpoint for staker", async () => {
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(0)
+      })
+
       it("should emit Unstaked", async () => {
         await expect(tx)
           .to.emit(tokenStaking, "Unstaked")
@@ -1445,6 +1473,12 @@ describe("TokenStaking", () => {
               application1Mock.address
             )
           ).to.equal(Zero)
+        })
+
+        it("should create a new checkpoint for staker", async () => {
+          expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(
+            0
+          )
         })
 
         it("should emit Unstaked", async () => {
