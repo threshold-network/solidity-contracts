@@ -15,7 +15,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // TODO: Consider upgradable deployment also for sepolia.
   let tokenStakingAddress
-  if (hre.network.name == "mainnet") {
+  if (hre.network.name == "mainnet" || hre.network.name == "sepolia") {
     const TokenStaking = await ethers.getContractFactory("TokenStaking")
 
     const tokenStaking = await upgrades.deployProxy(

@@ -45,6 +45,22 @@ interface IStaking {
     //
     //
 
+    /// @notice Allows the Governance to approve the particular application
+    ///         before individual stake authorizers are able to authorize it.
+    function approveApplication(address application) external;
+
+    /// @notice Increases the authorization of the given staking provider for
+    ///         the given application by the given amount. Can only be called by
+    ///         the given staking provider's authorizer.
+    /// @dev Calls `authorizationIncreased` callback on the given application to
+    ///      notify the application about authorization change.
+    ///      See `IApplication`.
+    function increaseAuthorization(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) external;
+
     /// @notice Requests decrease of the authorization for the given staking
     ///         provider on the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When

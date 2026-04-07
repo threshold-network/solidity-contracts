@@ -212,7 +212,7 @@ contract ExtendedTokenStaking is TokenStaking {
         address stakingProvider,
         address application,
         uint96 amount
-    ) external onlyAuthorizerOf(stakingProvider) {
+    ) external override onlyAuthorizerOf(stakingProvider) {
         require(amount > 0, "Parameters must be specified");
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
@@ -261,7 +261,7 @@ contract ExtendedTokenStaking is TokenStaking {
 
     /// @notice Allows the Governance to approve the particular application
     ///         before individual stake authorizers are able to authorize it.
-    function approveApplication(address application) external {
+    function approveApplication(address application) external override {
         require(application != address(0), "Parameters must be specified");
         ApplicationInfo storage info = applicationInfo[application];
         require(
