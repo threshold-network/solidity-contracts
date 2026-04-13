@@ -25,6 +25,7 @@ contract ApplicationMock is IApplication {
 
     TokenStaking internal immutable tokenStaking;
     mapping(address => StakingProviderStruct) public stakingProviders;
+    mapping(address => bool) public stakeless;
 
     constructor(TokenStaking _tokenStaking) {
         tokenStaking = _tokenStaking;
@@ -56,6 +57,15 @@ contract ApplicationMock is IApplication {
         ];
         stakingProviderStruct.authorized = tokenStaking
             .approveAuthorizationDecrease(stakingProvider);
+    }
+
+    function migrateAndRelease(address stakingProvider, uint96 amount)
+        external
+    {
+        stakeless[stakingProvider] = tokenStaking.migrateAndRelease(
+            stakingProvider,
+            amount
+        );
     }
 
     function availableRewards(address) external pure returns (uint96) {
@@ -130,6 +140,8 @@ contract ManagedGrantMock {
 contract ExtendedTokenStaking is TokenStaking {
     using SafeTUpgradeable for T;
 
+    mapping(address => bool) public skipList;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(T _token) TokenStaking(_token) {}
 
@@ -159,6 +171,10 @@ contract ExtendedTokenStaking is TokenStaking {
     ) external {
         stakingProviders[stakingProvider]
             .authorizedApplications = _applications;
+    }
+
+    function addToSkipList(address application) external {
+        skipList[application] = true;
     }
 
     /// @notice Creates a delegation with `msg.sender` owner with the given
@@ -308,6 +324,43 @@ contract ExtendedTokenStaking is TokenStaking {
         require(deauthorizing > 0, "Nothing was authorized");
     }
 
+    function legacyApproveAuthorizationDecrease(
+        address stakingProvider,
+        address application
+    ) external returns (uint96) {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        require(authorization.deauthorizing > 0, "No deauthorizing in process");
+
+        uint96 fromAmount = authorization.authorized;
+        authorization.authorized -= authorization.deauthorizing;
+        emit AuthorizationDecreaseApproved(
+            stakingProvider,
+            application,
+            fromAmount,
+            authorization.authorized
+        );
+
+        // remove application from an array
+        if (authorization.authorized == 0) {
+            cleanAuthorizedApplications(stakingProviderStruct, 1);
+        }
+
+        authorization.deauthorizing = 0;
+        return authorization.authorized;
+    }
+
     function getAuthorizedApplications(address stakingProvider)
         external
         view
@@ -373,7 +426,12 @@ contract ExtendedTokenStaking is TokenStaking {
         newStakeCheckpoint(_delegator, _amount, true);
     }
 
-    function skipApplication(address) internal pure override returns (bool) {
-        return false;
+    function skipApplication(address application)
+        internal
+        view
+        override
+        returns (bool)
+    {
+        return skipList[application];
     }
 }
