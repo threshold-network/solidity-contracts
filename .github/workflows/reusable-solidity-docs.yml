@@ -1,0 +1,298 @@
+name: Generate and push Solidity API documentation
+
+# Vendored from keep-network/ci (reusable-solidity-docs.yml) with Corepack enabled
+# so Yarn 4 from package.json "packageManager" works on GitHub Actions.
+# Upstream: https://github.com/keep-network/ci/blob/main/.github/workflows/reusable-solidity-docs.yml
+
+# To use this workflow, make sure `solidity-docgen` package is added to the 
+# projects's dev dependencies and is configured in Hardhat config (see
+# https://github.com/OpenZeppelin/solidity-docgen#usage).
+# The workflow expects `outputDir` to be set to `generated-docs`. You may
+# also need to specify other configs, like `templates` or `exclude`.
+on:
+  workflow_call:
+    inputs:
+      projectDir:
+        description: "A root's subfolder containing the `contracts` folder and
+          the Yarn / Hardhat configuration. Leave empty ('') if the project
+          config resides in the root. If config resides in a subfolder, provide
+          the subfolder name/path, without leading `.` and ending `/`. For
+          example, type `/v2/solidity` if the path to the `contracts` folder is
+          `./v2/solidity/contracts`."
+        type: string
+        required: false
+        default: ""
+      trimComments:
+        description: "True if you want to remove space characters between `///`
+          and a comment text in the Solidity files, before generating `.md`
+          files. This may be needed to improve the look of the lists in the
+          generated files."
+        type: boolean
+        required: false
+        default: true
+      preProcessingCommand:
+        description: "An optional additional bash command to be executed before
+          transforming the Solidity files to Markdown file(s). The command will
+          be executed in the path specified by `projectDir`."
+        type: string
+        required: false
+      addTOC:
+        description: "True if you want to add Table Of Contents to the generated
+          Markdown file. Uses `markdown-toc` tool to generate TOC. Shouldn't be
+          set to `true` if Docgen's `pages` attribute in `hardhat.config.ts` is
+          set to `items` or `files`."
+        type: boolean
+        required: false
+        default: true
+      tocOptions:
+        description: "Options to be passed to the `markdown-toc` tool used for
+          generation of Table Of Contents. See
+          https://github.com/jonschlinkert/markdown-toc#cli for more details."
+        type: string
+        required: false
+        default: "-i --maxdepth 2"
+      postProcessingCommand:
+        description: "An optional additional bash command to be executed after
+          transforming the Solidity files to Markdown file(s). The command will
+          be executed in the path specified by `projectDir`."
+        type: string
+        required: false
+      publish:
+        description: "True if you want to push the generated file(s) to the
+          destination repository."
+        type: boolean
+        required: false
+        default: true
+      verifyCommits:
+        description: "True if you want to sign commits updating the docs using
+          GPG key. You'll need to specify `gpgPrivateKey` and `gpgPassphrase`
+          secrets."
+        type: boolean
+        required: false
+        default: false
+      destinationRepo:
+        description: "A name of the repository where the generated Solidity docs
+          will be pushed to. Required if `publish=true`."
+        type: string
+        required: false
+      destinationFolder:
+        description: "A path in the destination repository where the generated
+          Solidity docs will be pushed to. For example, `./docs-api/tbtc-v2`."
+        type: string
+        required: false
+        default: "."
+      destinationBaseBranch:
+        description: "A branch on the destination repository which will be set
+          as a base branch of the PR updating Solidity docs (must exist)."
+        type: string
+        required: false
+        default: "main"
+      userEmail:
+        description: "The email address of a GitHub user associated with the
+          `githubToken` secret. Will be used to sign commits. Required if
+          `publish=true`."
+        type: string
+        required: false
+      userName:
+        description: "The name of the GitHub user associated with the
+          `githubToken` secret. Will be used to sign commits. Required if
+          `publish=true`."
+        type: string
+        required: false
+      rsyncDelete:
+        description: "True if you want to delete from the destination folder
+          the files which were not generated during current run of the workflow.
+          Usually there shouldn't be need to set this option to `true` if
+          Docgen's `pages` attribute in `hardhat.config.ts` is set to `single`.
+          In other cases the option should be use with caution."
+        type: boolean
+        required: false
+        default: false
+      commentPR:
+        description: "True if you want to add a comment with the path to the
+          generated files in the PR invoking the workflow. If the workflow is
+          not triggered by the `pull_request` event, having this input set to
+          `true` will not brake the execution."
+        type: boolean
+        required: false
+        default: false
+      exportAsGHArtifacts:
+        description: "True if you want to see the artifacts generated on various
+          stages of workflow execution in the GH run details."
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      githubToken:
+        description: "A GitHub API token for the destination organization.
+          Should have `repo` scope. Required if `publish=true`."
+        required: false
+      gpgPrivateKey:
+        description: "A GPG private key needed when `verifyCommits` is set to
+          true. See
+          https://github.com/crazy-max/ghaction-import-gpg#prerequisites for
+          instructions on key generation."
+        required: false
+      gpgPassphrase:
+        description: "A passphrase of the GPG key. Needed when `verifyCommits`
+          is set to true."
+        required: false
+
+jobs:
+  docs-generate-html-and-publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .${{ inputs.projectDir }}
+    steps:
+      - uses: actions/checkout@v3
+
+      # In this step we modify the format of the comments in the Solidity
+      # contracts files. We do that because our original formatting is not
+      # processed by Docgen in the way we would like.
+      # To nicely display lists (like the list of requirements) we need to
+      # remove multiple space chars after the `///` comment. We do that by
+      # executing `sed 's_///[[:blank:]]*_///_'` on all contracts files, which
+      # substitutes `///` + 0 or more spaces/tabs with just `///`.
+
+      - name: Prepare contract files for further processing
+        if: inputs.trimComments
+        shell: bash
+        run: |
+          find ./contracts \
+            -name "*.sol" \
+            -type f \
+            -exec sed -i 's_///[[:blank:]]*_///_' {} \;
+
+      - name: Execute additional command
+        if: inputs.preProcessingCommand != null
+        shell: bash
+        run: ${{ inputs.preProcessingCommand }}
+
+      - name: Export artifacts
+        if: inputs.exportAsGHArtifacts == true
+        uses: actions/upload-artifact@master
+        with:
+          name: contracts-after-preprocessing
+          path: .${{ inputs.projectDir }}/contracts
+
+      # We may need this step in case we execute the workflow in a project
+      # that has a dependency to `@summa-tx/relay-sol@2.0.2` package, which
+      # downloads one of its sub-dependencies via unathenticated `git://`
+      # protocol. That protocol is no longer supported. Thanks to this step
+      # `https://` is used instead of `git://`.
+      - name: Configure git to don't use unauthenticated protocol
+        shell: bash
+        run: git config --global url."https://".insteadOf git://
+
+      - uses: actions/setup-node@v4
+        with:
+          # Using fixed version, because 18.16 was sometimes causing issues with
+          # artifacts generation during `hardhat compile` - see
+          # https://github.com/NomicFoundation/hardhat/issues/3877
+          node-version: "18.15.0"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: yarn install --frozen-lockfile
+
+      # Generates `.md` file(s) based on config in the `hardhat.config.ts`.
+      - name: Build Markdown docs
+        run: yarn run hardhat docgen
+
+      - name: Add Table of Contents
+        if: inputs.addTOC == true
+        run: |
+          yarn global add markdown-toc 
+          sed -i '2s/^/\<!-- toc --\> \n/' ./generated-docs/index.md
+          sed -i '2s/^/## Table Of Contents \n/' ./generated-docs/index.md
+          markdown-toc ${{ inputs.tocOptions }} ./generated-docs/index.md
+
+      - name: Execute additional command
+        if: inputs.postProcessingCommand != null
+        shell: bash
+        run: ${{ inputs.postProcessingCommand }}
+
+      - name: Export artifacts
+        if: inputs.exportAsGHArtifacts == true
+        uses: actions/upload-artifact@master
+        with:
+          name: contracts-final-output
+          path: .${{ inputs.projectDir }}/generated-docs
+
+      - name: Post link to artifacts in PR comment
+        if: |
+          inputs.exportAsGHArtifacts == true
+            && inputs.commentPR == true
+            && startsWith(github.ref, 'refs/pull')
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Solidity API documentation preview available in the artifacts of the https://github.com/${{ github.repository}}/actions/runs/${{ github.run_id}} check.'
+            })
+
+      - name: Import GPG key
+        if: inputs.publish == true && inputs.verifyCommits == true
+        uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549 # v5.2.0
+        with:
+          gpg_private_key: ${{ secrets.gpgPrivateKey }}
+          passphrase: ${{ secrets.gpgPassphrase }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
+      - name: Sync generated docs with the specified repository and create PR
+        if: inputs.publish == true
+        env:
+          GITHUB_TOKEN: ${{ secrets.githubToken }}
+        run: |
+          echo "➞ Configure environment variables"
+            head_branch=auto-update-solidity-api-docs
+            base_branch=${{ inputs.destinationBaseBranch }}
+          echo "➞ Checkout destination repo"
+            git clone --branch $base_branch \
+              https://${{ inputs.userName }}:$GITHUB_TOKEN@github.com/${{ inputs.destinationRepo }}.git \
+              dest-repo-clone
+          echo "➞ Create/checkout head branch"
+            cd dest-repo-clone
+            git checkout $head_branch || git checkout -b $head_branch
+          echo "➞ Synchronize docs"
+            mkdir -p ${{ inputs.destinationFolder }}
+            rsync -avh ${{ inputs.rsyncDelete && '--delete' || '' }} \
+              ../generated-docs \
+              ${{ inputs.destinationFolder }}
+          echo "➞ Commit changes"
+            git add -A
+            if git status | grep -q "Changes to be committed"
+            then
+              git config --global user.email ${{ inputs.userEmail }}
+              git config --global user.name ${{ inputs.userName }}
+              git commit ${{ inputs.verifyCommits && '-S' || '' }} \
+                -m "Update docs by https://github.com/${{ github.repository}}/actions/runs/${{ github.run_id}}"
+              echo "➞ Push commit"
+                git push --set-upstream origin HEAD:$head_branch
+              echo "➞ Check if PR for the head branch already exists"
+              dest_org=$(echo ${{ inputs.destinationRepo }} | cut -d'/' -f1)
+                pr_for_head=$(curl -L \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "Authorization: Bearer $GITHUB_TOKEN" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "https://api.github.com/repos/${{ inputs.destinationRepo }}/pulls?status=open&head=$dest_org:$head_branch")
+                if [[ $pr_for_head == $'[\n\n]' ]]; then
+                  echo "➞ Checked. A PR for the head branch ($head_branch) will be created"
+                    hub pull-request --base $base_branch \
+                      --message "Update Solidity API docs" \
+                      --message "Docs updated by workflow: https://github.com/${{ github.repository}}/actions/runs/${{ github.run_id}}"
+                else
+                  echo "➞ Checked. A PR for head branch ($head_branch) already exists and got updated."
+                fi
+            else
+              echo "➞ No changes detected, no commits will be made."
+              exit 0
+            fi
