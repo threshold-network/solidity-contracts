@@ -57,13 +57,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
           # https://github.com/NomicFoundation/hardhat/issues/3877
           node-version: "18.15.0"
-          cache: "yarn"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - name: Install dependencies
         run: yarn install
@@ -80,13 +82,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
           # https://github.com/NomicFoundation/hardhat/issues/3877
           node-version: "18.15.0"
-          cache: "yarn"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - name: Install dependencies
         run: yarn install
@@ -103,14 +107,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
           # https://github.com/NomicFoundation/hardhat/issues/3877
           node-version: "18.15.0"
-          cache: "yarn"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -172,13 +178,15 @@ jobs:
         with:
           name: Artifacts for etherscan verifcation
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
           # https://github.com/NomicFoundation/hardhat/issues/3877
           node-version: "18.15.0"
-          cache: "yarn"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - name: Install needed dependencies
         run: yarn install --frozen-lockfile
@@ -204,14 +212,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
           # https://github.com/NomicFoundation/hardhat/issues/3877
           node-version: "18.15.0"
-          cache: "yarn"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -259,13 +269,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 was sometimes causing issues with
           # artifacts generation during `hardhat compile` - see
           # https://github.com/NomicFoundation/hardhat/issues/3877
           node-version: "18.15.0"
-          cache: "yarn"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - uses: actions/setup-python@v4
         with:
