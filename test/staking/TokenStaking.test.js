@@ -539,20 +539,10 @@ describe("TokenStaking", () => {
             .approveApplication(application2Mock.address)
           await tokenStaking
             .connect(authorizer)
-            .increaseAuthorization(
-              stakingProvider.address,
-              application2Mock.address,
-              amount
-            )
-          await tokenStaking
-            .connect(authorizer)
             ["legacyRequestAuthorizationDecrease(address)"](
               stakingProvider.address
             )
-          await application1Mock.approveAuthorizationDecrease(
-            stakingProvider.address
-          )
-          tx = await application2Mock.approveAuthorizationDecrease(
+          tx = await application1Mock.approveAuthorizationDecrease(
             stakingProvider.address
           )
         })
@@ -564,12 +554,6 @@ describe("TokenStaking", () => {
               application1Mock.address
             )
           ).to.equal(0)
-          expect(
-            await tokenStaking.authorizedStake(
-              stakingProvider.address,
-              application2Mock.address
-            )
-          ).to.equal(0)
         })
 
         it("should emit AuthorizationDecreaseApproved", async () => {
@@ -577,7 +561,7 @@ describe("TokenStaking", () => {
             .to.emit(tokenStaking, "AuthorizationDecreaseApproved")
             .withArgs(
               stakingProvider.address,
-              application2Mock.address,
+              application1Mock.address,
               amount,
               Zero
             )
@@ -1180,6 +1164,330 @@ describe("TokenStaking", () => {
           .withArgs(stakingProvider.address, amount)
       })
     })
+  })
+
+  describe("migrateAndRelease", () => {
+    beforeEach(async () => {
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application1Mock.address)
+      await tokenStaking
+        .connect(deployer)
+        .approveApplication(application2Mock.address)
+      await tokenStaking.connect(staker).addToSkipList(application2Mock.address)
+
+      await tToken
+        .connect(staker)
+        .approve(tokenStaking.address, initialStakerBalance)
+      await tokenStaking
+        .connect(staker)
+        .stake(
+          stakingProvider.address,
+          beneficiary.address,
+          authorizer.address,
+          initialStakerBalance
+        )
+      await tokenStaking
+        .connect(staker)
+        .delegateVoting(stakingProvider.address, stakingProvider.address)
+    })
+
+    context("when caller is not TACo app", () => {
+      it("should revert", async () => {
+        await expect(
+          tokenStaking
+            .connect(staker)
+            .migrateAndRelease(stakingProvider.address, 0)
+        ).to.be.revertedWith("Application is not approved")
+        await expect(
+          application2Mock
+            .connect(staker)
+            .migrateAndRelease(stakingProvider.address, 0)
+        ).to.be.revertedWith("Only TACo app can call this method")
+      })
+    })
+
+    context("when staker hasn't authorized requested amount", () => {
+      it("should revert", async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            initialStakerBalance
+          )
+        await expect(
+          application1Mock
+            .connect(staker)
+            .migrateAndRelease(
+              stakingProvider.address,
+              initialStakerBalance.add(1)
+            )
+        ).to.be.revertedWith("Not enough authorization")
+      })
+    })
+
+    context("when amount to unstake is zero", () => {
+      const amount = initialStakerBalance
+      const amountToTransfer = amount
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(
+          amount
+        )
+        tx = await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amountToTransfer)
+      })
+
+      it("should update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should decrease authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(Zero)
+      })
+
+      it("should transfer tokens to the application address", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+        expect(await tToken.balanceOf(application1Mock.address)).to.equal(
+          amountToTransfer
+        )
+        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
+          .false
+      })
+
+      it("should create a new checkpoint for staker", async () => {
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(0)
+      })
+
+      it("should emit Unstaked", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, amount)
+      })
+    })
+
+    context("when amount to unstake is not zero", () => {
+      const amount = initialStakerBalance
+      const amountToTransfer = amount.div(3)
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(
+          amount
+        )
+        tx = await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amountToTransfer)
+      })
+
+      it("should update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should transfer tokens to the application address and staker", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+        expect(await tToken.balanceOf(application1Mock.address)).to.equal(
+          amountToTransfer
+        )
+        expect(await tToken.balanceOf(staker.address)).to.equal(
+          amount.sub(amountToTransfer)
+        )
+        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
+          .false
+      })
+
+      it("should decrease authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(Zero)
+      })
+
+      it("should create a new checkpoint for staker", async () => {
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(0)
+      })
+
+      it("should emit Unstaked", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, amount)
+      })
+    })
+
+    context("when authorization is stakeless", () => {
+      const amount = initialStakerBalance
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["legacyRequestAuthorizationDecrease(address)"](
+            stakingProvider.address
+          )
+        await application1Mock.approveAuthorizationDecrease(
+          stakingProvider.address
+        )
+
+        await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amount)
+      })
+
+      it("should not update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should return stakeless flag", async () => {
+        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
+          .true
+      })
+    })
+
+    context("when amount to transfer is zero and no authorization", () => {
+      const amount = initialStakerBalance
+      const amountToTransfer = 0
+      let tx
+
+      beforeEach(async () => {
+        await tokenStaking
+          .connect(authorizer)
+          .increaseAuthorization(
+            stakingProvider.address,
+            application1Mock.address,
+            amount
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["legacyRequestAuthorizationDecrease(address)"](
+            stakingProvider.address
+          )
+        await tokenStaking
+          .connect(authorizer)
+          ["legacyApproveAuthorizationDecrease(address,address)"](
+            stakingProvider.address,
+            application1Mock.address
+          )
+
+        tx = await application1Mock
+          .connect(staker)
+          .migrateAndRelease(stakingProvider.address, amountToTransfer)
+      })
+
+      it("should update T staked amount", async () => {
+        await assertStake(stakingProvider.address, Zero)
+      })
+
+      it("should transfer tokens to the staker", async () => {
+        expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+        expect(await tToken.balanceOf(application1Mock.address)).to.equal(0)
+        expect(await tToken.balanceOf(staker.address)).to.equal(amount)
+      })
+
+      it("should decrease authorized amount", async () => {
+        expect(
+          await tokenStaking.authorizedStake(
+            stakingProvider.address,
+            application1Mock.address
+          )
+        ).to.equal(Zero)
+      })
+
+      it("should create a new checkpoint for staker", async () => {
+        expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(0)
+      })
+
+      it("should emit Unstaked", async () => {
+        await expect(tx)
+          .to.emit(tokenStaking, "Unstaked")
+          .withArgs(stakingProvider.address, amount)
+      })
+    })
+
+    context(
+      "when amount to transfer is zero and tokens still authorized",
+      () => {
+        const amount = initialStakerBalance
+        const amountToTransfer = 0
+        let tx
+
+        beforeEach(async () => {
+          await tokenStaking
+            .connect(authorizer)
+            .increaseAuthorization(
+              stakingProvider.address,
+              application1Mock.address,
+              amount
+            )
+
+          tx = await application1Mock
+            .connect(staker)
+            .migrateAndRelease(stakingProvider.address, amountToTransfer)
+        })
+
+        it("should update T staked amount", async () => {
+          await assertStake(stakingProvider.address, Zero)
+        })
+
+        it("should transfer tokens to the staker", async () => {
+          expect(await tToken.balanceOf(tokenStaking.address)).to.equal(0)
+          expect(await tToken.balanceOf(application1Mock.address)).to.equal(0)
+          expect(await tToken.balanceOf(staker.address)).to.equal(amount)
+        })
+
+        it("should decrease authorized amount", async () => {
+          expect(
+            await tokenStaking.authorizedStake(
+              stakingProvider.address,
+              application1Mock.address
+            )
+          ).to.equal(Zero)
+        })
+
+        it("should create a new checkpoint for staker", async () => {
+          expect(await tokenStaking.getVotes(stakingProvider.address)).to.equal(
+            0
+          )
+        })
+
+        it("should emit Unstaked", async () => {
+          await expect(tx)
+            .to.emit(tokenStaking, "Unstaked")
+            .withArgs(stakingProvider.address, amount)
+        })
+      }
+    )
   })
 
   describe("withdrawNotificationReward", () => {
