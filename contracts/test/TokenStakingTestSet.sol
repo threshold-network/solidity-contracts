@@ -261,7 +261,7 @@ contract ExtendedTokenStaking is TokenStaking {
 
     /// @notice Allows the Governance to approve the particular application
     ///         before individual stake authorizers are able to authorize it.
-    function approveApplication(address application) external override {
+    function approveApplication(address application) external override onlyGovernance {
         require(application != address(0), "Parameters must be specified");
         ApplicationInfo storage info = applicationInfo[application];
         require(
