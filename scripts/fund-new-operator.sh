@@ -41,8 +41,9 @@ fi
 : "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:?Set CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY (deployer with T balance)}"
 
 echo "=== Transfer 80,000 T to staking provider ==="
-cast send $T_TOKEN "transfer(address,uint256)" $NEW_STAKING_PROVIDER_ADDRESS $AMOUNT_80K \
-  --rpc-url $CHAIN_API_URL --private-key $CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" \
+  cast send $T_TOKEN "transfer(address,uint256)" $NEW_STAKING_PROVIDER_ADDRESS $AMOUNT_80K \
+  --rpc-url $CHAIN_API_URL
 
 echo ""
 echo "=== Sepolia ETH ==="
