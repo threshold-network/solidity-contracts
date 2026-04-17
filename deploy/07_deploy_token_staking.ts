@@ -36,6 +36,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       abi: JSON.parse(jsonAbi as string),
     }
     const fs = require("fs")
+    const deploymentsDir = `deployments/${hre.network.name}`
+    fs.mkdirSync(deploymentsDir, { recursive: true })
+
+    await deployments.save("TokenStaking", tokenStakingDeployment)
+
     fs.writeFileSync(
       "TokenStaking.json",
       JSON.stringify(tokenStakingDeployment, null, 2),
@@ -45,6 +50,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
           console.log(err)
         }
       }
+    )
+    fs.writeFileSync(
+      `${deploymentsDir}/TokenStaking.json`,
+      JSON.stringify(tokenStakingDeployment, null, 2),
+      "utf8"
     )
     log(`Saved TokenStaking address and ABI in TokenStaking.json`)
   } else {

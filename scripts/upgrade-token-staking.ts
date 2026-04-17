@@ -1,7 +1,6 @@
 /**
  * Upgrades the TokenStaking proxy to ExtendedTokenStaking (adds stake()).
  * Run: npx hardhat run scripts/upgrade-token-staking.ts --network sepolia
- * Or from repo root: bash scripts/upgrade-token-staking-sepolia.sh
  *
  * Requires:
  * - TokenStaking already deployed (proxy exists)

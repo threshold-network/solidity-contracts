@@ -10,8 +10,8 @@ import { ethers, upgrades } from "hardhat"
  * migrations. Run this on sepolia (or other testnets) where operators need to
  * stake T directly.
  *
- * From repo root (syncs deployments, upgrades, copies ABI to tbtc-v2):
- *   bash scripts/upgrade-token-staking-sepolia.sh
+ * From `solidity-contracts/` repo root:
+ *   npx hardhat deploy --network sepolia --tags UpgradeTokenStaking
  */
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts } = hre

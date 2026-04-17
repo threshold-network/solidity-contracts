@@ -21,3 +21,10 @@ yarn-error.log
 
 # OpenZeppelin
 .openzeppelin/unknown-*.json
+
+# Generated operator setup artifacts
+operator-*-keystore/
+spv-maintainer-keystore/
+.env.new-operator
+.env.operator-*
+.env

@@ -119,20 +119,20 @@ run_existing_operator() {
   op_key=${!op_key}
   [ -n "$sp_addr" ] && [ -n "$sp_key" ] && [ -n "$op_addr" ] && [ -n "$op_key" ] || return 1
   echo "--- Operator $i/$N (existing) ---"
-  cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
+  ETH_PRIVATE_KEY="$sp_key" cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
     "$sp_addr" $RANDOM_BEACON $AMOUNT_40K \
-    --rpc-url $CHAIN_API_URL --private-key "$sp_key"
-  cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$sp_key" cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
     "$sp_addr" $WALLET_REGISTRY $AMOUNT_40K \
-    --rpc-url $CHAIN_API_URL --private-key "$sp_key"
-  cast_send_ok $RANDOM_BEACON "registerOperator(address)" "$op_addr" \
-    --rpc-url $CHAIN_API_URL --private-key "$sp_key"
-  cast_send_ok $WALLET_REGISTRY "registerOperator(address)" "$op_addr" \
-    --rpc-url $CHAIN_API_URL --private-key "$sp_key"
-  cast_send_ok $RANDOM_BEACON "joinSortitionPool()" \
-    --rpc-url $CHAIN_API_URL --private-key "$op_key"
-  cast_send_ok $WALLET_REGISTRY "joinSortitionPool()" \
-    --rpc-url $CHAIN_API_URL --private-key "$op_key"
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$sp_key" cast_send_ok $RANDOM_BEACON "registerOperator(address)" "$op_addr" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$sp_key" cast_send_ok $WALLET_REGISTRY "registerOperator(address)" "$op_addr" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$op_key" cast_send_ok $RANDOM_BEACON "joinSortitionPool()" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$op_key" cast_send_ok $WALLET_REGISTRY "joinSortitionPool()" \
+    --rpc-url $CHAIN_API_URL
   echo "  Registered: $op_addr"
 }
 
@@ -162,36 +162,36 @@ for i in $(seq 1 "$N"); do
   fi
 
   # Fund with T
-  cast_send_ok $T_TOKEN "transfer(address,uint256)" "$NEW_STAKING_PROVIDER_ADDRESS" $AMOUNT_80K \
-    --rpc-url $CHAIN_API_URL --private-key $CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+  ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok $T_TOKEN "transfer(address,uint256)" "$NEW_STAKING_PROVIDER_ADDRESS" $AMOUNT_80K \
+    --rpc-url $CHAIN_API_URL
 
   # Fund with ETH
-  cast_send_ok "$NEW_STAKING_PROVIDER_ADDRESS" --value $ETH_PER_OPERATOR \
-    --rpc-url $CHAIN_API_URL --private-key $CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-  cast_send_ok "$NEW_OPERATOR_ADDRESS" --value $ETH_PER_OPERATOR \
-    --rpc-url $CHAIN_API_URL --private-key $CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+  ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok "$NEW_STAKING_PROVIDER_ADDRESS" --value $ETH_PER_OPERATOR \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok "$NEW_OPERATOR_ADDRESS" --value $ETH_PER_OPERATOR \
+    --rpc-url $CHAIN_API_URL
 
   # Stake, authorize, register, join
-  cast_send_ok $T_TOKEN "approve(address,uint256)" $TOKEN_STAKING $AMOUNT_80K \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_STAKING_PROVIDER_KEY
-  cast_send_ok $TOKEN_STAKING "stake(address,address,address,uint96)" \
+  ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" cast_send_ok $T_TOKEN "approve(address,uint256)" $TOKEN_STAKING $AMOUNT_80K \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" cast_send_ok $TOKEN_STAKING "stake(address,address,address,uint96)" \
     "$NEW_STAKING_PROVIDER_ADDRESS" "$NEW_STAKING_PROVIDER_ADDRESS" "$NEW_STAKING_PROVIDER_ADDRESS" $AMOUNT_80K \
     --gas-limit "$OPERATOR_STAKE_GAS_LIMIT" \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_STAKING_PROVIDER_KEY
-  cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
     "$NEW_STAKING_PROVIDER_ADDRESS" $RANDOM_BEACON $AMOUNT_40K \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_STAKING_PROVIDER_KEY
-  cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
     "$NEW_STAKING_PROVIDER_ADDRESS" $WALLET_REGISTRY $AMOUNT_40K \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_STAKING_PROVIDER_KEY
-  cast_send_ok $RANDOM_BEACON "registerOperator(address)" "$NEW_OPERATOR_ADDRESS" \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_STAKING_PROVIDER_KEY
-  cast_send_ok $WALLET_REGISTRY "registerOperator(address)" "$NEW_OPERATOR_ADDRESS" \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_STAKING_PROVIDER_KEY
-  cast_send_ok $RANDOM_BEACON "joinSortitionPool()" \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_OPERATOR_KEY
-  cast_send_ok $WALLET_REGISTRY "joinSortitionPool()" \
-    --rpc-url $CHAIN_API_URL --private-key $NEW_OPERATOR_KEY
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" cast_send_ok $RANDOM_BEACON "registerOperator(address)" "$NEW_OPERATOR_ADDRESS" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" cast_send_ok $WALLET_REGISTRY "registerOperator(address)" "$NEW_OPERATOR_ADDRESS" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$NEW_OPERATOR_KEY" cast_send_ok $RANDOM_BEACON "joinSortitionPool()" \
+    --rpc-url $CHAIN_API_URL
+  ETH_PRIVATE_KEY="$NEW_OPERATOR_KEY" cast_send_ok $WALLET_REGISTRY "joinSortitionPool()" \
+    --rpc-url $CHAIN_API_URL
 
   echo "  Registered: $NEW_OPERATOR_ADDRESS"
 done
