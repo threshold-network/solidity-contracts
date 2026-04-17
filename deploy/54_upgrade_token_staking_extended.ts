@@ -1,5 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
+import * as fs from "fs"
 
 import { ethers, upgrades } from "hardhat"
 
@@ -29,7 +30,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     proxyAddress = existing.address
   } else {
     // 07_deploy_token_staking saves to TokenStaking.json in deployments dir
-    const fs = require("fs")
     const deploymentPath = `deployments/${hre.network.name}/TokenStaking.json`
     if (!fs.existsSync(deploymentPath)) {
       log("TokenStaking not deployed, skipping upgrade")
@@ -47,12 +47,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "ExtendedTokenStaking"
   )
 
+  // 07_deploy_token_staking uses deployProxy without specifying kind;
+  // the OZ plugin defaults to transparent for contracts that lack upgradeTo().
+  // Verify on-chain with:
+  //   cast storage <PROXY_ADDR> 0xb53127684a568b3173ae13b9f8a6016e243e63b4 --rpc-url $RPC
+  // Non-zero = transparent proxy (ProxyAdmin slot); zero = UUPS.
   const upgraded = await upgrades.upgradeProxy(
     proxyAddress,
     ExtendedTokenStaking,
     {
       constructorArgs: [T.address],
-      kind: "transparent",
     }
   )
   await upgraded.deployed()
@@ -66,7 +70,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     address: upgraded.address,
     abi: JSON.parse(jsonAbi as string),
   }
-  const fs = require("fs")
   const deploymentsDir = `deployments/${hre.network.name}`
   fs.writeFileSync(
     `${deploymentsDir}/TokenStaking.json`,

@@ -16,7 +16,9 @@
 #
 # Usage:
 #   source .env
-#   source .env.new-operator   # or export NEW_* vars manually
+#   source .env.new-operator          # provides addresses + OPERATOR_KEYSTORE_PATH
+#   export NEW_STAKING_PROVIDER_KEY=0x...  # key shown once by setup-new-staking-provider.js
+#   export NEW_OPERATOR_KEY=0x...          # or use OPERATOR_KEYSTORE_PATH + password instead
 #   bash scripts/run-new-operator-setup.sh
 #
 set -e
@@ -40,14 +42,23 @@ if [ -f .env.new-operator ]; then source .env.new-operator; fi
 
 : "${CHAIN_API_URL:?Set CHAIN_API_URL}"
 : "${NEW_STAKING_PROVIDER_ADDRESS:?Run setup-new-staking-provider.js first}"
-: "${NEW_STAKING_PROVIDER_KEY:?Run setup-new-staking-provider.js first}"
+: "${NEW_STAKING_PROVIDER_KEY:?Export NEW_STAKING_PROVIDER_KEY (shown once by setup-new-staking-provider.js)}"
 : "${NEW_OPERATOR_ADDRESS:?Run setup-new-staking-provider.js first}"
-: "${NEW_OPERATOR_KEY:?Run setup-new-staking-provider.js first}"
+: "${NEW_OPERATOR_KEY:?Export NEW_OPERATOR_KEY (shown once by setup-new-staking-provider.js)}"
 
 SP="$NEW_STAKING_PROVIDER_ADDRESS"
 SP_KEY="$NEW_STAKING_PROVIDER_KEY"
 OP="$NEW_OPERATOR_ADDRESS"
 OP_KEY="$NEW_OPERATOR_KEY"
+
+# Use ETH_PRIVATE_KEY env var so keys are not passed as CLI arguments
+# (--private-key exposes the key in ps aux and shell history)
+_sp_cast_send_ok() {
+  ETH_PRIVATE_KEY="$SP_KEY" cast_send_ok "$@"
+}
+_op_cast_send_ok() {
+  ETH_PRIVATE_KEY="$OP_KEY" cast_send_ok "$@"
+}
 
 cast_send_ok() {
   local out tx st
@@ -71,40 +82,40 @@ cast_send_ok() {
 }
 
 echo "=== Step 1: Approve TokenStaking to spend T ==="
-cast_send_ok $T_TOKEN "approve(address,uint256)" $TOKEN_STAKING $AMOUNT_80K \
-  --rpc-url $CHAIN_API_URL --private-key $SP_KEY
+_sp_cast_send_ok $T_TOKEN "approve(address,uint256)" $TOKEN_STAKING $AMOUNT_80K \
+  --rpc-url $CHAIN_API_URL
 
 echo "=== Step 2: Stake 80,000 T (stakingProvider = beneficiary = authorizer) ==="
-cast_send_ok $TOKEN_STAKING "stake(address,address,address,uint96)" \
+_sp_cast_send_ok $TOKEN_STAKING "stake(address,address,address,uint96)" \
   $SP $SP $SP $AMOUNT_80K \
   --gas-limit "$OPERATOR_STAKE_GAS_LIMIT" \
-  --rpc-url $CHAIN_API_URL --private-key $SP_KEY
+  --rpc-url $CHAIN_API_URL
 
 echo "=== Step 3: Authorize for RandomBeacon (40,000 T) ==="
-cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
+_sp_cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
   $SP $RANDOM_BEACON $AMOUNT_40K \
-  --rpc-url $CHAIN_API_URL --private-key $SP_KEY
+  --rpc-url $CHAIN_API_URL
 
 echo "=== Step 4: Authorize for WalletRegistry (40,000 T) ==="
-cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
+_sp_cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
   $SP $WALLET_REGISTRY $AMOUNT_40K \
-  --rpc-url $CHAIN_API_URL --private-key $SP_KEY
+  --rpc-url $CHAIN_API_URL
 
 echo "=== Step 5: Register operator in RandomBeacon (staking provider signs) ==="
-cast_send_ok $RANDOM_BEACON "registerOperator(address)" $OP \
-  --rpc-url $CHAIN_API_URL --private-key $SP_KEY
+_sp_cast_send_ok $RANDOM_BEACON "registerOperator(address)" $OP \
+  --rpc-url $CHAIN_API_URL
 
 echo "=== Step 6: Register operator in WalletRegistry (staking provider signs) ==="
-cast_send_ok $WALLET_REGISTRY "registerOperator(address)" $OP \
-  --rpc-url $CHAIN_API_URL --private-key $SP_KEY
+_sp_cast_send_ok $WALLET_REGISTRY "registerOperator(address)" $OP \
+  --rpc-url $CHAIN_API_URL
 
 echo "=== Step 7: Operator joins BeaconSortitionPool ==="
-cast_send_ok $RANDOM_BEACON "joinSortitionPool()" \
-  --rpc-url $CHAIN_API_URL --private-key $OP_KEY
+_op_cast_send_ok $RANDOM_BEACON "joinSortitionPool()" \
+  --rpc-url $CHAIN_API_URL
 
 echo "=== Step 8: Operator joins EcdsaSortitionPool ==="
-cast_send_ok $WALLET_REGISTRY "joinSortitionPool()" \
-  --rpc-url $CHAIN_API_URL --private-key $OP_KEY
+_op_cast_send_ok $WALLET_REGISTRY "joinSortitionPool()" \
+  --rpc-url $CHAIN_API_URL
 
 echo ""
 echo "=== Done. Operator $OP is registered and in both sortition pools. ==="
