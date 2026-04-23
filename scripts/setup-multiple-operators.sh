@@ -81,7 +81,12 @@ CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY=$(strip_secret "${CONTRACT_OWNER_ACCOUNT_PRIV
 # run increaseAuthorization next (that fails with "Not authorizer" when stake never succeeded).
 cast_send_ok() {
   local out tx st
-  out=$(cast send "$@" 2>&1) || {
+  local _pk="${ETH_PRIVATE_KEY:-}"
+  if [ -z "$_pk" ]; then
+    echo "cast_send_ok: ETH_PRIVATE_KEY is unset or empty" >&2
+    return 1
+  fi
+  out=$(cast send "$@" --private-key "$_pk" 2>&1) || {
     echo "$out"
     return 1
   }
@@ -166,6 +171,9 @@ if [ "$USE_EXISTING" = true ]; then
   exit 0
 fi
 
+# Sourcing .env.operator-* must not clobber the deployer key (stale files sometimes set CONTRACT_OWNER_*).
+_DEPLOYER_ACCOUNT_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY"
+
 for i in $(seq 1 "$N"); do
   echo "--- Operator $i/$N ---"
 
@@ -180,6 +188,7 @@ for i in $(seq 1 "$N"); do
   NEW_OPERATOR_KEY=$(strip_secret "${NEW_OPERATOR_KEY:-}")
   NEW_STAKING_PROVIDER_ADDRESS=$(strip_secret "${NEW_STAKING_PROVIDER_ADDRESS:-}")
   NEW_OPERATOR_ADDRESS=$(strip_secret "${NEW_OPERATOR_ADDRESS:-}")
+  CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY="$_DEPLOYER_ACCOUNT_PRIVATE_KEY"
   if [ -z "${NEW_STAKING_PROVIDER_KEY:-}" ] || [ -z "${NEW_OPERATOR_KEY:-}" ]; then
     echo "ERROR: .env.operator-${i} is missing NEW_STAKING_PROVIDER_KEY / NEW_OPERATOR_KEY." >&2
     echo "       Remove stale solidity-contracts/.env.operator-* (old generator did not write keys) and re-run." >&2
