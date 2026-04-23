@@ -28,6 +28,15 @@
 #
 set -e
 
+# CRLF or stray whitespace in .env / vault-sourced vars breaks `cast` ("Failed to decode private key").
+strip_secret() {
+  local s="$1"
+  s="${s//$'\r'/}"
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
+  printf '%s' "$s"
+}
+
 N="${1:-100}"
 PASSWORD="${2:-}"
 USE_EXISTING=false
@@ -57,7 +66,14 @@ OPERATOR_STAKE_GAS_LIMIT="${OPERATOR_STAKE_GAS_LIMIT:-700000}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
+# If the parent (Ansible/CI) exported CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY, do not let
+# a stale solidity-contracts/.env overwrite it when sourced.
+_saved_contract_owner_pk="${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}"
 if [ -f .env ]; then source .env; fi
+if [ -n "$_saved_contract_owner_pk" ]; then
+  CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY="$_saved_contract_owner_pk"
+fi
+CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY=$(strip_secret "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}")
 
 : "${CHAIN_API_URL:?Set CHAIN_API_URL in .env}"
 
@@ -96,6 +112,7 @@ if [ "$USE_EXISTING" = true ]; then
   OPERATORS_CONFIG="${OPERATORS_CONFIG:-.env.operators-3}"
   [ -f "$OPERATORS_CONFIG" ] || { echo "Missing $OPERATORS_CONFIG. Copy from .env.operators-3.example"; exit 1; }
   source "$OPERATORS_CONFIG"
+  CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY=$(strip_secret "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}")
   echo "=== Registering $N existing operators (authorize, register, join) ==="
 else
   : "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:?Set CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY in .env}"
@@ -117,6 +134,10 @@ run_existing_operator() {
   sp_key=${!sp_key}
   op_addr=${!op_addr}
   op_key=${!op_key}
+  sp_addr=$(strip_secret "$sp_addr")
+  sp_key=$(strip_secret "$sp_key")
+  op_addr=$(strip_secret "$op_addr")
+  op_key=$(strip_secret "$op_key")
   [ -n "$sp_addr" ] && [ -n "$sp_key" ] && [ -n "$op_addr" ] && [ -n "$op_key" ] || return 1
   echo "--- Operator $i/$N (existing) ---"
   ETH_PRIVATE_KEY="$sp_key" cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
@@ -149,11 +170,23 @@ for i in $(seq 1 "$N"); do
   echo "--- Operator $i/$N ---"
 
   # Generate new staking provider + operator (writes .env.operator-$i when index passed)
-  node scripts/setup-new-staking-provider.js "${PASSWORD:-operator-$i}" "$i" > /dev/null 2>&1
+  if ! node scripts/setup-new-staking-provider.js "${PASSWORD:-operator-$i}" "$i" >/dev/null; then
+    echo "ERROR: setup-new-staking-provider.js failed for operator index $i (see stderr above)." >&2
+    exit 1
+  fi
   # shellcheck source=/dev/null
   source ".env.operator-${i}"
+  NEW_STAKING_PROVIDER_KEY=$(strip_secret "${NEW_STAKING_PROVIDER_KEY:-}")
+  NEW_OPERATOR_KEY=$(strip_secret "${NEW_OPERATOR_KEY:-}")
+  NEW_STAKING_PROVIDER_ADDRESS=$(strip_secret "${NEW_STAKING_PROVIDER_ADDRESS:-}")
+  NEW_OPERATOR_ADDRESS=$(strip_secret "${NEW_OPERATOR_ADDRESS:-}")
+  if [ -z "${NEW_STAKING_PROVIDER_KEY:-}" ] || [ -z "${NEW_OPERATOR_KEY:-}" ]; then
+    echo "ERROR: .env.operator-${i} is missing NEW_STAKING_PROVIDER_KEY / NEW_OPERATOR_KEY." >&2
+    echo "       Remove stale solidity-contracts/.env.operator-* (old generator did not write keys) and re-run." >&2
+    exit 1
+  fi
 
-  _sp_derived=$(cast wallet address "$NEW_STAKING_PROVIDER_KEY")
+  _sp_derived=$(cast wallet address --private-key "$NEW_STAKING_PROVIDER_KEY")
   _sp_a=$(echo "$_sp_derived" | tr '[:upper:]' '[:lower:]')
   _sp_b=$(echo "$NEW_STAKING_PROVIDER_ADDRESS" | tr '[:upper:]' '[:lower:]')
   if [ "$_sp_a" != "$_sp_b" ]; then

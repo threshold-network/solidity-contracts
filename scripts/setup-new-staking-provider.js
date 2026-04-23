@@ -9,8 +9,9 @@
  * instead of .env.new-operator (for multi-operator setups).
  *
  * Output:
- *   - Staking provider: address only (private key is NOT written to disk -- store it yourself)
- *   - Operator: address + encrypted keystore file (use for keep-client and joinSortitionPool)
+ *   - Staking provider + operator addresses and private keys in .env.operator-{n} (gitignored),
+ *     required by scripts/setup-multiple-operators.sh for automated cast txs.
+ *   - Operator: encrypted keystore file (use for keep-client and joinSortitionPool)
  *
  * Prerequisites:
  *   - 80,000 T tokens (40k for RandomBeacon + 40k for WalletRegistry)
@@ -60,22 +61,29 @@ async function main() {
 # NEVER commit this file -- add .env.new-operator and .env.operator-* to .gitignore.
 
 # Staking provider (owns stake, authorizes, registers operator)
-# WARNING: private key is NOT stored here. Save it to a hardware wallet or password manager.
-NEW_STAKING_PROVIDER_ADDRESS=${stakingProvider.address}
+NEW_STAKING_PROVIDER_ADDRESS="${stakingProvider.address}"
+NEW_STAKING_PROVIDER_KEY="${stakingProvider.privateKey}"
 
 # Operator (runs keep-client, calls joinSortitionPool)
-NEW_OPERATOR_ADDRESS=${operator.address}
-OPERATOR_KEYSTORE_PATH=${path.resolve(operatorFilepath)}
+NEW_OPERATOR_ADDRESS="${operator.address}"
+NEW_OPERATOR_KEY="${operator.privateKey}"
+OPERATOR_KEYSTORE_PATH="${path.resolve(operatorFilepath)}"
 `;
 
     await fs.promises.writeFile(envPath, envContent);
 
     console.log("=== New Staking Provider + Operator ===\n");
     console.log("Staking provider address:", stakingProvider.address);
-    console.log("Staking provider key:    ", stakingProvider.privateKey);
-    console.log(
-      "  ^^^ COPY AND STORE THIS KEY NOW -- it is shown once and NOT saved to any file ^^^"
-    );
+    if (!opIndex) {
+      console.log("Staking provider key:    ", stakingProvider.privateKey);
+      console.log(
+        "  ^^^ For .env.new-operator flows: copy the key now, or read it from the env file after re-run with index. ^^^"
+      );
+    } else {
+      console.log(
+        "Staking provider + operator keys are in the env file (gitignored) for automated setup."
+      );
+    }
     console.log("\nOperator address:       ", operator.address);
     console.log("Operator keystore:      ", operatorFilepath);
     console.log("\nEnv file written to:    ", path.resolve(envPath));
