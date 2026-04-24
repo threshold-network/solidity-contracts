@@ -7,8 +7,10 @@
 #   --existing Use existing operators from .env.operators-N (authorize, register, join only).
 #              Auto-selected when N=3 and .env.operators-3 exists.
 #
-# Prerequisites (--new): python3; deployer has N×80k T and ~N×0.2 ETH (or AUTO_FUND_T=1, default, and
-#   deployer / T_MINTER_PRIVATE_KEY is T owner so shortfall is minted)
+# Prerequisites (--new): python3; deployer has N×80k T and enough native ETH: per operator the deployer
+#   sends ETH_PER_OPERATOR (default 0.05ether) to each new staking provider and operator (2×), plus gas
+#   for T transfers and those sends. Or AUTO_FUND_T=1 (default) when deployer / T_MINTER_PRIVATE_KEY is
+#   T owner so T shortfall is minted (does not mint native ETH).
 #   TokenStaking proxy MUST use ExtendedTokenStaking (implements stake()). If stake() is missing,
 #   txs revert with empty data (~30k gas) and increaseAuthorization fails with "Not authorizer".
 #   One-time: cd solidity-contracts && yarn deploy --network sepolia --tags TokenStakingUpgrade
@@ -20,6 +22,9 @@
 #
 # Optional env (--new): AUTO_FUND_T=1 (default if unset) mints missing T via T.mint when deployer or
 #   T_MINTER_PRIVATE_KEY matches T.owner(). Set AUTO_FUND_T=0 to require a pre-funded deployer.
+#   ETH_PER_OPERATOR: native ETH sent to each new SP and each operator (default 0.05ether). Sepolia
+#   gas for stake/register/join can exceed 0.001ether per address; override if your network is cheaper.
+#   CAST_SEND_MAX_RETRIES: retries for cast "nonce too low" / RPC lag (default 10, exponential backoff).
 #   python3 is required for --new. Parent/Ansible export wins over .env for deployer / T minter keys.
 #
 # Usage:
@@ -57,11 +62,23 @@ for arg in "$@"; do
   esac
 done
 
-ETH_PER_OPERATOR="0.001ether"
+ETH_PER_OPERATOR="${ETH_PER_OPERATOR:-0.05ether}"
 
-# Contract addresses (from tbtc-v2 deployments)
+# Contract addresses (from tbtc-v2 deployments). Script may live under
+# solidity-contracts/scripts/ OR be staged at <workspace>/scripts/ (runner); resolve workspace first.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOYMENTS="$(cd "$SCRIPT_DIR/../../tbtc-v2/solidity/deployments/sepolia" && pwd)"
+if [ -n "${THRESHOLD_WORKSPACE_ROOT:-}" ] && [ -d "${THRESHOLD_WORKSPACE_ROOT}/tbtc-v2/solidity/deployments/sepolia" ]; then
+  _ws="$(cd "${THRESHOLD_WORKSPACE_ROOT}" && pwd)"
+elif [ -d "$SCRIPT_DIR/../tbtc-v2/solidity/deployments/sepolia" ]; then
+  _ws="$(cd "$SCRIPT_DIR/.." && pwd)"
+elif [ -d "$SCRIPT_DIR/../../tbtc-v2/solidity/deployments/sepolia" ]; then
+  _ws="$(cd "$SCRIPT_DIR/../.." && pwd)"
+else
+  echo "ERROR: cannot find tbtc-v2/solidity/deployments/sepolia (set THRESHOLD_WORKSPACE_ROOT to the repo root)." >&2
+  exit 1
+fi
+DEPLOYMENTS="$(cd "$_ws/tbtc-v2/solidity/deployments/sepolia" && pwd)"
+SOLIDITY_CONTRACTS_DIR="${SOLIDITY_CONTRACTS_DIR:-$_ws/solidity-contracts}"
 TOKEN_STAKING="$(jq -re '.address' "$DEPLOYMENTS/TokenStaking.json")"
 RANDOM_BEACON="$(jq -re '.address' "$DEPLOYMENTS/RandomBeacon.json")"
 WALLET_REGISTRY="$(jq -re '.address' "$DEPLOYMENTS/WalletRegistry.json")"
@@ -72,8 +89,7 @@ AMOUNT_80K="$(cast to-wei 80000)"
 # transfer) while the tx is valid. Override if needed: OPERATOR_STAKE_GAS_LIMIT=800000
 OPERATOR_STAKE_GAS_LIMIT="${OPERATOR_STAKE_GAS_LIMIT:-700000}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+cd "$SOLIDITY_CONTRACTS_DIR"
 
 # If the parent (Ansible/CI) exported CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY / T_MINTER_PRIVATE_KEY,
 # do not let a stale solidity-contracts/.env overwrite them when sourced.
@@ -93,17 +109,40 @@ T_MINTER_PRIVATE_KEY=$(strip_secret "${T_MINTER_PRIVATE_KEY:-}")
 
 # cast send often exits 0 even when the mined tx reverts. Abort if receipt status != 1 so we do not
 # run increaseAuthorization next (that fails with "Not authorizer" when stake never succeeded).
+#
+# Public RPCs (e.g. Alchemy) sometimes return "nonce too low" when the node has not caught up to the
+# previous tx yet. Retry with backoff (override via CAST_SEND_MAX_RETRIES).
 cast_send_ok() {
-  local out tx st
+  local out tx st attempts max sleep_s
   local _pk="${ETH_PRIVATE_KEY:-}"
   if [ -z "$_pk" ]; then
     echo "cast_send_ok: ETH_PRIVATE_KEY is unset or empty" >&2
     return 1
   fi
-  out=$(cast send "$@" --private-key "$_pk" 2>&1) || {
+  attempts=1
+  max="${CAST_SEND_MAX_RETRIES:-10}"
+  sleep_s=1
+  while true; do
+    if out=$(cast send "$@" --private-key "$_pk" 2>&1); then
+      break
+    fi
+    if echo "$out" | grep -qiE 'nonce too low|nonce has already been used|transaction already|already known'; then
+      if [ "$attempts" -ge "$max" ]; then
+        echo "$out" >&2
+        echo "cast_send_ok: exhausted $max retries for nonce/RPC race" >&2
+        return 1
+      fi
+      echo "cast_send_ok: transient RPC/nonce error (attempt $attempts/$max), retrying in ${sleep_s}s..." >&2
+      sleep "$sleep_s"
+      attempts=$((attempts + 1))
+      if [ "$sleep_s" -lt 16 ]; then
+        sleep_s=$((sleep_s * 2))
+      fi
+      continue
+    fi
     echo "$out"
     return 1
-  }
+  done
   echo "$out"
   # Match only the receipt line; do not use /transactionHash/ — logs JSON also contains "transactionHash".
   tx=$(echo "$out" | awk '/^[[:space:]]*transactionHash[[:space:]]/ {print $2; exit}')
@@ -145,8 +184,15 @@ resolve_t_minter_private_key() {
       printf '%s' "${T_MINTER_PRIVATE_KEY}"
       return 0
     fi
+    echo "ERROR: T_MINTER_PRIVATE_KEY controls ${_mk_addr}, not T owner ($_t_owner)." >&2
+    if [ "$(normalize_addr "$_mk_addr")" = "$(normalize_addr "$_deployer_addr")" ]; then
+      echo "       That key is the deployer; t_minter must be the separate owner key (or pre-fund T and use AUTO_FUND_T=0)." >&2
+    fi
+    return 1
   fi
-  echo "ERROR: No key matches T owner ($_t_owner). Use deployer = owner or set T_MINTER_PRIVATE_KEY." >&2
+  echo "ERROR: No key matches T owner ($_t_owner); deployer is $_deployer_addr." >&2
+  echo "       Set T_MINTER_PRIVATE_KEY to the owner key, or Ansible vault t_minter_private_key for operators register." >&2
+  echo "       Or pre-fund the deployer with T and set AUTO_FUND_T=0." >&2
   return 1
 }
 
@@ -197,7 +243,7 @@ else
   : "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:?Set CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY in .env}"
   echo "=== Registering $N new operators ==="
   echo "T required: $((N * 80000)) (80k per operator)"
-  echo "ETH required: ~$((N * 2)) (0.001 ETH × 2 addresses × $N)"
+  echo "ETH: deployer funds each new SP + operator with ETH_PER_OPERATOR=$ETH_PER_OPERATOR (override via env)"
   echo "TokenStaking: use ExtendedTokenStaking (yarn deploy --network sepolia --tags TokenStakingUpgrade)"
   echo "Chaosnet: run bash scripts/deactivate-chaosnet.sh from repo root (uses pools linked on-chain)"
 fi
