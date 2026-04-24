@@ -7,7 +7,8 @@
 #   --existing Use existing operators from .env.operators-N (authorize, register, join only).
 #              Auto-selected when N=3 and .env.operators-3 exists.
 #
-# Prerequisites (--new): Deployer has N×80k T and ~N×0.2 ETH (or AUTO_FUND_T=1 and deployer / T_MINTER_PRIVATE_KEY is T owner)
+# Prerequisites (--new): python3; deployer has N×80k T and ~N×0.2 ETH (or AUTO_FUND_T=1, default, and
+#   deployer / T_MINTER_PRIVATE_KEY is T owner so shortfall is minted)
 #   TokenStaking proxy MUST use ExtendedTokenStaking (implements stake()). If stake() is missing,
 #   txs revert with empty data (~30k gas) and increaseAuthorization fails with "Not authorizer".
 #   One-time: cd solidity-contracts && yarn deploy --network sepolia --tags TokenStakingUpgrade
@@ -17,8 +18,9 @@
 # Prerequisites (--existing): .env.operators-3 with OPn_STAKING_PROVIDER_*, OPn_OPERATOR_*;
 #                            staking providers already staked with 80k T.
 #
-# Optional env (--new): AUTO_FUND_T=1 mints missing T to the deployer via T.mint when deployer or
-#   T_MINTER_PRIVATE_KEY matches T.owner(). Parent/Ansible export wins over .env for both keys.
+# Optional env (--new): AUTO_FUND_T=1 (default if unset) mints missing T via T.mint when deployer or
+#   T_MINTER_PRIVATE_KEY matches T.owner(). Set AUTO_FUND_T=0 to require a pre-funded deployer.
+#   python3 is required for --new. Parent/Ansible export wins over .env for deployer / T minter keys.
 #
 # Usage:
 #   source .env
@@ -118,6 +120,66 @@ cast_send_ok() {
   return 0
 }
 
+compute_t_shortfall_between() {
+  python3 -c "
+import sys
+def parse(s):
+    s = s.strip().split()[0]
+    return int(s, 16) if s.lower().startswith('0x') else int(s)
+bal, need = parse(sys.argv[1]), parse(sys.argv[2])
+print(max(0, need - bal))
+" "$1" "$2"
+}
+
+resolve_t_minter_private_key() {
+  local _t_owner _t_owner_lc _mk_addr
+  _t_owner=$(cast call "$T_TOKEN" "owner()(address)" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
+  _t_owner_lc=$(normalize_addr "$_t_owner")
+  if [ "$(normalize_addr "$_deployer_addr")" = "$_t_owner_lc" ]; then
+    printf '%s' "$_DEPLOYER_ACCOUNT_PRIVATE_KEY"
+    return 0
+  fi
+  if [ -n "${T_MINTER_PRIVATE_KEY:-}" ]; then
+    _mk_addr=$(cast wallet address --private-key "${T_MINTER_PRIVATE_KEY}")
+    if [ "$(normalize_addr "$_mk_addr")" = "$_t_owner_lc" ]; then
+      printf '%s' "${T_MINTER_PRIVATE_KEY}"
+      return 0
+    fi
+  fi
+  echo "ERROR: No key matches T owner ($_t_owner). Use deployer = owner or set T_MINTER_PRIVATE_KEY." >&2
+  return 1
+}
+
+# Args: minimum deployer T balance (wei), decimal or 0x string from cast to-wei / balanceOf.
+# When shortfall > 0 and AUTO_FUND_T=1, mints to deployer if deployer or T_MINTER_PRIVATE_KEY is T.owner().
+ensure_deployer_t_at_least() {
+  local min_need="$1"
+  local sf _mpk
+  _t_bal_raw=$(cast call "$T_TOKEN" "balanceOf(address)(uint256)" "$_deployer_addr" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
+  sf=$(compute_t_shortfall_between "$_t_bal_raw" "$min_need")
+  if python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2>/dev/null; then
+    return 0
+  fi
+  if [ "${AUTO_FUND_T:-0}" != "1" ]; then
+    echo "ERROR: Deployer $_deployer_addr has insufficient T (need >= ${min_need} wei, balance raw: $_t_bal_raw, shortfall wei ${sf}). T=$T_TOKEN" >&2
+    echo "       Set AUTO_FUND_T=1 (default) and ensure deployer or T_MINTER_PRIVATE_KEY is T owner; or fund manually." >&2
+    exit 1
+  fi
+  echo "=== AUTO_FUND_T=1: minting ${sf} wei T to deployer $_deployer_addr ==="
+  if ! _mpk="$(resolve_t_minter_private_key)"; then
+    exit 1
+  fi
+  ETH_PRIVATE_KEY="$_mpk" cast_send_ok "$T_TOKEN" "mint(address,uint256)" "$_deployer_addr" "$sf" \
+    --rpc-url "$CHAIN_API_URL"
+  _t_bal_raw=$(cast call "$T_TOKEN" "balanceOf(address)(uint256)" "$_deployer_addr" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
+  sf=$(compute_t_shortfall_between "$_t_bal_raw" "$min_need")
+  if ! python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2>/dev/null; then
+    echo "ERROR: Deployer still below minimum after mint (shortfall ${sf} wei)." >&2
+    exit 1
+  fi
+  echo "=== Deployer T OK after mint ==="
+}
+
 # Auto-detect existing mode when no --new/--existing passed: N=3 and .env.operators-3 exists
 if [ "$MODE_EXPLICIT" = false ] && [ "$N" = "3" ] && [ -f ".env.operators-3" ]; then
   USE_EXISTING=true
@@ -187,65 +249,15 @@ fi
 _DEPLOYER_ACCOUNT_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY"
 
 _deployer_addr=$(cast wallet address --private-key "$_DEPLOYER_ACCOUNT_PRIVATE_KEY")
-_t_bal_raw=$(cast call "$T_TOKEN" "balanceOf(address)(uint256)" "$_deployer_addr" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
-_required_t_wei=$(cast to-wei $((N * 80000)))
-
-compute_t_shortfall() {
-  python3 -c "
-import sys
-def parse(s):
-    s = s.strip().split()[0]
-    return int(s, 16) if s.lower().startswith('0x') else int(s)
-bal, need = parse(sys.argv[1]), parse(sys.argv[2])
-print(max(0, need - bal))
-" "$_t_bal_raw" "$_required_t_wei"
+command -v python3 >/dev/null 2>&1 || {
+  echo "ERROR: python3 is required for --new (T balance checks and AUTO_FUND_T mint)." >&2
+  echo "       Install python3 on the runner, then retry." >&2
+  exit 1
 }
-
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "WARN: python3 missing; skipping T preflight and T auto-mint." >&2
-  echo "       Deployer must hold >= $((N * 80000)) T at $T_TOKEN." >&2
-else
-  _t_shortfall=$(compute_t_shortfall)
-  if python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$_t_shortfall" 2>/dev/null; then
-    :
-  elif [ "${AUTO_FUND_T:-0}" != "1" ]; then
-    echo "ERROR: Deployer $_deployer_addr does not hold enough T to fund $N operators." >&2
-    echo "       Need at least $((N * 80000)) T (see balanceOf vs required wei below)." >&2
-    echo "       balanceOf: $_t_bal_raw" >&2
-    echo "       required:  $_required_t_wei" >&2
-    echo "       T token:   $T_TOKEN" >&2
-    echo "       Set AUTO_FUND_T=1 to mint the shortfall when the deployer or T_MINTER_PRIVATE_KEY is T owner; or fund manually." >&2
-    exit 1
-  else
-    echo "=== AUTO_FUND_T=1: minting $_t_shortfall wei T to deployer $_deployer_addr ==="
-    _t_owner=$(cast call "$T_TOKEN" "owner()(address)" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
-    _t_owner_lc=$(normalize_addr "$_t_owner")
-    _minter_pk=""
-    if [ "$(normalize_addr "$_deployer_addr")" = "$_t_owner_lc" ]; then
-      _minter_pk="$_DEPLOYER_ACCOUNT_PRIVATE_KEY"
-    elif [ -n "${T_MINTER_PRIVATE_KEY:-}" ]; then
-      _mk_addr=$(cast wallet address --private-key "${T_MINTER_PRIVATE_KEY}")
-      if [ "$(normalize_addr "$_mk_addr")" = "$_t_owner_lc" ]; then
-        _minter_pk="${T_MINTER_PRIVATE_KEY}"
-      fi
-    fi
-    if [ -z "$_minter_pk" ]; then
-      echo "ERROR: T shortfall but no minter key matches T owner ($_t_owner)." >&2
-      echo "       Use deployer = T owner, or set T_MINTER_PRIVATE_KEY to the owner key." >&2
-      exit 1
-    fi
-    ETH_PRIVATE_KEY="$_minter_pk" cast_send_ok "$T_TOKEN" "mint(address,uint256)" "$_deployer_addr" "$_t_shortfall" \
-      --rpc-url "$CHAIN_API_URL"
-    _t_bal_raw=$(cast call "$T_TOKEN" "balanceOf(address)(uint256)" "$_deployer_addr" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
-    _t_shortfall=$(compute_t_shortfall)
-    if ! python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$_t_shortfall" 2>/dev/null; then
-      echo "ERROR: Deployer still holds insufficient T after mint (shortfall wei: $_t_shortfall)." >&2
-      echo "       balanceOf: $_t_bal_raw required: $_required_t_wei" >&2
-      exit 1
-    fi
-    echo "=== Deployer T balance OK after mint ==="
-  fi
-fi
+AUTO_FUND_T="${AUTO_FUND_T:-1}"
+_required_t_wei=$(cast to-wei $((N * 80000)))
+echo "T preflight: deployer $_deployer_addr needs >= $((N * 80000)) T (AUTO_FUND_T=$AUTO_FUND_T)"
+ensure_deployer_t_at_least "$_required_t_wei"
 
 for i in $(seq 1 "$N"); do
   echo "--- Operator $i/$N ---"
@@ -276,7 +288,8 @@ for i in $(seq 1 "$N"); do
     exit 1
   fi
 
-  # Fund with T
+  # Fund with T (re-check: runners without prior mint must not skip mid-run)
+  ensure_deployer_t_at_least "$AMOUNT_80K"
   ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok $T_TOKEN "transfer(address,uint256)" "$NEW_STAKING_PROVIDER_ADDRESS" $AMOUNT_80K \
     --rpc-url $CHAIN_API_URL
 
