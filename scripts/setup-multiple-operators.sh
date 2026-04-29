@@ -170,6 +170,42 @@ print(max(0, need - bal))
 " "$1" "$2"
 }
 
+compute_shortfall_between() {
+  python3 -c "
+import sys
+def parse(s):
+    s = s.strip().split()[0]
+    return int(s, 16) if s.lower().startswith('0x') else int(s)
+have, need = parse(sys.argv[1]), parse(sys.argv[2])
+print(max(0, need - have))
+" "$1" "$2"
+}
+
+to_decimal_wei() {
+  python3 -c "
+import sys
+s = sys.argv[1].strip().split()[0]
+print(int(s, 16) if s.lower().startswith('0x') else int(s))
+" "$1"
+}
+
+ensure_deployer_eth_at_least() {
+  local min_need="$1"
+  local bal_raw sf min_need_dec bal_dec
+  bal_raw=$(cast balance "$_deployer_addr" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
+  min_need_dec=$(to_decimal_wei "$min_need")
+  bal_dec=$(to_decimal_wei "$bal_raw")
+  sf=$(compute_shortfall_between "$bal_raw" "$min_need")
+  if python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2>/dev/null; then
+    return 0
+  fi
+  echo "ERROR: Deployer $_deployer_addr has insufficient native ETH for operator bootstrap." >&2
+  echo "       Needed at least $(cast from-wei "$min_need_dec") ETH, current balance $(cast from-wei "$bal_dec") ETH." >&2
+  echo "       This check covers only direct funding transfers (SP + operator), not gas." >&2
+  echo "       Fund deployer or lower ETH_PER_OPERATOR (current: $ETH_PER_OPERATOR)." >&2
+  exit 1
+}
+
 resolve_t_minter_private_key() {
   local _t_owner _t_owner_lc _mk_addr
   _t_owner=$(cast call "$T_TOKEN" "owner()(address)" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
@@ -302,8 +338,17 @@ command -v python3 >/dev/null 2>&1 || {
 }
 AUTO_FUND_T="${AUTO_FUND_T:-1}"
 _required_t_wei=$(cast to-wei $((N * 80000)))
+if [[ "$ETH_PER_OPERATOR" == *ether ]]; then
+  _eth_per_operator_wei=$(cast to-wei "${ETH_PER_OPERATOR%ether}" ether)
+else
+  _eth_per_operator_wei=$(cast to-wei "$ETH_PER_OPERATOR")
+fi
+_eth_per_operator_wei_dec=$(to_decimal_wei "$_eth_per_operator_wei")
+_required_eth_transfer_wei=$(python3 -c "import sys; print(int(sys.argv[1]) * int(sys.argv[2]) * 2)" "$N" "$_eth_per_operator_wei_dec")
 echo "T preflight: deployer $_deployer_addr needs >= $((N * 80000)) T (AUTO_FUND_T=$AUTO_FUND_T)"
 ensure_deployer_t_at_least "$_required_t_wei"
+echo "ETH preflight: deployer $_deployer_addr needs >= $(cast from-wei "$_required_eth_transfer_wei") ETH for direct transfers"
+ensure_deployer_eth_at_least "$_required_eth_transfer_wei"
 
 for i in $(seq 1 "$N"); do
   echo "--- Operator $i/$N ---"
