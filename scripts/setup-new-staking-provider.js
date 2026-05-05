@@ -71,6 +71,7 @@ OPERATOR_KEYSTORE_PATH="${path.resolve(operatorFilepath)}"
 `;
 
     await fs.promises.writeFile(envPath, envContent);
+    await fs.promises.chmod(envPath, 0o600);
 
     console.log("=== New Staking Provider + Operator ===\n");
     console.log("Staking provider address:", stakingProvider.address);
