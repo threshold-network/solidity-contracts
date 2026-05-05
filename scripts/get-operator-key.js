@@ -25,11 +25,12 @@ async function main() {
             path.join(dir, file),
             "utf8"
           );
-          const json = content.split("\n")[0]; // some files have extra content
-          if (json.startsWith("{")) {
-            const wallet = await ethers.Wallet.fromEncryptedJson(json, "");
-            console.log(file, "->", wallet.address);
-          }
+          // Keystore JSON has an unencrypted "address" field -- no decryption needed.
+          const parsed = JSON.parse(content);
+          const addr = parsed.address
+            ? `0x${parsed.address.replace(/^0x/, "")}`
+            : "(no address field)";
+          console.log(file, "->", addr);
         } catch (e) {
           console.log(file, "-> error:", e.message);
         }
