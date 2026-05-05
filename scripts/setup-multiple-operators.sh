@@ -167,7 +167,8 @@ resolve_t_minter_private_key() {
     return 0
   fi
   if [ -n "${T_MINTER_PRIVATE_KEY:-}" ]; then
-    _mk_addr=$(ETH_PRIVATE_KEY="${T_MINTER_PRIVATE_KEY}" cast wallet address)
+    # Foundry does not read ETH_PRIVATE_KEY for `cast wallet address`; pass key as positional arg.
+    _mk_addr=$(cast wallet address "${T_MINTER_PRIVATE_KEY}")
     if [ "$(normalize_addr "$_mk_addr")" = "$_t_owner_lc" ]; then
       printf '%s' "${T_MINTER_PRIVATE_KEY}"
       return 0
@@ -282,7 +283,8 @@ fi
 # Sourcing .env.operator-* must not clobber the deployer key (stale files sometimes set CONTRACT_OWNER_*).
 _DEPLOYER_ACCOUNT_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY"
 
-_deployer_addr=$(ETH_PRIVATE_KEY="$_DEPLOYER_ACCOUNT_PRIVATE_KEY" cast wallet address)
+# Foundry does not read ETH_PRIVATE_KEY for `cast wallet address`; pass key as positional arg.
+_deployer_addr=$(cast wallet address "$_DEPLOYER_ACCOUNT_PRIVATE_KEY")
 command -v python3 >/dev/null 2>&1 || {
   echo "ERROR: python3 is required for --new (T balance checks and AUTO_FUND_T mint)." >&2
   echo "       Install python3 on the runner, then retry." >&2
@@ -323,7 +325,7 @@ for i in $(seq 1 "$N"); do
     exit 1
   fi
 
-  _sp_derived=$(ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" cast wallet address)
+  _sp_derived=$(cast wallet address "$NEW_STAKING_PROVIDER_KEY")
   _sp_a=$(echo "$_sp_derived" | tr '[:upper:]' '[:lower:]')
   _sp_b=$(echo "$NEW_STAKING_PROVIDER_ADDRESS" | tr '[:upper:]' '[:lower:]')
   if [ "$_sp_a" != "$_sp_b" ]; then
