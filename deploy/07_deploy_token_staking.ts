@@ -1,5 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
+import * as fs from "fs"
 
 import { ethers, upgrades } from "hardhat"
 
@@ -15,7 +16,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // TODO: Consider upgradable deployment also for sepolia.
   let tokenStakingAddress
-  if (hre.network.name == "mainnet" || hre.network.name == "sepolia") {
+  if (hre.network.name === "mainnet" || hre.network.name === "sepolia") {
     const TokenStaking = await ethers.getContractFactory("TokenStaking")
 
     const tokenStaking = await upgrades.deployProxy(
@@ -29,34 +30,30 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log(`Deployed TokenStaking with TransparentProxy at ${tokenStakingAddress}`)
 
     const implementationInterface = tokenStaking.interface
-    let jsonAbi = implementationInterface.format(ethers.utils.FormatTypes.json)
+    const jsonAbi = implementationInterface.format(ethers.utils.FormatTypes.json)
+
+    let parsedAbi: unknown[]
+    try {
+      parsedAbi = JSON.parse(jsonAbi as string) as unknown[]
+    } catch (e) {
+      throw new Error(`Failed to parse ABI from contract interface: ${e}`)
+    }
 
     const tokenStakingDeployment = {
       address: tokenStakingAddress,
-      abi: JSON.parse(jsonAbi as string),
+      abi: parsedAbi,
     }
-    const fs = require("fs")
     const deploymentsDir = `deployments/${hre.network.name}`
-    fs.mkdirSync(deploymentsDir, { recursive: true })
+    await fs.promises.mkdir(deploymentsDir, { recursive: true })
 
     await deployments.save("TokenStaking", tokenStakingDeployment)
 
-    fs.writeFileSync(
-      "TokenStaking.json",
-      JSON.stringify(tokenStakingDeployment, null, 2),
-      "utf8",
-      function (err) {
-        if (err) {
-          console.log(err)
-        }
-      }
-    )
-    fs.writeFileSync(
+    await fs.promises.writeFile(
       `${deploymentsDir}/TokenStaking.json`,
       JSON.stringify(tokenStakingDeployment, null, 2),
       "utf8"
     )
-    log(`Saved TokenStaking address and ABI in TokenStaking.json`)
+    log(`Saved TokenStaking address and ABI in ${deploymentsDir}/TokenStaking.json`)
   } else {
     const TokenStaking = await deployments.deploy("TokenStaking", {
       from: deployer,

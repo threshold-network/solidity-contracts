@@ -18,11 +18,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 T_JSON="$REPO_ROOT/tbtc-v2/solidity/deployments/sepolia/T.json"
-if [ -f "$T_JSON" ]; then
-  T_TOKEN="$(jq -re '.address' "$T_JSON")"
-else
-  T_TOKEN="0x60185Ef360A2a54D022718a8D95Ff3a23dE01a2d"
+if [ ! -f "$T_JSON" ]; then
+  echo "ERROR: T.json not found at $T_JSON" >&2
+  echo "       Ensure tbtc-v2 is checked out at $REPO_ROOT/tbtc-v2 and Sepolia deployments exist." >&2
+  exit 1
 fi
+T_TOKEN="$(jq -re '.address' "$T_JSON")"
 AMOUNT_80K="$(cast to-wei 80000)"
 
 cd "$SCRIPT_DIR/.."
@@ -40,10 +41,13 @@ fi
 : "${NEW_OPERATOR_ADDRESS:?Run setup-new-staking-provider.js first}"
 : "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:?Set CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY (deployer with T balance)}"
 
+# shellcheck source=scripts/lib/cast-helpers.sh
+source "$SCRIPT_DIR/lib/cast-helpers.sh"
+
 echo "=== Transfer 80,000 T to staking provider ==="
-ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" \
-  cast send $T_TOKEN "transfer(address,uint256)" $NEW_STAKING_PROVIDER_ADDRESS $AMOUNT_80K \
-  --rpc-url $CHAIN_API_URL
+ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok \
+  "$T_TOKEN" "transfer(address,uint256)" "$NEW_STAKING_PROVIDER_ADDRESS" "$AMOUNT_80K" \
+  --rpc-url "$CHAIN_API_URL"
 
 echo ""
 echo "=== Sepolia ETH ==="
