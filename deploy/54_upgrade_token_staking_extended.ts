@@ -15,9 +15,8 @@ import { ethers, upgrades } from "hardhat"
  *   npx hardhat deploy --network sepolia --tags UpgradeTokenStaking
  */
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts } = hre
+  const { deployments } = hre
   const { log } = deployments
-  const { deployer } = await getNamedAccounts()
 
   if (hre.network.name !== "sepolia") {
     log("Skipping TokenStaking upgrade (only for sepolia)")
@@ -31,11 +30,15 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   } else {
     // 07_deploy_token_staking saves to TokenStaking.json in deployments dir
     const deploymentPath = `deployments/${hre.network.name}/TokenStaking.json`
-    if (!fs.existsSync(deploymentPath)) {
+    try {
+      await fs.promises.access(deploymentPath)
+    } catch {
       log("TokenStaking not deployed, skipping upgrade")
       return
     }
-    const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"))
+    const deployment = JSON.parse(
+      await fs.promises.readFile(deploymentPath, "utf8")
+    )
     proxyAddress = deployment.address
   }
 
@@ -57,6 +60,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     ExtendedTokenStaking,
     {
       constructorArgs: [T.address],
+      kind: "transparent",
     }
   )
   await upgraded.deployed()
@@ -66,12 +70,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Update deployment JSON with new ABI (includes stake)
   const implementationInterface = upgraded.interface
   const jsonAbi = implementationInterface.format(ethers.utils.FormatTypes.json)
+  let parsedAbi: unknown[]
+  try {
+    parsedAbi = JSON.parse(jsonAbi as string) as unknown[]
+  } catch (e) {
+    throw new Error(`Failed to parse ABI from contract interface: ${e}`)
+  }
   const tokenStakingDeployment = {
     address: upgraded.address,
-    abi: JSON.parse(jsonAbi as string),
+    abi: parsedAbi,
   }
   const deploymentsDir = `deployments/${hre.network.name}`
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     `${deploymentsDir}/TokenStaking.json`,
     JSON.stringify(tokenStakingDeployment, null, 2),
     "utf8"
