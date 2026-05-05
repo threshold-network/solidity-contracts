@@ -23,8 +23,11 @@
 #
 set -e
 
-# Contract addresses (from tbtc-v2 deployments)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/cast-helpers.sh
+source "$SCRIPT_DIR/lib/cast-helpers.sh"
+
+# Contract addresses (from tbtc-v2 deployments)
 DEPLOYMENTS="$(cd "$SCRIPT_DIR/../../tbtc-v2/solidity/deployments/sepolia" && pwd)"
 TOKEN_STAKING="$(jq -re '.address' "$DEPLOYMENTS/TokenStaking.json")"
 RANDOM_BEACON="$(jq -re '.address' "$DEPLOYMENTS/RandomBeacon.json")"
@@ -51,34 +54,11 @@ SP_KEY="$NEW_STAKING_PROVIDER_KEY"
 OP="$NEW_OPERATOR_ADDRESS"
 OP_KEY="$NEW_OPERATOR_KEY"
 
-# Use ETH_PRIVATE_KEY env var so keys are not passed as CLI arguments
-# (--private-key exposes the key in ps aux and shell history)
 _sp_cast_send_ok() {
   ETH_PRIVATE_KEY="$SP_KEY" cast_send_ok "$@"
 }
 _op_cast_send_ok() {
   ETH_PRIVATE_KEY="$OP_KEY" cast_send_ok "$@"
-}
-
-cast_send_ok() {
-  local out tx st
-  out=$(cast send "$@" 2>&1) || {
-    echo "$out"
-    return 1
-  }
-  echo "$out"
-  tx=$(echo "$out" | awk '/^[[:space:]]*transactionHash[[:space:]]/ {print $2; exit}')
-  if [ -z "$tx" ] || [ "${#tx}" -ne 66 ] || [ "${tx#0x}" = "$tx" ]; then
-    echo "cast_send_ok: could not parse top-level transactionHash from cast output (got: ${tx:-empty})" >&2
-    return 1
-  fi
-  st=$(cast receipt "$tx" --rpc-url "$CHAIN_API_URL" | awk '/^status[[:space:]]+/ {print $2; exit}')
-  if [ "$st" != "1" ]; then
-    echo "cast_send_ok: transaction reverted on-chain (status=$st): $tx" >&2
-    echo "If this was stake(), fix that before increaseAuthorization — otherwise you see \"Not authorizer\"." >&2
-    return 1
-  fi
-  return 0
 }
 
 echo "=== Step 1: Approve TokenStaking to spend T ==="
