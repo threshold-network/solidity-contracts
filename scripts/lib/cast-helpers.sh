@@ -79,7 +79,9 @@ cast_send_ok() {
   max="${CAST_SEND_MAX_RETRIES:-10}"
   sleep_s=1
   while true; do
-    if out=$(cast send "$@" --keystore "$_CAST_LAST_KEYSTORE" --password-file "$_CAST_LAST_PASSFILE" 2>&1); then
+    # env -u: signing now uses the keystore — drop ETH_PRIVATE_KEY so it is
+    # not readable from /proc/<cast-pid>/environ while the subprocess runs.
+    if out=$(env -u ETH_PRIVATE_KEY cast send "$@" --keystore "$_CAST_LAST_KEYSTORE" --password-file "$_CAST_LAST_PASSFILE" 2>&1); then
       break
     fi
     if echo "$out" | grep -qiE 'nonce too low|nonce has already been used|transaction already|already known'; then
@@ -105,7 +107,7 @@ cast_send_ok() {
     echo "cast_send_ok: could not parse top-level transactionHash from cast output (got: ${tx:-empty})" >&2
     return 1
   fi
-  st=$(cast receipt "$tx" --rpc-url "$CHAIN_API_URL" | awk '/^status[[:space:]]+/ {print $2; exit}')
+  st=$(env -u ETH_PRIVATE_KEY cast receipt "$tx" --rpc-url "$CHAIN_API_URL" | awk '/^status[[:space:]]+/ {print $2; exit}')
   if [ "$st" != "1" ]; then
     echo "cast_send_ok: transaction reverted on-chain (status=$st): $tx" >&2
     echo "If this was stake(), fix that before increaseAuthorization -- otherwise you see \"Not authorizer\"." >&2
