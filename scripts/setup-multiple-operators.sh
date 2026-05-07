@@ -61,8 +61,14 @@ USE_EXISTING=false
 MODE_EXPLICIT=false
 for arg in "$@"; do
   case "$arg" in
-    --existing) USE_EXISTING=true; MODE_EXPLICIT=true ;;
-    --new)      USE_EXISTING=false; MODE_EXPLICIT=true ;;
+    --existing)
+      USE_EXISTING=true
+      MODE_EXPLICIT=true
+      ;;
+    --new)
+      USE_EXISTING=false
+      MODE_EXPLICIT=true
+      ;;
   esac
 done
 
@@ -148,7 +154,7 @@ ensure_deployer_eth_at_least() {
   min_need_dec=$(to_decimal_wei "$min_need")
   bal_dec=$(to_decimal_wei "$bal_raw")
   sf=$(compute_shortfall_between "$bal_raw" "$min_need")
-  if python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2>/dev/null; then
+  if python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2> /dev/null; then
     return 0
   fi
   echo "ERROR: Deployer $_deployer_addr has insufficient native ETH for operator bootstrap." >&2
@@ -167,8 +173,7 @@ resolve_t_minter_private_key() {
     return 0
   fi
   if [ -n "${T_MINTER_PRIVATE_KEY:-}" ]; then
-    # Foundry does not read ETH_PRIVATE_KEY for `cast wallet address`; pass key as positional arg.
-    _mk_addr=$(cast wallet address "${T_MINTER_PRIVATE_KEY}")
+    _mk_addr=$(ETH_PRIVATE_KEY="${T_MINTER_PRIVATE_KEY}" derive_address_safe)
     if [ "$(normalize_addr "$_mk_addr")" = "$_t_owner_lc" ]; then
       printf '%s' "${T_MINTER_PRIVATE_KEY}"
       return 0
@@ -192,7 +197,7 @@ ensure_deployer_t_at_least() {
   local sf _mpk
   _t_bal_raw=$(cast call "$T_TOKEN" "balanceOf(address)(uint256)" "$_deployer_addr" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
   sf=$(compute_t_shortfall_between "$_t_bal_raw" "$min_need")
-  if python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2>/dev/null; then
+  if python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2> /dev/null; then
     return 0
   fi
   if [ "${AUTO_FUND_T:-0}" != "1" ]; then
@@ -208,7 +213,7 @@ ensure_deployer_t_at_least() {
     --rpc-url "$CHAIN_API_URL"
   _t_bal_raw=$(cast call "$T_TOKEN" "balanceOf(address)(uint256)" "$_deployer_addr" --rpc-url "$CHAIN_API_URL" | awk '{print $1; exit}')
   sf=$(compute_t_shortfall_between "$_t_bal_raw" "$min_need")
-  if ! python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2>/dev/null; then
+  if ! python3 -c "import sys; sys.exit(0 if int(sys.argv[1]) <= 0 else 1)" "$sf" 2> /dev/null; then
     echo "ERROR: Deployer still below minimum after mint (shortfall ${sf} wei)." >&2
     exit 1
   fi
@@ -224,7 +229,10 @@ fi
 if [ "$USE_EXISTING" = true ]; then
   : "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}"
   OPERATORS_CONFIG="${OPERATORS_CONFIG:-.env.operators-3}"
-  [ -f "$OPERATORS_CONFIG" ] || { echo "Missing $OPERATORS_CONFIG. Copy from .env.operators-3.example"; exit 1; }
+  [ -f "$OPERATORS_CONFIG" ] || {
+    echo "Missing $OPERATORS_CONFIG. Copy from .env.operators-3.example"
+    exit 1
+  }
   source "$OPERATORS_CONFIG"
   CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY=$(strip_secret "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}")
   echo "=== Registering $N existing operators (authorize, register, join) ==="
@@ -283,9 +291,8 @@ fi
 # Sourcing .env.operator-* must not clobber the deployer key (stale files sometimes set CONTRACT_OWNER_*).
 _DEPLOYER_ACCOUNT_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY"
 
-# Foundry does not read ETH_PRIVATE_KEY for `cast wallet address`; pass key as positional arg.
-_deployer_addr=$(cast wallet address "$_DEPLOYER_ACCOUNT_PRIVATE_KEY")
-command -v python3 >/dev/null 2>&1 || {
+_deployer_addr=$(ETH_PRIVATE_KEY="$_DEPLOYER_ACCOUNT_PRIVATE_KEY" derive_address_safe)
+command -v python3 > /dev/null 2>&1 || {
   echo "ERROR: python3 is required for --new (T balance checks and AUTO_FUND_T mint)." >&2
   echo "       Install python3 on the runner, then retry." >&2
   exit 1
@@ -308,7 +315,7 @@ for i in $(seq 1 "$N"); do
   echo "--- Operator $i/$N ---"
 
   # Generate new staking provider + operator (writes .env.operator-$i when index passed)
-  if ! node scripts/setup-new-staking-provider.js "${PASSWORD:-operator-$i}" "$i" >/dev/null; then
+  if ! node scripts/setup-new-staking-provider.js "${PASSWORD:-operator-$i}" "$i" > /dev/null; then
     echo "ERROR: setup-new-staking-provider.js failed for operator index $i (see stderr above)." >&2
     exit 1
   fi
@@ -325,7 +332,7 @@ for i in $(seq 1 "$N"); do
     exit 1
   fi
 
-  _sp_derived=$(cast wallet address "$NEW_STAKING_PROVIDER_KEY")
+  _sp_derived=$(ETH_PRIVATE_KEY="$NEW_STAKING_PROVIDER_KEY" derive_address_safe)
   _sp_a=$(echo "$_sp_derived" | tr '[:upper:]' '[:lower:]')
   _sp_b=$(echo "$NEW_STAKING_PROVIDER_ADDRESS" | tr '[:upper:]' '[:lower:]')
   if [ "$_sp_a" != "$_sp_b" ]; then
