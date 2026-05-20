@@ -19,6 +19,7 @@ yarn-error.log
 
 # OpenZeppelin
 .openzeppelin/unknown-*.json
+!.openzeppelin/unknown-11155111.json
 
 # Generated operator setup artifacts
 operator-*-keystore/
