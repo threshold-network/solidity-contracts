@@ -1,14 +1,24 @@
-import { HardhatUserConfig } from "hardhat/config"
+import { extendEnvironment, HardhatUserConfig } from "hardhat/config"
+import { lazyObject } from "hardhat/plugins"
 
 import "@keep-network/hardhat-helpers"
-import "@nomiclabs/hardhat-waffle"
+import "@nomiclabs/hardhat-ethers"
+import "@nomicfoundation/hardhat-chai-matchers"
 import "@openzeppelin/hardhat-upgrades"
-import "@tenderly/hardhat-tenderly"
+import { Tenderly } from "@tenderly/hardhat-tenderly/dist/Tenderly"
+import "@tenderly/hardhat-tenderly/dist/type-extensions"
 
 import "hardhat-contract-sizer"
 import "hardhat-deploy"
 import "hardhat-gas-reporter"
 import "solidity-docgen"
+
+// Tenderly 1.8's public setup registers two catalog-fetching extenders. This
+// exact-version internal adapter preserves this repo's manual verification
+// calls without normal-command egress; revalidate it before changing the pin.
+extendEnvironment((hre) => {
+  hre.tenderly = lazyObject(() => new Tenderly(hre))
+})
 
 const config: HardhatUserConfig = {
   solidity: {

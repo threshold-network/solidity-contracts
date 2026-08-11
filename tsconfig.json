@@ -1,4 +1,10 @@
 {
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2017"
+  },
   "files": ["./hardhat.config.ts"],
   "include": ["./deploy"]
 }
