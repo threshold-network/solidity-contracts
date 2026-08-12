@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
+    "lib": ["es5", "dom", "scripthost"],
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2017"

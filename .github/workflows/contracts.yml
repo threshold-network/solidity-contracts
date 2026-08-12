@@ -95,8 +95,9 @@ jobs:
         && github.ref != 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     env:
-      # setup-node's generated npmrc references this during Yarn cache/install.
-      # The publish step overrides it with the real registry token.
+      # setup-node's generated npmrc references this during Yarn install and
+      # the npm-version-bump action's registry read below. The publish step
+      # overrides it with the real registry token.
       NODE_AUTH_TOKEN: unused
     steps:
       - uses: actions/checkout@v7
@@ -194,8 +195,9 @@ jobs:
         && github.ref == 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
     env:
-      # setup-node's generated npmrc references this during Yarn cache/install.
-      # The publish step overrides it with the real registry token.
+      # setup-node's generated npmrc references this during Yarn install and
+      # the npm-version-bump action's registry read below. The publish step
+      # overrides it with the real registry token.
       NODE_AUTH_TOKEN: unused
     steps:
       - uses: actions/checkout@v7

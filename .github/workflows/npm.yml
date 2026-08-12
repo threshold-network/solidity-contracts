@@ -10,6 +10,8 @@ on:
       - "hardhat.config.ts"
       - ".nvmrc"
       - "package.json"
+      - "tsconfig.json"
+      - "tsconfig.export.json"
       - "yarn.lock"
   workflow_dispatch:
 
@@ -17,8 +19,9 @@ jobs:
   npm-compile-publish-contracts:
     runs-on: ubuntu-latest
     env:
-      # setup-node's generated npmrc references this during Yarn cache/install.
-      # The publish step overrides it with the real registry token.
+      # setup-node's generated npmrc references this during Yarn install and
+      # the npm-version-bump action's registry read below. The publish step
+      # overrides it with the real registry token.
       NODE_AUTH_TOKEN: unused
     steps:
       - uses: actions/checkout@v7

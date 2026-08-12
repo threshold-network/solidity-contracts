@@ -13,9 +13,13 @@ import "hardhat-deploy"
 import "hardhat-gas-reporter"
 import "solidity-docgen"
 
-// Tenderly 1.8's public setup registers two catalog-fetching extenders. This
-// exact-version internal adapter preserves this repo's manual verification
-// calls without normal-command egress; revalidate it before changing the pin.
+// Tenderly 1.8's public setup() registers one module-scope extendEnvironment
+// (which fetches the network catalog via populateNetworks() on every hardhat
+// command) plus one extendConfig, and separately registers tenderly:push /
+// tenderly:verify tasks. This adapter imports Tenderly/type-extensions
+// directly to skip setup() and avoid that network call; only hre.tenderly is
+// used by deploy/*.ts. Revalidate against dist/tenderly/extender.js before
+// changing the pin.
 extendEnvironment((hre) => {
   hre.tenderly = lazyObject(() => new Tenderly(hre))
 })
@@ -105,6 +109,11 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 60000,
+  },
+  gasReporter: {
+    // Off by default: hardhat-gas-reporter v2 pulls in a second EVM client
+    // stack (viem) and network-capable HTTP client, so keep it opt-in.
+    enabled: !!process.env.REPORT_GAS,
   },
   docgen: {
     outputDir: "generated-docs",
