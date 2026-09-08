@@ -842,7 +842,7 @@ describe("T token", () => {
       let tx
 
       beforeEach(async () => {
-        t.connect(tokenHolder).delegate(delegatee.address)
+        await t.connect(tokenHolder).delegate(delegatee.address)
         tx = await doBurn(tokenHolder, amount)
       })
 
@@ -869,7 +869,7 @@ describe("T token", () => {
       let tx
 
       beforeEach(async () => {
-        t.connect(tokenHolder).delegate(tokenHolder.address)
+        await t.connect(tokenHolder).delegate(tokenHolder.address)
         tx = await doBurn(tokenHolder, amount)
       })
 
