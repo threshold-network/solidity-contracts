@@ -10,6 +10,7 @@
     "export/",
     "scripts/",
     ".openzeppelin/mainnet.json",
+    ".openzeppelin/unknown-11155111.json",
     "export.json"
   ],
   "scripts": {

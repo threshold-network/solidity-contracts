@@ -1,0 +1,59 @@
+= Sepolia staking upgrade history
+
+The recorded TokenStaking proxy is
+`0xd9502824f4e16E5d3F4A84246a96B14a2D0Ee248`.
+Both `yarn deploy --network sepolia --tags TokenStakingUpgrade` and
+`yarn upgrade:token-staking --network sepolia` use OpenZeppelin's manifest
+in the working project to validate its current storage layout before upgrading.
+
+The committed `.openzeppelin/unknown-11155111.json` includes the historical
+`ExtendedTokenStaking` implementation, its complete layout (including the
+`skipList` mapping at slot 62), the proxy, and its current ProxyAdmin.
+The existing implementation history is retained. Transaction hashes for the
+recovered records are omitted because they were not available during recovery.
+
+OpenZeppelin 1.14 registers one ProxyAdmin per network manifest. This manifest's
+admin follows the currently recorded proxy. Earlier proxies, including
+`0x3245B1a2dc82D02F7e159CA5ef14B6e35585779a`, still use the historical admin
+`0x079521d08C0F36a0255E6337DF9623aF3A13E561`. Their retained records do not make
+them upgradeable with the current admin entry. To operate an earlier proxy,
+use its matching historical checkout and manifest, and verify its live
+implementation and admin before proceeding.
+
+== Provenance
+
+Read-only Sepolia queries at block `11663843` established these records:
+
+* Implementation: `0x1c6C97C7996A9d4a34ecC1CC9163896666fD9ad2`
+* ProxyAdmin: `0xEda6417B17AAeAaE1D90Ce25b596F27c1791f879`
+* Constructor token: `0x4f261630173D2FA1e2b081c460636DE9672B7149`
+* Implementation runtime hash:
+  `0x37b8f5214d51f35672a234ba885986a4ef0be6cd93fa97e71593dbc868a015ba`
+
+The historical fixture at commit
+`ad7c06e23672ca7b787f6bb882d519e0e5851dc3` was rebuilt with Solidity
+`0.8.9+commit.e5eed63a`, optimizer runs `10`, and literal-content metadata.
+Its runtime, including metadata and the seven immutable token references,
+matches the deployed runtime byte for byte. OpenZeppelin derives the manifest
+key `ba996d65b2c76b0042024adc9598dc2376c52fafda0fec964d0b9aca554e1bc2`
+from that creation bytecode and the constructor arguments.
+
+The offline regression snapshot is in
+`test/fixtures/recorded-sepolia-staking.json`. Tests restore its code and
+addresses on an in-process Hardhat network, populate local staking state, and
+exercise both upgrade entrypoints using a copy of the committed manifest.
+They also verify that an upgrade deleting `skipList` is rejected.
+
+== External deployment consumers
+
+The npm package includes the Sepolia manifest. Hardhat-deploy's
+`external.contracts` configuration loads artifacts and deployment scripts;
+OpenZeppelin still reads its manifest from the consumer's working project.
+When upgrading this recorded proxy from a consumer, merge its implementation
+and proxy records into the consumer's network manifest while preserving
+unrelated history and checking the on-chain admin.
+
+The repository's OpenZeppelin plugin 1.14 requires its registered admin to match
+the proxy's admin. If a consumer's manifest manages a different admin, perform
+this staking upgrade from this repository checkout with its matching manifest.
+Fresh proxy deployments continue to generate their own manifest normally.

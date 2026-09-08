@@ -29,6 +29,7 @@ describe("Packaged staking deployments", function () {
     tarball = path.join(directory, packed.filename)
     const files = packed.files.map((file) => file.path)
     expect(files).to.include("export/scripts/staking-artifacts.js")
+    expect(files).to.include(".openzeppelin/unknown-11155111.json")
     expect(
       files.some((file) => file.startsWith("export/staking-build-info/"))
     ).to.equal(true)

@@ -280,4 +280,87 @@ OP1_OPERATOR_KEY=local-test-key
     expect(calls).to.have.lengthOf(6)
     expect(result.stdout).to.include("1 existing operators registered")
   })
+
+  function fundOperator(selection) {
+    const repo = path.join(dir, "solidity-contracts")
+    fs.mkdirSync(path.join(repo, "scripts/lib"), { recursive: true })
+    fs.copyFileSync(
+      path.join(root, "scripts/fund-new-operator.sh"),
+      path.join(repo, "scripts/fund-new-operator.sh")
+    )
+    const deployments = path.join(dir, "tbtc-v2/solidity/deployments/sepolia")
+    fs.mkdirSync(deployments, { recursive: true })
+    fs.writeFileSync(
+      path.join(deployments, "T.json"),
+      JSON.stringify({ address: "0x123" })
+    )
+    const log = path.join(dir, "funding-calls")
+    fs.writeFileSync(log, "")
+    fs.writeFileSync(
+      path.join(repo, "scripts/lib/cast-helpers.sh"),
+      'cast_send_ok() { echo "$3" >> "$CALL_LOG"; }\n'
+    )
+    const bin = path.join(dir, "bin")
+    fs.mkdirSync(bin)
+    fs.writeFileSync(path.join(bin, "cast"), "#!/bin/bash\necho 80000\n", {
+      mode: 0o755,
+    })
+    const config = (provider) =>
+      `NEW_STAKING_PROVIDER_ADDRESS=${provider}\nNEW_OPERATOR_ADDRESS=0x456\n`
+    fs.writeFileSync(path.join(repo, ".env"), "# Shared funding settings\n")
+    fs.writeFileSync(path.join(repo, ".env.new-operator"), config("0x111"))
+    fs.writeFileSync(path.join(repo, "selected operator.env"), config("0x222"))
+    for (const name of [".env", ".env.new-operator", "selected operator.env"]) {
+      fs.writeFileSync(path.join(bin, name), config("0x999"))
+    }
+    let args = []
+    if (selection === "missing") args = ["missing.env"]
+    if (selection === "empty") args = [""]
+    if (selection === "directory") args = ["scripts"]
+    if (selection === "relative") args = ["selected operator.env"]
+    if (selection === "absolute") {
+      args = [path.join(repo, "selected operator.env")]
+    }
+    if (selection === "environment") {
+      fs.unlinkSync(path.join(repo, ".env.new-operator"))
+    }
+    const result = spawnSync(
+      "bash",
+      [path.join(repo, "scripts/fund-new-operator.sh"), ...args],
+      {
+        cwd: dir,
+        env: env({
+          PATH: bin + path.delimiter + process.env.PATH,
+          CALL_LOG: log,
+          CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: "local-test-key",
+          NEW_STAKING_PROVIDER_ADDRESS: "0x333",
+          NEW_OPERATOR_ADDRESS: "0x456",
+        }),
+        encoding: "utf8",
+      }
+    )
+    return { result, transfers: fs.readFileSync(log, "utf8").trim() }
+  }
+
+  for (const selection of ["missing", "empty", "directory"]) {
+    it(`rejects a ${selection} explicit funding file without using the default wallet`, () => {
+      const { result, transfers } = fundOperator(selection)
+      expect(result.status).not.to.equal(0)
+      expect(result.stderr).to.include("Operator configuration")
+      expect(transfers).to.equal("")
+    })
+  }
+
+  for (const [selection, provider] of [
+    ["relative", "0x222"],
+    ["absolute", "0x222"],
+    ["default", "0x111"],
+    ["environment", "0x333"],
+  ]) {
+    it(`funds the selected provider using ${selection} configuration despite PATH shadowing`, () => {
+      const { result, transfers } = fundOperator(selection)
+      expect(result.status, result.stderr).to.equal(0)
+      expect(transfers).to.equal(provider)
+    })
+  }
 })

@@ -27,13 +27,22 @@ T_TOKEN="$(jq -re '.address' "$T_JSON")"
 AMOUNT_80K="$(cast to-wei 80000)"
 
 cd "$SCRIPT_DIR/.."
-if [ -f .env ]; then source .env; fi
-if [ -n "${1:-}" ] && [ -f "$1" ]; then
+if [ -f .env ]; then source ./.env; fi
+if [ "$#" -gt 0 ]; then
+  OPERATOR_CONFIG="$1"
+  case "$OPERATOR_CONFIG" in
+    /*) ;;
+    *) OPERATOR_CONFIG="./$OPERATOR_CONFIG" ;;
+  esac
+  if [ ! -f "$OPERATOR_CONFIG" ] || [ ! -r "$OPERATOR_CONFIG" ]; then
+    echo "ERROR: Operator configuration is not a readable file: $1" >&2
+    exit 1
+  fi
   # shellcheck source=/dev/null
-  source "$1"
+  source -- "$OPERATOR_CONFIG"
 elif [ -f .env.new-operator ]; then
   # shellcheck source=/dev/null
-  source .env.new-operator
+  source ./.env.new-operator
 fi
 
 : "${CHAIN_API_URL:?Set CHAIN_API_URL}"
