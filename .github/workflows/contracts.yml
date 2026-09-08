@@ -151,11 +151,12 @@ jobs:
       - name: Upload files needed for etherscan verification
         uses: actions/upload-artifact@v7
         with:
-          name: Artifacts for etherscan verifcation
+          name: Artifacts for etherscan verification
           # hardhat-deploy requires the hidden .chainId deployment marker.
           include-hidden-files: true
           path: |
             ./deployments
+            ./build
             ./package.json
             ./yarn.lock
 
@@ -168,7 +169,7 @@ jobs:
       - name: Download files needed for etherscan verification
         uses: actions/download-artifact@v8
         with:
-          name: Artifacts for etherscan verifcation
+          name: Artifacts for etherscan verification
 
       - uses: actions/setup-node@v7
         with:
@@ -184,7 +185,7 @@ jobs:
           CHAIN_API_URL: ${{ secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
         run: |
           yarn run hardhat --network ${{ github.event.inputs.environment }} \
-            etherscan-verify --license GPL-3.0 --force-license
+            verify-deployments
 
   # This job is responsible for publishing packages from `dapp-development`
   # branch, which are slightly modified to help with the process of testing some

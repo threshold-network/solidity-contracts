@@ -1,0 +1,76 @@
+= Deployment verification
+
+The repository uses `@nomicfoundation/hardhat-verify` 2.1.3, the Hardhat 2
+release (`hh2`), with the Node 22 / Hardhat 2 / ethers 5 toolchain from #182.
+It uses Etherscan API V2 with one `ETHERSCAN_API_KEY` for Ethereum mainnet
+(chain ID 1) and Sepolia (11155111).
+
+== Maintained deployment scope
+
+`verify-deployments` verifies these hardhat-deploy records on either network:
+
+[cols="1,2"]
+|===
+|Deployment |Solidity contract
+|`T` |`contracts/token/T.sol:T`
+|`VendingMachineNuCypher` |`contracts/vending/VendingMachine.sol:VendingMachine`
+|`TokenholderTimelock` |`@openzeppelin/contracts/governance/TimelockController.sol:TimelockController`
+|`TokenholderGovernor` |`contracts/governance/TokenholderGovernor.sol:TokenholderGovernor`
+|===
+
+These are the non-staking contracts emitted by the current deployment scripts.
+TokenStaking and its associated proxy are excluded following their mainnet
+retirement, as clarified in #185. External NuCypher deployments and local test
+stubs are also excluded. The task does not reconcile historical staking records.
+
+== Commands
+
+Use the source revision, dependencies, compiler settings, and deployment records
+from the deployment being verified. Historical deployments can require their
+historical source revision; current sources are not a replacement for it.
+
+[source,bash]
+----
+yarn install --frozen-lockfile
+yarn build
+# Set CHAIN_API_URL and ETHERSCAN_API_KEY in your environment.
+yarn hardhat verify-deployments --network sepolia
+# Verify only selected records:
+yarn hardhat verify-deployments --network sepolia T VendingMachineNuCypher
+# The same task supports --network mainnet with a mainnet RPC URL.
+----
+
+Verification requires no account private key and sends no blockchain
+transactions. It submits contract sources to the public explorer. Restore
+`deployments/<network>/`, including `.chainId`, and matching `build/` artifacts
+from the deployment run. For CI deployments these are transferred together to
+the verification job. Constructor arguments and linked libraries are read from
+the saved records; the task never recomputes them from today's named accounts or
+configuration and does not modify those records.
+
+Missing records or constructor arguments fail before any submission. Unsupported
+deployment names fail explicitly. Already verified contracts are handled by the
+plugin; other errors fail the command and CI. Source SPDX identifiers supply
+licensing information in the compiler input, replacing the old blanket
+`--license GPL-3.0 --force-license` flags.
+
+For an individual contract outside the batch, the plugin also provides:
+
+[source,bash]
+----
+yarn hardhat verify --network sepolia --contract contracts/token/T.sol:T <address>
+----
+
+See the https://v2.hardhat.org/hardhat-runner/plugins/nomicfoundation-hardhat-verify[Hardhat 2 verification documentation]
+for constructor argument files and additional plugin options.
+
+== Retained upgrade tooling
+
+`@openzeppelin/hardhat-upgrades` remains installed. `deploy/07_deploy_token_staking.ts`
+uses `deployProxy`, `deploy/53_transfer_upgradeability_token_staking.ts` transfers
+proxy administration, and the staking and proxy-admin test suites use proxy
+deployment and upgrade helpers. Pending #176 and #186 also retain consumer and
+Sepolia proxy workflows. Retiring the mainnet staking verification target does
+not remove these uses. The new plugin does not provide the old upgrades 1.x
+automatic proxy-verification extension; future Sepolia proxy verification must
+be handled with its matching implementation and proxy metadata.

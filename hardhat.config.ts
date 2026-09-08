@@ -5,6 +5,7 @@ import "@keep-network/hardhat-helpers"
 import "@nomiclabs/hardhat-ethers"
 import "@nomicfoundation/hardhat-chai-matchers"
 import "@openzeppelin/hardhat-upgrades"
+import "@nomicfoundation/hardhat-verify"
 import { Tenderly } from "@tenderly/hardhat-tenderly/dist/Tenderly"
 import "@tenderly/hardhat-tenderly/dist/type-extensions"
 
@@ -12,6 +13,7 @@ import "hardhat-contract-sizer"
 import "hardhat-deploy"
 import "hardhat-gas-reporter"
 import "solidity-docgen"
+import "./tasks/verify-deployments"
 
 // Tenderly 1.8's public setup() registers one module-scope extendEnvironment
 // (which fetches the network catalog via populateNetworks() on every hardhat
@@ -84,10 +86,11 @@ const config: HardhatUserConfig = {
     username: "thesis",
     project: "thesis/threshold-network",
   },
-  verify: {
-    etherscan: {
-      apiKey: process.env.ETHERSCAN_API_KEY,
-    },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY || "",
+  },
+  sourcify: {
+    enabled: false,
   },
   external: {
     deployments: {
