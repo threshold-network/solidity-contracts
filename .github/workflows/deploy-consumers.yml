@@ -17,10 +17,12 @@ jobs:
         ethers: [5, 6]
     steps:
       - uses: actions/checkout@v4
-      # The unchanged producer lockfile uses Hardhat 2.10 and supports Node 18.
+      # Follow the producer's runtime after #182 adds .nvmrc. Until then the
+      # legacy lockfile uses Hardhat 2.10 and is tested on Node 18.
       - uses: actions/setup-node@v4
         with:
-          node-version: "18.20.8"
+          node-version: ${{ hashFiles('.nvmrc') == '' && '18.20.8' || '' }}
+          node-version-file: ${{ hashFiles('.nvmrc') != '' && '.nvmrc' || '' }}
           cache: yarn
       - run: yarn install --frozen-lockfile
       - run: yarn build && yarn prepack
