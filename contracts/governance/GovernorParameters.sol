@@ -187,7 +187,6 @@ abstract contract GovernorParameters is Governor {
 
     /// @notice Compute the past total voting power at a particular block
     /// @param blockNumber The block number to get the vote power at
-    // slither-disable-next-line dead-code
     function _getPastTotalSupply(uint256 blockNumber)
         internal
         view

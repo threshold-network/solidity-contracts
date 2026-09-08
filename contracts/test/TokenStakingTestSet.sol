@@ -131,7 +131,6 @@ contract ExpensiveApplicationMock is ApplicationMock {
 contract ManagedGrantMock {
     address public grantee;
 
-    //slither-disable-next-line missing-zero-check
     function setGrantee(address _grantee) external {
         grantee = _grantee;
     }

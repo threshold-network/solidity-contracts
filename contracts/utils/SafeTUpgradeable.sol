@@ -47,6 +47,9 @@ library SafeTUpgradeable {
         address to,
         uint256 value
     ) internal {
+        // This internal adapter relies on callers to authenticate `from`.
+        // Its only callers, in TokenStakingTestSet, pass msg.sender.
+        // slither-disable-next-line arbitrary-send-erc20
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(address(token)),
             from,

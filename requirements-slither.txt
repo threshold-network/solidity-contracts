@@ -1,0 +1,4 @@
+# Keep the analyzer and its compilation tools in sync with the tested CI setup.
+slither-analyzer==0.11.6
+crytic-compile==0.4.2
+solc-select==1.2.0
