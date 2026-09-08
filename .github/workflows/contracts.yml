@@ -152,6 +152,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts for etherscan verifcation
+          # hardhat-deploy requires the hidden .chainId deployment marker.
+          include-hidden-files: true
           path: |
             ./deployments
             ./package.json

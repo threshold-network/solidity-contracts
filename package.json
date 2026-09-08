@@ -29,7 +29,7 @@
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
-    "prepublishOnly": "hardhat export-deployment-artifacts --network $npm_config_network"
+    "prepublishOnly": "rm -rf artifacts/ && hardhat export-deployment-artifacts --network $npm_config_network"
   },
   "devDependencies": {
     "@keep-network/hardhat-helpers": "^0.6.0-pre.21",
