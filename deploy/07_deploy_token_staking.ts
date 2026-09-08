@@ -9,23 +9,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts()
 
   const T = await deployments.get("T")
-  const KeepTokenStaking = await deployments.get("KeepTokenStaking")
-  const NuCypherStakingEscrow = await deployments.get("NuCypherStakingEscrow")
-  const VendingMachineKeep = await deployments.get("VendingMachineKeep")
-  const VendingMachineNuCypher = await deployments.get("VendingMachineNuCypher")
-  const KeepStake = await deployments.get("KeepStake")
 
-  const tokenStakingConstructorArgs = [
-    T.address,
-    KeepTokenStaking.address,
-    NuCypherStakingEscrow.address,
-    VendingMachineKeep.address,
-    VendingMachineNuCypher.address,
-    KeepStake.address,
-  ]
+  const tokenStakingConstructorArgs = [T.address]
   const tokenStakingInitializerArgs = []
 
-  // TODO: Consider upgradable deployment also for goerli.
+  // TODO: Consider upgradable deployment also for sepolia.
   let tokenStakingAddress
   if (hre.network.name == "mainnet") {
     const TokenStaking = await ethers.getContractFactory("TokenStaking")
@@ -82,12 +70,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 export default func
 
 func.tags = ["TokenStaking"]
-func.dependencies = [
-  "T",
-  "KeepTokenStaking",
-  "NuCypherStakingEscrow",
-  "VendingMachineKeep",
-  "VendingMachineNuCypher",
-  "KeepStake",
-  "MintT",
-]
+func.dependencies = ["T", "VendingMachineNuCypher", "MintT"]

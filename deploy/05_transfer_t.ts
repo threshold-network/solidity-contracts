@@ -7,11 +7,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { execute } = deployments
   const { to1e18, from1e18 } = helpers.number
 
-  const VendingMachineKeep = await deployments.get("VendingMachineKeep")
   const VendingMachineNuCypher = await deployments.get("VendingMachineNuCypher")
 
   const vendingMachines = [
-    { tokenSymbol: "KEEP", vendingMachineAddress: VendingMachineKeep.address },
     {
       tokenSymbol: "NU",
       vendingMachineAddress: VendingMachineNuCypher.address,
@@ -43,4 +41,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 export default func
 
 func.tags = ["TransferT"]
-func.dependencies = ["MintT", "VendingMachineKeep", "VendingMachineNuCypher"]
+func.dependencies = ["MintT", "VendingMachineNuCypher"]

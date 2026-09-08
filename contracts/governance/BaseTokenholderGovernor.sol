@@ -122,6 +122,16 @@ contract BaseTokenholderGovernor is
         return super.supportsInterface(interfaceId);
     }
 
+    function proposalDeadline(uint256 proposalId)
+        public
+        view
+        virtual
+        override(IGovernor, Governor, GovernorPreventLateQuorum)
+        returns (uint256)
+    {
+        return super.proposalDeadline(proposalId);
+    }
+
     function _execute(
         uint256 proposalId,
         address[] memory targets,
@@ -141,25 +151,6 @@ contract BaseTokenholderGovernor is
         return super._cancel(targets, values, calldatas, descriptionHash);
     }
 
-    function _executor()
-        internal
-        view
-        override(Governor, GovernorTimelockControl)
-        returns (address)
-    {
-        return super._executor();
-    }
-
-    function proposalDeadline(uint256 proposalId)
-        public
-        view
-        virtual
-        override(IGovernor, Governor, GovernorPreventLateQuorum)
-        returns (uint256)
-    {
-        return super.proposalDeadline(proposalId);
-    }
-
     function _castVote(
         uint256 proposalId,
         address account,
@@ -172,5 +163,14 @@ contract BaseTokenholderGovernor is
         returns (uint256)
     {
         return super._castVote(proposalId, account, support, reason);
+    }
+
+    function _executor()
+        internal
+        view
+        override(Governor, GovernorTimelockControl)
+        returns (address)
+    {
+        return super._executor();
     }
 }

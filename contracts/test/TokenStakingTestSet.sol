@@ -2,195 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "../staking/ILegacyTokenStaking.sol";
 import "../staking/IApplication.sol";
 import "../staking/TokenStaking.sol";
-
-contract KeepTokenStakingMock is IKeepTokenStaking {
-    using PercentUtils for uint256;
-
-    struct OperatorStruct {
-        address owner;
-        address payable beneficiary;
-        address authorizer;
-        uint256 createdAt;
-        uint256 undelegatedAt;
-        uint256 amount;
-        mapping(address => bool) eligibility;
-    }
-
-    mapping(address => OperatorStruct) internal operators;
-    mapping(address => uint256) public tattletales;
-
-    function setOperator(
-        address operator,
-        address owner,
-        address payable beneficiary,
-        address authorizer,
-        uint256 createdAt,
-        uint256 undelegatedAt,
-        uint256 amount
-    ) external {
-        OperatorStruct storage operatorStrut = operators[operator];
-        operatorStrut.owner = owner;
-        operatorStrut.beneficiary = beneficiary;
-        operatorStrut.authorizer = authorizer;
-        operatorStrut.createdAt = createdAt;
-        operatorStrut.undelegatedAt = undelegatedAt;
-        operatorStrut.amount = amount;
-    }
-
-    function setEligibility(
-        address operator,
-        address application,
-        bool isEligible
-    ) external {
-        operators[operator].eligibility[application] = isEligible;
-    }
-
-    function setAmount(address operator, uint256 amount) external {
-        operators[operator].amount = amount;
-    }
-
-    function setUndelegatedAt(address operator, uint256 undelegatedAt)
-        external
-    {
-        operators[operator].undelegatedAt = undelegatedAt;
-    }
-
-    function seize(
-        uint256 amountToSeize,
-        uint256 rewardMultiplier,
-        address tattletale,
-        address[] memory misbehavedOperators
-    ) external override {
-        require(amountToSeize > 0, "Amount to slash must be greater than zero");
-        // assumed only one will be slashed (per call)
-        require(
-            misbehavedOperators.length == 1,
-            "Only one operator per call in tests"
-        );
-        address operator = misbehavedOperators[0];
-        operators[operator].amount -= amountToSeize;
-        tattletales[tattletale] += amountToSeize.percent(5).percent(
-            rewardMultiplier
-        );
-    }
-
-    function getDelegationInfo(address operator)
-        external
-        view
-        override
-        returns (
-            uint256 amount,
-            uint256 createdAt,
-            uint256 undelegatedAt
-        )
-    {
-        amount = operators[operator].amount;
-        createdAt = operators[operator].createdAt;
-        undelegatedAt = operators[operator].undelegatedAt;
-    }
-
-    function ownerOf(address operator)
-        external
-        view
-        override
-        returns (address)
-    {
-        return operators[operator].owner;
-    }
-
-    function beneficiaryOf(address operator)
-        external
-        view
-        override
-        returns (address payable)
-    {
-        return operators[operator].beneficiary;
-    }
-
-    function authorizerOf(address operator)
-        external
-        view
-        override
-        returns (address)
-    {
-        return operators[operator].authorizer;
-    }
-
-    function eligibleStake(address operator, address operatorContract)
-        external
-        view
-        override
-        returns (uint256 balance)
-    {
-        OperatorStruct storage operatorStrut = operators[operator];
-        if (operatorStrut.eligibility[operatorContract]) {
-            return operatorStrut.amount;
-        }
-        return 0;
-    }
-}
-
-contract NuCypherTokenStakingMock is INuCypherStakingEscrow {
-    struct StakerStruct {
-        uint256 value;
-        address stakingProvider;
-    }
-
-    mapping(address => StakerStruct) public stakers;
-    mapping(address => uint256) public investigators;
-
-    function setStaker(address staker, uint256 value) external {
-        stakers[staker].value = value;
-    }
-
-    function slashStaker(
-        address staker,
-        uint256 penalty,
-        address investigator,
-        uint256 reward
-    ) external override {
-        require(penalty > 0, "Amount to slash must be greater than zero");
-        stakers[staker].value -= penalty;
-        investigators[investigator] += reward;
-    }
-
-    function requestMerge(address staker, address stakingProvider)
-        external
-        override
-        returns (uint256)
-    {
-        StakerStruct storage stakerStruct = stakers[staker];
-        require(
-            stakerStruct.stakingProvider == address(0) ||
-                stakerStruct.stakingProvider == stakingProvider,
-            "Another provider was already set for this staker"
-        );
-        if (stakerStruct.stakingProvider == address(0)) {
-            stakerStruct.stakingProvider = stakingProvider;
-        }
-        return stakers[staker].value;
-    }
-
-    function getAllTokens(address staker)
-        external
-        view
-        override
-        returns (uint256)
-    {
-        return stakers[staker].value;
-    }
-
-    function stakerInfo(address staker)
-        public
-        view
-        returns (StakerStruct memory)
-    {
-        return stakers[staker];
-    }
-}
 
 contract VendingMachineMock {
     uint256 public constant FLOATING_POINT_DIVISOR = 10**15;
@@ -212,6 +25,7 @@ contract ApplicationMock is IApplication {
 
     TokenStaking internal immutable tokenStaking;
     mapping(address => StakingProviderStruct) public stakingProviders;
+    mapping(address => bool) public stakeless;
 
     constructor(TokenStaking _tokenStaking) {
         tokenStaking = _tokenStaking;
@@ -245,22 +59,21 @@ contract ApplicationMock is IApplication {
             .approveAuthorizationDecrease(stakingProvider);
     }
 
-    function slash(uint96 amount, address[] memory _stakingProviders) external {
-        tokenStaking.slash(amount, _stakingProviders);
+    function migrateAndRelease(address stakingProvider, uint96 amount)
+        external
+    {
+        stakeless[stakingProvider] = tokenStaking.migrateAndRelease(
+            stakingProvider,
+            amount
+        );
     }
 
-    function seize(
-        uint96 amount,
-        uint256 rewardMultiplier,
-        address notifier,
-        address[] memory _stakingProviders
-    ) external {
-        tokenStaking.seize(
-            amount,
-            rewardMultiplier,
-            notifier,
-            _stakingProviders
-        );
+    function availableRewards(address) external pure returns (uint96) {
+        return 0;
+    }
+
+    function minimumAuthorization() external pure returns (uint96) {
+        return 0;
     }
 
     function involuntaryAuthorizationDecrease(
@@ -275,21 +88,10 @@ contract ApplicationMock is IApplication {
             toAmount != stakingProviderStruct.authorized,
             "Nothing to decrease"
         );
-        uint96 decrease = stakingProviderStruct.authorized - toAmount;
-        if (stakingProviderStruct.deauthorizingTo > decrease) {
-            stakingProviderStruct.deauthorizingTo -= decrease;
-        } else {
-            stakingProviderStruct.deauthorizingTo = 0;
-        }
         stakingProviderStruct.authorized = toAmount;
-    }
-
-    function availableRewards(address) external pure returns (uint96) {
-        return 0;
-    }
-
-    function minimumAuthorization() external pure returns (uint96) {
-        return 0;
+        if (stakingProviderStruct.deauthorizingTo > toAmount) {
+            stakingProviderStruct.deauthorizingTo = toAmount;
+        }
     }
 }
 
@@ -336,23 +138,12 @@ contract ManagedGrantMock {
 }
 
 contract ExtendedTokenStaking is TokenStaking {
-    constructor(
-        T _token,
-        IKeepTokenStaking _keepStakingContract,
-        INuCypherStakingEscrow _nucypherStakingContract,
-        VendingMachine _keepVendingMachine,
-        VendingMachine _nucypherVendingMachine,
-        KeepStake _keepStake
-    )
-        TokenStaking(
-            _token,
-            _keepStakingContract,
-            _nucypherStakingContract,
-            _keepVendingMachine,
-            _nucypherVendingMachine,
-            _keepStake
-        )
-    {}
+    using SafeTUpgradeable for T;
+
+    mapping(address => bool) public skipList;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(T _token) TokenStaking(_token) {}
 
     function cleanAuthorizedApplications(
         address stakingProvider,
@@ -382,8 +173,193 @@ contract ExtendedTokenStaking is TokenStaking {
             .authorizedApplications = _applications;
     }
 
-    // to decrease size of test contract
-    function processSlashing(uint256 count) external override {}
+    function addToSkipList(address application) external {
+        skipList[application] = true;
+    }
+
+    /// @notice Creates a delegation with `msg.sender` owner with the given
+    ///         staking provider, beneficiary, and authorizer. Transfers the
+    ///         given amount of T to the staking contract.
+    /// @dev The owner of the delegation needs to have the amount approved to
+    ///      transfer to the staking contract.
+    function stake(
+        address stakingProvider,
+        address payable beneficiary,
+        address authorizer,
+        uint96 amount
+    ) external {
+        require(
+            stakingProvider != address(0) &&
+                beneficiary != address(0) &&
+                authorizer != address(0),
+            "Parameters must be specified"
+        );
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        require(
+            stakingProviderStruct.owner == address(0),
+            "Provider is already in use"
+        );
+        require(
+            amount > 0 && amount >= minTStakeAmount,
+            "Amount is less than minimum"
+        );
+        stakingProviderStruct.owner = msg.sender;
+        stakingProviderStruct.authorizer = authorizer;
+        stakingProviderStruct.beneficiary = beneficiary;
+
+        stakingProviderStruct.tStake = amount;
+        /* solhint-disable-next-line not-rely-on-time */
+        stakingProviderStruct.startStakingTimestamp = block.timestamp;
+
+        increaseStakeCheckpoint(stakingProvider, amount);
+
+        token.safeTransferFrom(msg.sender, address(this), amount);
+    }
+
+    /// @notice Increases the authorization of the given staking provider for
+    ///         the given application by the given amount. Can only be called by
+    ///         the given staking provider’s authorizer.
+    /// @dev Calls `authorizationIncreased` callback on the given application to
+    ///      notify the application about authorization change.
+    ///      See `IApplication`.
+    function increaseAuthorization(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) external onlyAuthorizerOf(stakingProvider) {
+        require(amount > 0, "Parameters must be specified");
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        uint96 fromAmount = authorization.authorized;
+        if (fromAmount == 0) {
+            require(
+                authorizationCeiling == 0 ||
+                    stakingProviderStruct.authorizedApplications.length <
+                    authorizationCeiling,
+                "Too many applications"
+            );
+            stakingProviderStruct.authorizedApplications.push(application);
+        }
+
+        uint96 availableTValue = getAvailableToAuthorize(
+            stakingProvider,
+            application
+        );
+        require(availableTValue >= amount, "Not enough stake to authorize");
+        authorization.authorized += amount;
+        IApplication(application).authorizationIncreased(
+            stakingProvider,
+            fromAmount,
+            authorization.authorized
+        );
+    }
+
+    /// @notice Transfer some amount of T tokens as reward for notifications
+    ///         of misbehaviour
+    function pushNotificationReward(uint96 reward) external {
+        require(reward > 0, "Parameters must be specified");
+        notifiersTreasury += reward;
+        token.safeTransferFrom(msg.sender, address(this), reward);
+    }
+
+    /// @notice Allows the Governance to approve the particular application
+    ///         before individual stake authorizers are able to authorize it.
+    function approveApplication(address application) external {
+        require(application != address(0), "Parameters must be specified");
+        ApplicationInfo storage info = applicationInfo[application];
+        require(
+            info.status == ApplicationStatus.NOT_APPROVED ||
+                info.status == ApplicationStatus.PAUSED,
+            "Can't approve application"
+        );
+
+        if (info.status == ApplicationStatus.NOT_APPROVED) {
+            applications.push(application);
+        }
+        info.status = ApplicationStatus.APPROVED;
+        emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
+    }
+
+    function legacyRequestAuthorizationDecrease(address stakingProvider)
+        external
+    {
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        uint96 deauthorizing = 0;
+        for (
+            uint256 i = 0;
+            i < stakingProviderStruct.authorizedApplications.length;
+            i++
+        ) {
+            address application = stakingProviderStruct.authorizedApplications[
+                i
+            ];
+            uint96 authorized = stakingProviderStruct
+                .authorizations[application]
+                .authorized;
+            if (authorized > 0) {
+                legacyRequestAuthorizationDecrease(
+                    stakingProvider,
+                    application,
+                    authorized
+                );
+                deauthorizing += authorized;
+            }
+        }
+
+        require(deauthorizing > 0, "Nothing was authorized");
+    }
+
+    function legacyApproveAuthorizationDecrease(
+        address stakingProvider,
+        address application
+    ) external returns (uint96) {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        require(authorization.deauthorizing > 0, "No deauthorizing in process");
+
+        uint96 fromAmount = authorization.authorized;
+        authorization.authorized -= authorization.deauthorizing;
+        emit AuthorizationDecreaseApproved(
+            stakingProvider,
+            application,
+            fromAmount,
+            authorization.authorized
+        );
+
+        // remove application from an array
+        if (authorization.authorized == 0) {
+            cleanAuthorizedApplications(stakingProviderStruct, 1);
+        }
+
+        authorization.deauthorizing = 0;
+        return authorization.authorized;
+    }
 
     function getAuthorizedApplications(address stakingProvider)
         external
@@ -391,5 +367,71 @@ contract ExtendedTokenStaking is TokenStaking {
         returns (address[] memory)
     {
         return stakingProviders[stakingProvider].authorizedApplications;
+    }
+
+    function getDeauthorizingAmount(
+        address stakingProvider,
+        address application
+    ) external view returns (uint96) {
+        return
+            stakingProviders[stakingProvider]
+                .authorizations[application]
+                .deauthorizing;
+    }
+
+    function legacyRequestAuthorizationDecrease(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) public {
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        require(amount > 0, "Parameters must be specified");
+
+        AppAuthorization storage authorization = stakingProviders[
+            stakingProvider
+        ].authorizations[application];
+        require(
+            authorization.authorized >= amount,
+            "Amount exceeds authorized"
+        );
+
+        authorization.deauthorizing = amount;
+        uint96 deauthorizingTo = authorization.authorized - amount;
+        emit AuthorizationDecreaseRequested(
+            stakingProvider,
+            application,
+            authorization.authorized,
+            deauthorizingTo
+        );
+        IApplication(application).authorizationDecreaseRequested(
+            stakingProvider,
+            authorization.authorized,
+            deauthorizingTo
+        );
+    }
+
+    /// @notice Creates new checkpoints due to an increment of a stakers' stake
+    /// @param _delegator Address of the staking provider acting as delegator
+    /// @param _amount Amount of T to increment
+    function increaseStakeCheckpoint(address _delegator, uint96 _amount)
+        internal
+    {
+        newStakeCheckpoint(_delegator, _amount, true);
+    }
+
+    function skipApplication(address application)
+        internal
+        view
+        override
+        returns (bool)
+    {
+        return skipList[application];
     }
 }

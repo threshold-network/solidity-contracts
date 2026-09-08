@@ -27,10 +27,8 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "yarn"
 
-      - name: Resolve latest contracts
-        run: |
-          yarn upgrade --exact \
-            @keep-network/keep-core
+      - name: Install needed dependencies
+        run: yarn install --frozen-lockfile
 
       # Deploy contracts to a local network to generate deployment artifacts that
       # are required by dashboard compilation.

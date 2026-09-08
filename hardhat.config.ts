@@ -46,32 +46,13 @@ const config: HardhatUserConfig = {
       chainId: 1101,
       tags: ["allowStubs"],
     },
-    goerli: {
+    sepolia: {
       url: process.env.CHAIN_API_URL || "",
-      chainId: 5,
+      chainId: 11155111,
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
         ? [
             process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-          ]
-        : undefined,
-      tags: ["tenderly"],
-    },
-    rinkeby: {
-      url: process.env.CHAIN_API_URL || "",
-      chainId: 4,
-      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
-        : undefined,
-      tags: ["tenderly"],
-    },
-    ropsten: {
-      url: process.env.CHAIN_API_URL || "",
-      chainId: 3,
-      accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
-        ? [
-            process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
+            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY, // TODO: verify if we have different owner here or can we remove this
           ]
         : undefined,
       tags: ["tenderly"],
@@ -99,23 +80,17 @@ const config: HardhatUserConfig = {
       // For hardhat environment we can fork the mainnet, so we need to point it
       // to the contract artifacts.
       hardhat: process.env.FORKING_URL ? ["./external/mainnet"] : [],
-      goerli: ["./external/goerli"],
       mainnet: ["./external/mainnet"],
     },
   },
   namedAccounts: {
     deployer: {
       default: 1, // take the first account as deployer
-      goerli: 0,
+      sepolia: 0,
       // mainnet: "0x123694886DBf5Ac94DDA07135349534536D14cAf",
     },
     thresholdCouncil: {
       mainnet: "0x9F6e831c8F8939DC0C830C6e492e7cEf4f9C2F5f",
-    },
-    keepRegistryKeeper: {
-      default: 1, // same as the deployer
-      ropsten: "0x923C5Dbf353e99394A21Aa7B67F3327Ca111C67D",
-      goerli: "0x68ad60CC5e8f3B7cC53beaB321cf0e6036962dBc",
     },
   },
   mocha: {
@@ -124,7 +99,7 @@ const config: HardhatUserConfig = {
   docgen: {
     outputDir: "generated-docs",
     templates: "docgen-templates",
-    pages: "single", // `single`, `items` or `files`
+    pages: "files", // `single`, `items` or `files`
     exclude: ["./test"],
   },
 }

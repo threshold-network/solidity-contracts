@@ -3,6 +3,14 @@
 pragma solidity ^0.8.0;
 
 contract SimplePREApplicationStub {
+    struct StakingProviderInfo {
+        address operator;
+        bool operatorConfirmed;
+        uint256 operatorStartTimestamp;
+    }
+
+    mapping(address => StakingProviderInfo) public stakingProviderInfo;
+
     event OperatorBonded(
         address indexed stakingProvider,
         address indexed operator,
@@ -13,14 +21,6 @@ contract SimplePREApplicationStub {
         address indexed stakingProvider,
         address indexed operator
     );
-
-    struct StakingProviderInfo {
-        address operator;
-        bool operatorConfirmed;
-        uint256 operatorStartTimestamp;
-    }
-
-    mapping(address => StakingProviderInfo) public stakingProviderInfo;
 
     function bondOperator(address _stakingProvider, address _operator)
         external
