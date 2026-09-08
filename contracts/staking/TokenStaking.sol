@@ -291,7 +291,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
         uint96 fromAmount = authorization.authorized;
         authorization.authorized -= authorization.deauthorizing;
-        authorization.deauthorizing = 0;
         emit AuthorizationDecreaseApproved(
             stakingProvider,
             msg.sender,
@@ -304,6 +303,16 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             cleanAuthorizedApplications(stakingProviderStruct, 1);
         }
 
+        // Unstake
+        stakingProviderStruct.tStake -= authorization.deauthorizing;
+        decreaseStakeCheckpoint(stakingProvider, authorization.deauthorizing);
+        emit Unstaked(stakingProvider, authorization.deauthorizing);
+        token.safeTransfer(
+            stakingProviderStruct.owner,
+            authorization.deauthorizing
+        );
+
+        authorization.deauthorizing = 0;
         return authorization.authorized;
     }
 
@@ -488,6 +497,59 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
     }
 
+    /// Migration
+    function migrateAndRelease(address stakingProvider, uint96 amount)
+        external
+        override
+        returns (bool stakeless)
+    {
+        ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        require(
+            !skipApplication(msg.sender),
+            "Only TACo app can call this method"
+        );
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        require(
+            stakingProviderStruct.owner != address(0),
+            "Wrong staking provider"
+        );
+        uint96 toUnstake = stakingProviderStruct.tStake;
+        stakingProviderStruct.tStake = 0;
+        decreaseStakeCheckpoint(stakingProvider, toUnstake);
+        emit Unstaked(stakingProvider, toUnstake);
+
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[msg.sender];
+
+        // stakeless
+        if (authorization.authorized == 0) {
+            stakeless = true;
+        } else {
+            require(
+                authorization.authorized >= amount,
+                "Not enough authorization"
+            );
+            toUnstake -= amount;
+            authorization.authorized = 0;
+            if (amount > 0) {
+                token.safeTransfer(msg.sender, amount);
+            }
+            stakeless = false;
+        }
+
+        if (toUnstake > 0) {
+            token.safeTransfer(stakingProviderStruct.owner, toUnstake);
+        }
+    }
+
     /// @notice Delegate voting power from the stake associated to the
     ///         `stakingProvider` to a `delegatee` address. Caller must be the
     ///         owner of this stake.
@@ -520,6 +582,9 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         override
         returns (uint96)
     {
+        if (skipApplication(application)) {
+            return 0;
+        }
         return
             stakingProviders[stakingProvider]
                 .authorizations[application]
@@ -818,61 +883,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
-    function forceDecreaseAuthorization(
-        address stakingProvider,
-        uint96 amountTo
-    ) internal {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 deauthorized = 0;
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            if (skipApplication(application)) {
-                continue;
-            }
-            AppAuthorization storage authorization = stakingProviderStruct
-                .authorizations[application];
-            uint96 authorized = authorization.authorized;
-            if (authorized > amountTo) {
-                IApplication(application).involuntaryAuthorizationDecrease(
-                    stakingProvider,
-                    authorized,
-                    amountTo
-                );
-                uint96 decrease = authorized - amountTo;
-
-                if (authorization.deauthorizing >= decrease) {
-                    authorization.deauthorizing -= decrease;
-                } else {
-                    authorization.deauthorizing = 0;
-                }
-
-                authorization.authorized = amountTo;
-                deauthorized += decrease;
-
-                emit AuthorizationDecreaseApproved(
-                    stakingProvider,
-                    application,
-                    authorized,
-                    amountTo
-                );
-            }
-        }
-
-        require(deauthorized > 0, "Nothing to deauthorize");
-    }
-
     // slither-disable-next-line dead-code
     function skipApplication(address application)
         internal
-        pure
+        view
         virtual
         returns (bool)
     {
