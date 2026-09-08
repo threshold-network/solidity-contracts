@@ -12,6 +12,11 @@ on:
       - "yarn.lock"
   workflow_dispatch:
 
+# Git dependencies bootstrap with Yarn Classic in parallel. A relative cache
+# keeps each bootstrap's cache inside its own temporary checkout.
+env:
+  YARN_CACHE_FOLDER: .yarn/cache
+
 jobs:
   npm-compile-publish-contracts:
     runs-on: ubuntu-latest

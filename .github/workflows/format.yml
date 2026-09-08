@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Git dependencies bootstrap with Yarn Classic in parallel. A relative cache
+# keeps each bootstrap's cache inside its own temporary checkout.
+env:
+  YARN_CACHE_FOLDER: .yarn/cache
+
 jobs:
   code-lint-and-format:
     runs-on: ubuntu-latest

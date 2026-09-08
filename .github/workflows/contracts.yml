@@ -34,6 +34,11 @@ on:
         required: false
         default: "main"
 
+# Git dependencies bootstrap with Yarn Classic in parallel. A relative cache
+# keeps each bootstrap's cache inside its own temporary checkout.
+env:
+  YARN_CACHE_FOLDER: .yarn/cache
+
 jobs:
   contracts-detect-changes:
     runs-on: ubuntu-latest
