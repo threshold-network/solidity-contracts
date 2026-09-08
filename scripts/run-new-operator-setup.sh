@@ -15,8 +15,8 @@
 #   5. Source .env and .env.new-operator, or export the variables below
 #
 # Usage:
-#   source .env
-#   source .env.new-operator          # provides addresses + OPERATOR_KEYSTORE_PATH
+#   source ./.env
+#   source ./.env.new-operator          # provides addresses + OPERATOR_KEYSTORE_PATH
 #   export NEW_STAKING_PROVIDER_KEY=0x...  # key shown once by setup-new-staking-provider.js
 #   export NEW_OPERATOR_KEY=0x...          # or use OPERATOR_KEYSTORE_PATH + password instead
 #   bash scripts/run-new-operator-setup.sh
@@ -40,8 +40,8 @@ AMOUNT_80K="$(cast to-wei 80000)"
 OPERATOR_STAKE_GAS_LIMIT="${OPERATOR_STAKE_GAS_LIMIT:-700000}"
 
 # Load env
-if [ -f .env ]; then source .env; fi
-if [ -f .env.new-operator ]; then source .env.new-operator; fi
+if [ -f .env ]; then source ./.env; fi
+if [ -f .env.new-operator ]; then source ./.env.new-operator; fi
 
 : "${CHAIN_API_URL:?Set CHAIN_API_URL}"
 : "${NEW_STAKING_PROVIDER_ADDRESS:?Run setup-new-staking-provider.js first}"

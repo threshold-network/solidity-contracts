@@ -6,8 +6,8 @@
 # Step 2: Sepolia ETH - use a faucet (see below)
 #
 # Usage:
-#   source .env
-#   source .env.new-operator
+#   source ./.env
+#   source ./.env.new-operator
 #   bash scripts/fund-new-operator.sh
 #
 # Or with an explicit env file (paths relative to repo root or absolute):

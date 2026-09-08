@@ -22,13 +22,14 @@
 #
 # Optional env (--new): AUTO_FUND_T=1 (default if unset) mints missing T via T.mint when deployer or
 #   T_MINTER_PRIVATE_KEY matches T.owner(). Set AUTO_FUND_T=0 to require a pre-funded deployer.
-#   ETH_PER_OPERATOR: native ETH sent to each new SP and each operator (default 0.05ether). Sepolia
-#   gas for stake/register/join can exceed 0.001ether per address; override if your network is cheaper.
+#   ETH_PER_OPERATOR: native ETH sent to each new SP and each operator (default 0.05ether).
+#   Unitless amounts are interpreted as ether. Sepolia gas for stake/register/join can exceed
+#   0.001ether per address; override if your network is cheaper.
 #   Ambiguous transaction submission stops setup; reconcile the original transaction before retrying.
 #   python3 is required for --new. Parent/Ansible export wins over .env for deployer / T minter keys.
 #
 # Usage:
-#   source .env
+#   source ./.env
 #   bash scripts/setup-multiple-operators.sh [N] [password] [--new|--existing]
 #
 # Examples:
@@ -105,7 +106,7 @@ cd "$SOLIDITY_CONTRACTS_DIR"
 # do not let a stale solidity-contracts/.env overwrite them when sourced.
 _saved_contract_owner_pk="${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}"
 _saved_t_minter_pk="${T_MINTER_PRIVATE_KEY:-}"
-if [ -f .env ]; then source .env; fi
+if [ -f .env ]; then source ./.env; fi
 if [ -n "$_saved_contract_owner_pk" ]; then
   CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY="$_saved_contract_owner_pk"
 fi
@@ -229,11 +230,15 @@ fi
 if [ "$USE_EXISTING" = true ]; then
   : "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}"
   OPERATORS_CONFIG="${OPERATORS_CONFIG:-.env.operators-3}"
+  case "$OPERATORS_CONFIG" in
+    /*) ;;
+    *) OPERATORS_CONFIG="./$OPERATORS_CONFIG" ;;
+  esac
   [ -f "$OPERATORS_CONFIG" ] || {
     echo "Missing $OPERATORS_CONFIG. Copy from .env.operators-3.example"
     exit 1
   }
-  source "$OPERATORS_CONFIG"
+  source -- "$OPERATORS_CONFIG"
   CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY=$(strip_secret "${CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY:-}")
   echo "=== Registering $N existing operators (authorize, register, join) ==="
 else
@@ -328,7 +333,7 @@ for i in $(seq 1 "$N"); do
     exit 1
   fi
   # shellcheck source=/dev/null
-  source ".env.operator-${i}"
+  source "./.env.operator-${i}"
   NEW_STAKING_PROVIDER_KEY=$(strip_secret "${NEW_STAKING_PROVIDER_KEY:-}")
   NEW_OPERATOR_KEY=$(strip_secret "${NEW_OPERATOR_KEY:-}")
   NEW_STAKING_PROVIDER_ADDRESS=$(strip_secret "${NEW_STAKING_PROVIDER_ADDRESS:-}")
@@ -353,10 +358,10 @@ for i in $(seq 1 "$N"); do
   ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok $T_TOKEN "transfer(address,uint256)" "$NEW_STAKING_PROVIDER_ADDRESS" $AMOUNT_80K \
     --rpc-url $CHAIN_API_URL
 
-  # Fund with ETH
-  ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok "$NEW_STAKING_PROVIDER_ADDRESS" --value $ETH_PER_OPERATOR \
+  # Fund with the same wei amount checked by ETH preflight.
+  ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok "$NEW_STAKING_PROVIDER_ADDRESS" --value "$_eth_per_operator_wei_dec" \
     --rpc-url $CHAIN_API_URL
-  ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok "$NEW_OPERATOR_ADDRESS" --value $ETH_PER_OPERATOR \
+  ETH_PRIVATE_KEY="$CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY" cast_send_ok "$NEW_OPERATOR_ADDRESS" --value "$_eth_per_operator_wei_dec" \
     --rpc-url $CHAIN_API_URL
 
   # Stake, authorize, register, join
