@@ -11,13 +11,15 @@ jobs:
   code-lint-and-format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          node-version: "18"
+          node-version-file: ".nvmrc"
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
+      - name: Run lint and formatting checks
+        run: yarn format

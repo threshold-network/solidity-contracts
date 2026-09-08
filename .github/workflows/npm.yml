@@ -8,22 +8,27 @@ on:
       - "contracts/**"
       - "deploy/**"
       - "hardhat.config.ts"
+      - ".nvmrc"
       - "package.json"
+      - "tsconfig.json"
+      - "tsconfig.export.json"
       - "yarn.lock"
   workflow_dispatch:
 
 jobs:
   npm-compile-publish-contracts:
     runs-on: ubuntu-latest
+    env:
+      # setup-node's generated npmrc references this during Yarn install and
+      # the npm-version-bump action's registry read below. The publish step
+      # overrides it with the real registry token.
+      NODE_AUTH_TOKEN: unused
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          # Using fixed version, because 18.16 may cause issues with the
-          # artifacts generation during `hardhat compile` - see
-          # https://github.com/NomicFoundation/hardhat/issues/3877.
-          node-version: "18.15.0"
+          node-version-file: ".nvmrc"
           registry-url: "https://registry.npmjs.org"
           cache: "yarn"
 

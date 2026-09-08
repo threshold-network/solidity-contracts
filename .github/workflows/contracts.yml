@@ -40,10 +40,10 @@ jobs:
     outputs:
       system-tests: ${{ steps.filter.outputs.system-tests }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         if: github.event_name == 'pull_request'
 
-      - uses: dorny/paths-filter@v2
+      - uses: dorny/paths-filter@v4.0.3
         if: github.event_name == 'pull_request'
         id: filter
         with:
@@ -55,18 +55,15 @@ jobs:
   contracts-build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          # Using fixed version, because 18.16 was sometimes causing issues with
-          # artifacts generation during `hardhat compile` - see
-          # https://github.com/NomicFoundation/hardhat/issues/3877
-          node-version: "18.15.0"
+          node-version-file: ".nvmrc"
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Build contracts
         run: yarn build
@@ -78,18 +75,15 @@ jobs:
   contracts-deployment-dry-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          # Using fixed version, because 18.16 was sometimes causing issues with
-          # artifacts generation during `hardhat compile` - see
-          # https://github.com/NomicFoundation/hardhat/issues/3877
-          node-version: "18.15.0"
+          node-version-file: ".nvmrc"
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Deploy contracts
         run: yarn deploy
@@ -100,15 +94,17 @@ jobs:
       github.event_name == 'workflow_dispatch'
         && github.ref != 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
+    env:
+      # setup-node's generated npmrc references this during Yarn install and
+      # the npm-version-bump action's registry read below. The publish step
+      # overrides it with the real registry token.
+      NODE_AUTH_TOKEN: unused
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          # Using fixed version, because 18.16 was sometimes causing issues with
-          # artifacts generation during `hardhat compile` - see
-          # https://github.com/NomicFoundation/hardhat/issues/3877
-          node-version: "18.15.0"
+          node-version-file: ".nvmrc"
           cache: "yarn"
           registry-url: "https://registry.npmjs.org"
 
@@ -153,9 +149,11 @@ jobs:
           version: ${{ steps.npm-version-bump.outputs.version }}
 
       - name: Upload files needed for etherscan verification
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: Artifacts for etherscan verifcation
+          # hardhat-deploy requires the hidden .chainId deployment marker.
+          include-hidden-files: true
           path: |
             ./deployments
             ./package.json
@@ -165,19 +163,16 @@ jobs:
     needs: [contracts-deployment-testnet]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Download files needed for etherscan verification
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: Artifacts for etherscan verifcation
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          # Using fixed version, because 18.16 was sometimes causing issues with
-          # artifacts generation during `hardhat compile` - see
-          # https://github.com/NomicFoundation/hardhat/issues/3877
-          node-version: "18.15.0"
+          node-version-file: ".nvmrc"
           cache: "yarn"
 
       - name: Install needed dependencies
@@ -201,15 +196,17 @@ jobs:
       github.event_name == 'workflow_dispatch'
         && github.ref == 'refs/heads/dapp-development'
     runs-on: ubuntu-latest
+    env:
+      # setup-node's generated npmrc references this during Yarn install and
+      # the npm-version-bump action's registry read below. The publish step
+      # overrides it with the real registry token.
+      NODE_AUTH_TOKEN: unused
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          # Using fixed version, because 18.16 was sometimes causing issues with
-          # artifacts generation during `hardhat compile` - see
-          # https://github.com/NomicFoundation/hardhat/issues/3877
-          node-version: "18.15.0"
+          node-version-file: ".nvmrc"
           cache: "yarn"
           registry-url: "https://registry.npmjs.org"
 
@@ -257,17 +254,14 @@ jobs:
       github.event_name != 'workflow_dispatch'
         && github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
-          # Using fixed version, because 18.16 was sometimes causing issues with
-          # artifacts generation during `hardhat compile` - see
-          # https://github.com/NomicFoundation/hardhat/issues/3877
-          node-version: "18.15.0"
+          node-version-file: ".nvmrc"
           cache: "yarn"
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v7
         with:
           python-version: 3.10.8
 
@@ -285,7 +279,7 @@ jobs:
         run: pip3 install slither-analyzer==$SLITHER_VERSION
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Run Slither
         run: slither .
