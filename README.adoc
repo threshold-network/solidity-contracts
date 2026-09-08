@@ -49,3 +49,6 @@ yarn deploy --network <network>
 If contracts haven't been built yet or changes occurred, this task will build
 the contracts before running the deployment script. This command produces
 an `export.json` file containing contract deployment info.
+
+See link:docs/verification.adoc[deployment verification] for verifying maintained
+contracts on Etherscan using the saved deployment records.
