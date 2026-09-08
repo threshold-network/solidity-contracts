@@ -93,7 +93,6 @@ contract T is ERC20WithPermit, MisfundRecovery, Checkpoints {
         return delegate(msg.sender, delegatee);
     }
 
-    // slither-disable-next-line dead-code
     function beforeTokenTransfer(
         address from,
         address to,

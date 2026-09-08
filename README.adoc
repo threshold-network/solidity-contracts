@@ -39,6 +39,37 @@ You can run them by doing:
 yarn test
 ```
 
+=== Static analysis
+
+CI runs https://github.com/crytic/slither[Slither] with Python 3.13 and the
+versions pinned in `requirements-slither.txt`: Slither 0.11.6,
+crytic-compile 0.4.2, and solc-select 1.2.0. To use the same tools locally,
+install Python 3.13 and create an isolated environment:
+
+```
+python3.13 -m venv .venv-slither
+source .venv-slither/bin/activate
+python -m pip install -r requirements-slither.txt
+python -m pip check
+solc-select install 0.8.9
+solc-select use 0.8.9
+yarn install --frozen-lockfile
+slither .
+```
+
+Slither performs a clean Hardhat compilation with the OpenZeppelin upgrades
+plugin enabled. The compiler remains Solidity 0.8.9, and
+`slither.config.json` selects the `build` artifacts directory and the
+repository's existing detector/path exclusions. The command fails on analysis
+errors or any finding that has not been excluded or suppressed.
+
+When upgrading, review the upstream release notes and Python requirements,
+update the three pins together, and repeat the commands above in a fresh
+environment. Run `slither . --warn-unused-ignores` to review obsolete inline
+suppressions; investigate new findings and document any necessary suppression
+at the affected code. Also run `yarn build`, `yarn test`, and `yarn format`.
+CI prints the Python and analyzer tool versions for comparison with local runs.
+
 === Deploy contracts
 
 To deploy all contracts on the given network, please run:

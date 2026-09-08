@@ -105,7 +105,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     mapping(address => ApplicationInfo) public applicationInfo;
     address[] public applications;
 
-    // slither-disable-next-line constable-states
     SlashingEvent[] private legacySlashingQueue;
     // slither-disable-next-line constable-states
     uint256 private legacySlashingQueueIndex;
@@ -166,6 +165,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     );
     event NotificationRewardSet(uint96 reward);
     event NotificationRewardPushed(uint96 reward);
+    // Preserve the existing event indexing for ABI and log compatibility.
+    // slither-disable-next-line unindexed-event-address
     event NotificationRewardWithdrawn(address recipient, uint96 amount);
     event NotifierRewarded(address indexed notifier, uint256 amount);
     event SlashingProcessed(
@@ -173,7 +174,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint256 count,
         uint256 tAmount
     );
+    // Preserve the existing event indexing for ABI and log compatibility.
+    // slither-disable-next-line unindexed-event-address
     event GovernanceTransferred(address oldGovernance, address newGovernance);
+    // Preserve the existing event indexing for ABI and log compatibility.
+    // slither-disable-next-line unindexed-event-address
     event NotificationReceived(
         uint96 amount,
         uint256 rewardMultipier,
@@ -195,7 +200,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     modifier onlyAuthorizerOf(address stakingProvider) {
-        //slither-disable-next-line incorrect-equality
         require(
             stakingProviders[stakingProvider].authorizer == msg.sender,
             "Not authorizer"
@@ -204,7 +208,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     modifier onlyOwnerOrStakingProvider(address stakingProvider) {
-        //slither-disable-next-line incorrect-equality
         require(
             stakingProviders[stakingProvider].owner != address(0) &&
                 (stakingProvider == msg.sender ||
@@ -215,7 +218,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     modifier onlyOwnerOf(address stakingProvider) {
-        // slither-disable-next-line incorrect-equality
         require(
             stakingProviders[stakingProvider].owner == msg.sender,
             "Caller is not owner"
@@ -883,7 +885,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
-    // slither-disable-next-line dead-code
     function skipApplication(address application)
         internal
         view
