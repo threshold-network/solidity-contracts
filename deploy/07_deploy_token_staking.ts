@@ -1,8 +1,9 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
+import { stakingContractFactory } from "../scripts/staking-artifacts"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments, ethers, upgrades, artifacts } = hre
+  const { getNamedAccounts, deployments, ethers, upgrades } = hre
   const { execute, read, log } = deployments
   const { deployer } = await getNamedAccounts()
   const T = await deployments.get("T")
@@ -18,9 +19,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     }
     log(`Reusing TokenStaking at ${tokenStaking.address}`)
   } else if (useProxy) {
-    const factory = await ethers.getContractFactory(
+    const { factory, artifact } = await stakingContractFactory(
+      hre,
       "TokenStaking",
-      await ethers.getSigner(deployer)
+      deployer
     )
     const proxy = await upgrades.deployProxy(factory, [], {
       constructorArgs: [T.address],
@@ -29,7 +31,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await proxy.deployed()
     tokenStaking = {
       address: proxy.address,
-      abi: (await artifacts.readArtifact("TokenStaking")).abi,
+      abi: artifact.abi,
       implementation: await upgrades.erc1967.getImplementationAddress(
         proxy.address
       ),

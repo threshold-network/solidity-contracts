@@ -39,6 +39,34 @@ describe("SepoliaTokenStaking", () => {
     return app
   }
 
+  it("emits native-T delegation details for indexers and a matching withdrawal", async () => {
+    const beneficiary = (await ethers.getSigners())[4]
+    await token.approve(staking.address, 25)
+    const receipt = await (
+      await staking.stake(
+        other.address,
+        beneficiary.address,
+        authorizer.address,
+        25
+      )
+    ).wait()
+    const events = receipt.events.filter((event) => event.event === "Staked")
+    expect(events).to.have.lengthOf(1)
+    expect(events[0].args.stakeType).to.equal(2)
+    expect(events[0].args.owner).to.equal(owner.address)
+    expect(events[0].args.stakingProvider).to.equal(other.address)
+    expect(events[0].args.beneficiary).to.equal(beneficiary.address)
+    expect(events[0].args.authorizer).to.equal(authorizer.address)
+    expect(events[0].args.amount).to.equal(25)
+    expect(await staking.stakeAmount(other.address)).to.equal(25)
+    await network.provider.send("evm_increaseTime", [86401])
+    await network.provider.send("evm_mine")
+    await expect(staking.unstakeT(other.address, 25))
+      .to.emit(staking, "Unstaked")
+      .withArgs(other.address, 25)
+    expect(await staking.stakeAmount(other.address)).to.equal(0)
+  })
+
   it("exposes guarded staking without fixture mutation helpers", async () => {
     const abi = (await artifacts.readArtifact("SepoliaTokenStaking")).abi
     const names = abi

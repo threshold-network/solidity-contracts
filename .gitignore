@@ -26,4 +26,5 @@ operator-*-keystore/
 spv-maintainer-keystore/
 .env.new-operator
 .env.operator-*
+.env.operators-*
 .env

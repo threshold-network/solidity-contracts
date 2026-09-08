@@ -27,7 +27,7 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
-    "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
+    "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts && hardhat run scripts/export-staking-build-info.js",
     "prepublishOnly": "hardhat prepare-artifacts --network $npm_config_network"
   },
   "devDependencies": {

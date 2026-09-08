@@ -1,5 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
+import { stakingContractFactory } from "../scripts/staking-artifacts"
 
 /**
  * Upgrade the existing Sepolia proxy to the dedicated operator staking contract.
@@ -12,7 +13,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     )
   }
 
-  const { deployments, ethers, upgrades, artifacts, getNamedAccounts } = hre
+  const { deployments, upgrades, getNamedAccounts } = hre
   const existing = await deployments.getOrNull("TokenStaking")
   if (!existing) {
     throw new Error("Deploy TokenStaking before upgrading it")
@@ -20,9 +21,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const T = await deployments.get("T")
   const { deployer } = await getNamedAccounts()
-  const factory = await ethers.getContractFactory(
+  const { factory, artifact } = await stakingContractFactory(
+    hre,
     "SepoliaTokenStaking",
-    await ethers.getSigner(deployer)
+    deployer
   )
   const upgraded = await upgrades.upgradeProxy(existing.address, factory, {
     constructorArgs: [T.address],
@@ -33,7 +35,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Save through the registry so later scripts and --export see the same ABI.
   await deployments.save("TokenStaking", {
     ...existing,
-    abi: (await artifacts.readArtifact("SepoliaTokenStaking")).abi,
+    abi: artifact.abi,
     implementation: await upgrades.erc1967.getImplementationAddress(
       existing.address
     ),

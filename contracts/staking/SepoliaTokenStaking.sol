@@ -46,6 +46,14 @@ contract SepoliaTokenStaking is TokenStaking {
         /* solhint-disable-next-line not-rely-on-time */
         provider.startStakingTimestamp = block.timestamp;
         newStakeCheckpoint(stakingProvider, amount, true);
+        emit Staked(
+            StakeType.T,
+            msg.sender,
+            stakingProvider,
+            beneficiary,
+            authorizer,
+            amount
+        );
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
