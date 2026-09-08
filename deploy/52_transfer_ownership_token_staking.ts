@@ -6,6 +6,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer, thresholdCouncil } = await getNamedAccounts()
   const { execute } = deployments
 
+  const currentGovernance = await deployments.read("TokenStaking", "governance")
+  if (currentGovernance.toLowerCase() === thresholdCouncil.toLowerCase()) {
+    return
+  }
+
   await execute(
     "TokenStaking",
     { from: deployer },
