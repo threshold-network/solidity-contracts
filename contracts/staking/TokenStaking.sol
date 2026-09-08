@@ -19,7 +19,6 @@ import "./IApplication.sol";
 import "./IStaking.sol";
 import "../governance/Checkpoints.sol";
 import "../token/T.sol";
-import "../utils/PercentUtils.sol";
 import "../utils/SafeTUpgradeable.sol";
 import "../vending/VendingMachine.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
@@ -28,20 +27,22 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
 /// @notice TokenStaking is the main staking contract of the Threshold Network.
-///         Apart from the basic usage of enabling T stakes, it also acts as a
-///         sort of "meta-staking" contract, accepting existing legacy NU/KEEP
-///         stakes. Additionally, it serves as application manager for the apps
-///         that run on the Threshold Network. Note that legacy NU/KEEP staking
-///         contracts see TokenStaking as an application (e.g., slashing is
-///         requested by TokenStaking and performed by the legacy contracts).
+///         It serves as application manager for the apps that run on
+///         the Threshold Network.
 /// @dev TokenStaking is upgradeable, using OpenZeppelin's Upgradeability
 ///      framework. As such, it is required to satisfy OZ's guidelines, like
 ///      restrictions on constructors, immutable variables, base contracts and
 ///      libraries. See https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable
 contract TokenStaking is Initializable, IStaking, Checkpoints {
     using SafeTUpgradeable for T;
-    using PercentUtils for uint256;
     using SafeCastUpgradeable for uint256;
+
+    // enum is used for Staked event to have backward compatibility
+    enum StakeType {
+        NU,
+        KEEP,
+        T
+    }
 
     enum ApplicationStatus {
         NOT_APPROVED,
@@ -61,6 +62,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address[] authorizedApplications;
         uint256 startStakingTimestamp;
         bool autoIncrease;
+        uint256 optOutAmount;
     }
 
     struct AppAuthorization {
@@ -78,16 +80,14 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint96 amount;
     }
 
-    uint256 internal constant SLASHING_REWARD_PERCENT = 5;
     uint256 internal constant MIN_STAKE_TIME = 24 hours;
-    uint256 internal constant GAS_LIMIT_AUTHORIZATION_DECREASE = 250000;
-    uint256 internal constant CONVERSION_DIVISOR = 10**(18 - 3);
+    uint96 internal constant MAX_STAKE = 15 * 10**(18 + 6); // 15m T
+    uint96 internal constant HALF_MAX_STAKE = MAX_STAKE / 2; // 7.5m T
+    address internal constant TACO_APPLICATION =
+        0x347CC7ede7e5517bD47D20620B2CF1b406edcF07;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     T internal immutable token;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    uint256 internal immutable nucypherRatio;
 
     address public governance;
     uint96 public minTStakeAmount;
@@ -98,14 +98,17 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     uint256 private legacyStakeDiscrepancyRewardMultiplier;
 
     uint256 public notifiersTreasury;
-    uint256 public notificationReward;
+    // slither-disable-next-line constable-states
+    uint256 private legacyNotificationReward;
 
     mapping(address => StakingProviderInfo) internal stakingProviders;
     mapping(address => ApplicationInfo) public applicationInfo;
     address[] public applications;
 
-    SlashingEvent[] public slashingQueue;
-    uint256 public slashingQueueIndex;
+    // slither-disable-next-line constable-states
+    SlashingEvent[] private legacySlashingQueue;
+    // slither-disable-next-line constable-states
+    uint256 private legacySlashingQueueIndex;
 
     event Staked(
         StakeType indexed stakeType,
@@ -171,6 +174,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         uint256 tAmount
     );
     event GovernanceTransferred(address oldGovernance, address newGovernance);
+    event NotificationReceived(
+        uint96 amount,
+        uint256 rewardMultipier,
+        address notifier,
+        address[] stakingProviders
+    );
 
     modifier onlyGovernance() {
         require(governance == msg.sender, "Caller is not the governance");
@@ -215,14 +224,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     }
 
     /// @param _token Address of T token contract
-    /// @param _nucypherVendingMachine Address of NuCypher vending machine
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(T _token, VendingMachine _nucypherVendingMachine) {
+    constructor(T _token) {
         // calls to check contracts are working
         require(_token.totalSupply() > 0, "Wrong input parameters");
         token = _token;
-
-        nucypherRatio = _nucypherVendingMachine.ratio();
     }
 
     function initialize() external initializer {
@@ -234,55 +240,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     // Delegating a stake
     //
     //
-
-    /// @notice Creates a delegation with `msg.sender` owner with the given
-    ///         staking provider, beneficiary, and authorizer. Transfers the
-    ///         given amount of T to the staking contract.
-    /// @dev The owner of the delegation needs to have the amount approved to
-    ///      transfer to the staking contract.
-    function stake(
-        address stakingProvider,
-        address payable beneficiary,
-        address authorizer,
-        uint96 amount
-    ) external override {
-        require(
-            stakingProvider != address(0) &&
-                beneficiary != address(0) &&
-                authorizer != address(0),
-            "Parameters must be specified"
-        );
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        require(
-            stakingProviderStruct.owner == address(0),
-            "Provider is already in use"
-        );
-        require(
-            amount > 0 && amount >= minTStakeAmount,
-            "Amount is less than minimum"
-        );
-        stakingProviderStruct.owner = msg.sender;
-        stakingProviderStruct.authorizer = authorizer;
-        stakingProviderStruct.beneficiary = beneficiary;
-
-        stakingProviderStruct.tStake = amount;
-        /* solhint-disable-next-line not-rely-on-time */
-        stakingProviderStruct.startStakingTimestamp = block.timestamp;
-
-        increaseStakeCheckpoint(stakingProvider, amount);
-
-        emit Staked(
-            StakeType.T,
-            msg.sender,
-            stakingProvider,
-            beneficiary,
-            authorizer,
-            amount
-        );
-        token.safeTransferFrom(msg.sender, address(this), amount);
-    }
 
     /// @notice Allows the Governance to set the minimum required stake amount.
     ///         This amount is required to protect against griefing the staking
@@ -309,121 +266,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
     //
 
-    /// @notice Allows the Governance to approve the particular application
-    ///         before individual stake authorizers are able to authorize it.
-    function approveApplication(address application)
-        external
-        override
-        onlyGovernance
-    {
-        require(application != address(0), "Parameters must be specified");
-        ApplicationInfo storage info = applicationInfo[application];
-        require(
-            info.status == ApplicationStatus.NOT_APPROVED ||
-                info.status == ApplicationStatus.PAUSED,
-            "Can't approve application"
-        );
-
-        if (info.status == ApplicationStatus.NOT_APPROVED) {
-            applications.push(application);
-        }
-        info.status = ApplicationStatus.APPROVED;
-        emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
-    }
-
-    /// @notice Increases the authorization of the given staking provider for
-    ///         the given application by the given amount. Can only be called by
-    ///         the given staking provider’s authorizer.
-    /// @dev Calls `authorizationIncreased` callback on the given application to
-    ///      notify the application about authorization change.
-    ///      See `IApplication`.
-    function increaseAuthorization(
-        address stakingProvider,
-        address application,
-        uint96 amount
-    ) external override onlyAuthorizerOf(stakingProvider) {
-        require(amount > 0, "Parameters must be specified");
-        ApplicationInfo storage applicationStruct = applicationInfo[
-            application
-        ];
-        require(
-            applicationStruct.status == ApplicationStatus.APPROVED,
-            "Application is not approved"
-        );
-
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        AppAuthorization storage authorization = stakingProviderStruct
-            .authorizations[application];
-        uint96 fromAmount = authorization.authorized;
-        if (fromAmount == 0) {
-            require(
-                authorizationCeiling == 0 ||
-                    stakingProviderStruct.authorizedApplications.length <
-                    authorizationCeiling,
-                "Too many applications"
-            );
-            stakingProviderStruct.authorizedApplications.push(application);
-        }
-
-        uint96 availableTValue = getAvailableToAuthorize(
-            stakingProvider,
-            application
-        );
-        require(availableTValue >= amount, "Not enough stake to authorize");
-        authorization.authorized += amount;
-        emit AuthorizationIncreased(
-            stakingProvider,
-            application,
-            fromAmount,
-            authorization.authorized
-        );
-        IApplication(application).authorizationIncreased(
-            stakingProvider,
-            fromAmount,
-            authorization.authorized
-        );
-    }
-
-    /// @notice Requests decrease of all authorizations for the given staking
-    ///         provider on all applications by all authorized amount.
-    ///         It may not change the authorized amount immediatelly. When
-    ///         it happens depends on the application. Can only be called by the
-    ///         given staking provider’s authorizer. Overwrites pending
-    ///         authorization decrease for the given staking provider and
-    ///         application.
-    /// @dev Calls `authorizationDecreaseRequested` callback
-    ///      for each authorized application. See `IApplication`.
-    function requestAuthorizationDecrease(address stakingProvider) external {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 deauthorizing = 0;
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            uint96 authorized = stakingProviderStruct
-                .authorizations[application]
-                .authorized;
-            if (authorized > 0) {
-                requestAuthorizationDecrease(
-                    stakingProvider,
-                    application,
-                    authorized
-                );
-                deauthorizing += authorized;
-            }
-        }
-
-        require(deauthorizing > 0, "Nothing was authorized");
-    }
-
     /// @notice Called by the application at its discretion to approve the
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
@@ -449,7 +291,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
         uint96 fromAmount = authorization.authorized;
         authorization.authorized -= authorization.deauthorizing;
-        authorization.deauthorizing = 0;
         emit AuthorizationDecreaseApproved(
             stakingProvider,
             msg.sender,
@@ -462,6 +303,16 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             cleanAuthorizedApplications(stakingProviderStruct, 1);
         }
 
+        // Unstake
+        stakingProviderStruct.tStake -= authorization.deauthorizing;
+        decreaseStakeCheckpoint(stakingProvider, authorization.deauthorizing);
+        emit Unstaked(stakingProvider, authorization.deauthorizing);
+        token.safeTransfer(
+            stakingProviderStruct.owner,
+            authorization.deauthorizing
+        );
+
+        authorization.deauthorizing = 0;
         return authorization.authorized;
     }
 
@@ -480,18 +331,10 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        AppAuthorization storage authorization = stakingProviderStruct
-            .authorizations[application];
-        uint96 fromAmount = authorization.authorized;
-        require(fromAmount > 0, "Application is not authorized");
-        authorization.authorized = 0;
-        authorization.deauthorizing = 0;
-
-        emit AuthorizationDecreaseApproved(
+        forceDecreaseAuthorization(
             stakingProvider,
-            application,
-            fromAmount,
-            0
+            stakingProviderStruct,
+            application
         );
         cleanAuthorizedApplications(stakingProviderStruct, 1);
     }
@@ -575,91 +418,16 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
 
     //
     //
-    // Stake top-up
-    //
-    //
-
-    /// @notice Increases the amount of the stake for the given staking provider.
-    ///         If `autoIncrease` flag is true then the amount will be added for
-    ///         all authorized applications.
-    /// @dev The sender of this transaction needs to have the amount approved to
-    ///      transfer to the staking contract.
-    function topUp(address stakingProvider, uint96 amount) external override {
-        require(
-            stakingProviders[stakingProvider].owner != address(0),
-            "Nothing to top-up"
-        );
-        require(amount > 0, "Parameters must be specified");
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        stakingProviderStruct.tStake += amount;
-        emit ToppedUp(stakingProvider, amount);
-        increaseStakeCheckpoint(stakingProvider, amount);
-        token.safeTransferFrom(msg.sender, address(this), amount);
-
-        if (!stakingProviderStruct.autoIncrease) {
-            return;
-        }
-
-        // increase authorization for all authorized app
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address application = stakingProviderStruct.authorizedApplications[
-                i
-            ];
-            AppAuthorization storage authorization = stakingProviderStruct
-                .authorizations[application];
-            uint96 fromAmount = authorization.authorized;
-            authorization.authorized += amount;
-            emit AuthorizationIncreased(
-                stakingProvider,
-                application,
-                fromAmount,
-                authorization.authorized
-            );
-            IApplication(application).authorizationIncreased(
-                stakingProvider,
-                fromAmount,
-                authorization.authorized
-            );
-        }
-    }
-
-    /// @notice Toggle `autoIncrease` flag. If true then the complete amount
-    ///         in top-up will be added to already authorized applications.
-    function toggleAutoAuthorizationIncrease(address stakingProvider)
-        external
-        override
-        onlyAuthorizerOf(stakingProvider)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        stakingProviderStruct.autoIncrease = !stakingProviderStruct
-            .autoIncrease;
-        emit AutoIncreaseToggled(
-            stakingProvider,
-            stakingProviderStruct.autoIncrease
-        );
-    }
-
-    //
-    //
     // Undelegating a stake (unstaking)
     //
     //
 
-    /// @notice Reduces the liquid T stake amount by the provided amount and
+    /// @notice Reduces the T stake amount by the provided amount and
     ///         withdraws T to the owner. Reverts if there is at least one
-    ///         authorization higher than the sum of the legacy stake and
-    ///         remaining liquid T stake or if the unstake amount is higher than
-    ///         the liquid T stake amount. Can be called only by the owner or
-    ///         the staking provider. Can only be called when 24h passed since
-    ///         the stake has been delegated.
+    ///         authorization higher than the remaining T stake or
+    ///         if the unstake amount is higher than the T stake amount.
+    ///         Can be called only by the delegation owner or the staking
+    ///         provider.
     function unstakeT(address stakingProvider, uint96 amount)
         external
         override
@@ -670,7 +438,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         ];
         require(
             amount > 0 &&
-                amount + getMinStaked(stakingProvider, StakeType.T) <=
+                amount + getMaxAuthorization(stakingProvider) <=
                 stakingProviderStruct.tStake,
             "Too much to unstake"
         );
@@ -687,146 +455,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         token.safeTransfer(stakingProviderStruct.owner, amount);
     }
 
-    /// @notice Sets the legacy KEEP staking contract active stake amount cached
-    ///         in T staking contract to 0. Reverts if the amount of liquid T
-    ///         staked in T staking contract is lower than the highest
-    ///         application authorization. This function allows to unstake from
-    ///         KEEP staking contract and still being able to operate in T
-    ///         network and earning rewards based on the liquid T staked. Can be
-    ///         called only by the delegation owner or the staking provider.
-    ///         Can only be called when 24h passed since the stake has been
-    ///         delegated.
-    /// @dev    This function (or `unstakeAll`) must be called before
-    ///         `undelegate`/`undelegateAt` in Keep staking contract. Otherwise
-    ///         provider can be slashed by `notifyKeepStakeDiscrepancy` method.
-    function unstakeKeep(address stakingProvider)
-        external
-        override
-        onlyOwnerOrStakingProvider(stakingProvider)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 keepInTStake = stakingProviderStruct.keepInTStake;
-        require(keepInTStake != 0, "Nothing to unstake");
-        require(
-            getMinStaked(stakingProvider, StakeType.KEEP) == 0,
-            "Keep stake still authorized"
-        );
-
-        emit Unstaked(stakingProvider, keepInTStake);
-        stakingProviderStruct.keepInTStake = 0;
-        decreaseStakeCheckpoint(stakingProvider, keepInTStake);
-    }
-
-    /// @notice Sets to 0 the amount of T that is cached from the legacy
-    ///         NU staking contract. Reverts if there is at least one
-    ///         authorization higher than the sum of remaining legacy NU stake
-    ///         and native T stake for that staking provider or if the unstaked
-    ///         amount is higher than the cached legacy stake amount. If succeeded,
-    ///         the legacy NU stake can be partially or fully undelegated on
-    ///         the legacy NU staking contract. This function allows to unstake
-    ///         from NU staking contract while still being able to operate in
-    ///         T network and earning rewards based on the native T staked.
-    ///         Can be called only by the stake owner or the staking provider.
-    /// @dev    This function (or `unstakeAll`) must be called before `withdraw`
-    ///         in NuCypher staking contract. Otherwise NU tokens can't be
-    ///         unlocked.
-    /// @param stakingProvider Staking provider address
-    function unstakeNu(address stakingProvider)
-        external
-        override
-        onlyOwnerOrStakingProvider(stakingProvider)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 nuInTStake = stakingProviderStruct.nuInTStake;
-        require(nuInTStake != 0, "Nothing to unstake");
-        require(
-            getMinStaked(stakingProvider, StakeType.NU) == 0,
-            "NU stake still authorized"
-        );
-
-        stakingProviderStruct.nuInTStake = 0;
-        decreaseStakeCheckpoint(stakingProvider, nuInTStake);
-        emit Unstaked(stakingProvider, nuInTStake);
-    }
-
-    /// @notice Sets cached legacy stake amount to 0, sets the liquid T stake
-    ///         amount to 0 and withdraws all liquid T from the stake to the
-    ///         owner. Reverts if there is at least one non-zero authorization.
-    ///         Can be called only by the delegation owner or the staking
-    ///         provider. Can only be called when 24h passed since the stake
-    ///         has been delegated.
-    function unstakeAll(address stakingProvider)
-        external
-        override
-        onlyOwnerOrStakingProvider(stakingProvider)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        require(
-            stakingProviderStruct.authorizedApplications.length == 0,
-            "Stake still authorized"
-        );
-        require(
-            stakingProviderStruct.startStakingTimestamp + MIN_STAKE_TIME <=
-                /* solhint-disable-next-line not-rely-on-time */
-                block.timestamp,
-            "Can't unstake earlier than 24h"
-        );
-
-        uint96 unstaked = stakingProviderStruct.tStake +
-            stakingProviderStruct.keepInTStake +
-            stakingProviderStruct.nuInTStake;
-        emit Unstaked(stakingProvider, unstaked);
-        uint96 amount = stakingProviderStruct.tStake;
-        stakingProviderStruct.tStake = 0;
-        stakingProviderStruct.keepInTStake = 0;
-        stakingProviderStruct.nuInTStake = 0;
-        decreaseStakeCheckpoint(stakingProvider, unstaked);
-
-        if (amount > 0) {
-            token.safeTransfer(stakingProviderStruct.owner, amount);
-        }
-    }
-
-    /// @notice Involuntary decrease authorization for all application up to T
-    ///         stake amount for all staking providers in the list.
-    ///         Sets cached legacy stake amount to 0. Can be called by anyone
-    function forceUnstakeLegacy(address[] memory _stakingProviders) external {
-        for (uint256 i = 0; i < _stakingProviders.length; i++) {
-            forceUnstakeLegacy(_stakingProviders[i]);
-        }
-    }
-
     //
     //
     // Keeping information in sync
     //
     //
-
-    /// @notice Sets reward in T tokens for notification of misbehaviour
-    ///         of one staking provider. Can only be called by the governance.
-    function setNotificationReward(uint96 reward)
-        external
-        override
-        onlyGovernance
-    {
-        notificationReward = reward;
-        emit NotificationRewardSet(reward);
-    }
-
-    /// @notice Transfer some amount of T tokens as reward for notifications
-    ///         of misbehaviour
-    function pushNotificationReward(uint96 reward) external override {
-        require(reward > 0, "Parameters must be specified");
-        notifiersTreasury += reward;
-        emit NotificationRewardPushed(reward);
-        token.safeTransferFrom(msg.sender, address(this), reward);
-    }
 
     /// @notice Withdraw some amount of T tokens from notifiers treasury.
     ///         Can only be called by the governance.
@@ -841,65 +474,79 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         token.safeTransfer(recipient, amount);
     }
 
-    /// @notice Adds staking providers to the slashing queue along with the
-    ///         amount that should be slashed from each one of them. Can only be
-    ///         called by application authorized for all staking providers in
-    ///         the array.
-    /// @dev    This method doesn't emit events for providers that are added to
-    ///         the queue. If necessary  events can be added to the application
-    ///         level.
+    /// @notice Stub for legacy "slash" method
     function slash(uint96 amount, address[] memory _stakingProviders)
         external
         override
     {
-        notify(amount, 0, address(0), _stakingProviders);
+        emit NotificationReceived(amount, 0, address(0), _stakingProviders);
     }
 
-    /// @notice Adds staking providers to the slashing queue along with the
-    ///         amount. The notifier will receive reward per each provider from
-    ///         notifiers treasury. Can only be called by application
-    ///         authorized for all staking providers in the array.
-    /// @dev    This method doesn't emit events for staking providers that are
-    ///         added to the queue. If necessary  events can be added to the
-    ///         application level.
+    /// @notice Stub for legacy "seize" method
     function seize(
         uint96 amount,
         uint256 rewardMultiplier,
         address notifier,
         address[] memory _stakingProviders
     ) external override {
-        notify(amount, rewardMultiplier, notifier, _stakingProviders);
+        emit NotificationReceived(
+            amount,
+            rewardMultiplier,
+            notifier,
+            _stakingProviders
+        );
     }
 
-    /// @notice Takes the given number of queued slashing operations and
-    ///         processes them. Receives 5% of the slashed amount.
-    ///         Executes `involuntaryAuthorizationDecrease` function on each
-    ///         affected application.
-    function processSlashing(uint256 count) external virtual override {
+    /// Migration
+    function migrateAndRelease(address stakingProvider, uint96 amount)
+        external
+        override
+        returns (bool stakeless)
+    {
+        ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
         require(
-            slashingQueueIndex < slashingQueue.length && count > 0,
-            "Nothing to process"
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
         );
 
-        uint256 maxIndex = slashingQueueIndex + count;
-        maxIndex = MathUpgradeable.min(maxIndex, slashingQueue.length);
-        count = maxIndex - slashingQueueIndex;
-        uint96 tAmountToBurn = 0;
+        require(
+            !skipApplication(msg.sender),
+            "Only TACo app can call this method"
+        );
 
-        uint256 index = slashingQueueIndex;
-        for (; index < maxIndex; index++) {
-            SlashingEvent storage slashing = slashingQueue[index];
-            tAmountToBurn += processSlashing(slashing);
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        require(
+            stakingProviderStruct.owner != address(0),
+            "Wrong staking provider"
+        );
+        uint96 toUnstake = stakingProviderStruct.tStake;
+        stakingProviderStruct.tStake = 0;
+        decreaseStakeCheckpoint(stakingProvider, toUnstake);
+        emit Unstaked(stakingProvider, toUnstake);
+
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[msg.sender];
+
+        // stakeless
+        if (authorization.authorized == 0) {
+            stakeless = true;
+        } else {
+            require(
+                authorization.authorized >= amount,
+                "Not enough authorization"
+            );
+            toUnstake -= amount;
+            authorization.authorized = 0;
+            if (amount > 0) {
+                token.safeTransfer(msg.sender, amount);
+            }
+            stakeless = false;
         }
-        slashingQueueIndex = index;
 
-        uint256 tProcessorReward = uint256(tAmountToBurn).percent(
-            SLASHING_REWARD_PERCENT
-        );
-        notifiersTreasury += tAmountToBurn - tProcessorReward.toUint96();
-        emit SlashingProcessed(msg.sender, count, tProcessorReward);
-        if (tProcessorReward > 0) {
-            token.safeTransfer(msg.sender, tProcessorReward);
+        if (toUnstake > 0) {
+            token.safeTransfer(stakingProviderStruct.owner, toUnstake);
         }
     }
 
@@ -935,31 +582,39 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         override
         returns (uint96)
     {
+        if (skipApplication(application)) {
+            return 0;
+        }
         return
             stakingProviders[stakingProvider]
                 .authorizations[application]
                 .authorized;
     }
 
-    /// @notice Returns staked amount of T, Keep and Nu for the specified
-    ///         staking provider.
-    /// @dev    All values are in T denomination
+    /// @notice Returns staked amount of T for the specified staking provider.
+    /// @dev    Method is deprecated. Use `stakeAmount` instead
     function stakes(address stakingProvider)
         external
         view
-        override
         returns (
             uint96 tStake,
             uint96 keepInTStake,
             uint96 nuInTStake
         )
     {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        tStake = stakingProviderStruct.tStake;
-        keepInTStake = stakingProviderStruct.keepInTStake;
-        nuInTStake = stakingProviderStruct.nuInTStake;
+        tStake = stakingProviders[stakingProvider].tStake;
+        keepInTStake = 0;
+        nuInTStake = 0;
+    }
+
+    /// @notice Returns staked amount of T for the specified staking provider.
+    function stakeAmount(address stakingProvider)
+        external
+        view
+        override
+        returns (uint96)
+    {
+        return stakingProviders[stakingProvider].tStake;
     }
 
     /// @notice Returns start staking timestamp.
@@ -971,29 +626,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         returns (uint256)
     {
         return stakingProviders[stakingProvider].startStakingTimestamp;
-    }
-
-    /// @notice Returns auto-increase flag.
-    function getAutoIncreaseFlag(address stakingProvider)
-        external
-        view
-        override
-        returns (bool)
-    {
-        return stakingProviders[stakingProvider].autoIncrease;
-    }
-
-    /// @notice Returns staked amount of NU for the specified staking provider.
-    function stakedNu(address stakingProvider)
-        external
-        view
-        override
-        returns (uint256 nuAmount)
-    {
-        (nuAmount, ) = convertFromT(
-            stakingProviders[stakingProvider].nuInTStake,
-            nucypherRatio
-        );
     }
 
     /// @notice Gets the stake owner, the beneficiary and the authorizer
@@ -1024,11 +656,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         return applications.length;
     }
 
-    /// @notice Returns length of slashing queue
-    function getSlashingQueueLength() external view override returns (uint256) {
-        return slashingQueue.length;
-    }
-
     /// @notice Requests decrease of the authorization for the given staking
     ///         provider on the given application by the provided amount.
     ///         It may not change the authorized amount immediatelly. When
@@ -1045,6 +672,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         address application,
         uint96 amount
     ) public override onlyAuthorizerOf(stakingProvider) {
+        require(!skipApplication(application), "Application is deprecated");
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
@@ -1078,88 +706,8 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         );
     }
 
-    /// @notice Involuntary decrease authorization for all application up to T
-    ///         stake amount. Sets cached legacy stake amount to 0.
-    ///         Can be called by anyone
-    function forceUnstakeLegacy(address stakingProvider) public {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            stakingProvider
-        ];
-        uint96 legacyStake = stakingProviderStruct.keepInTStake +
-            stakingProviderStruct.nuInTStake;
-        require(legacyStake > 0, "No legacy stake");
-
-        // similar to authorizationDecrease method
-        uint256 applicationsToDelete = 0;
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address authorizedApplication = stakingProviderStruct
-                .authorizedApplications[i];
-            AppAuthorization storage authorization = stakingProviderStruct
-                .authorizations[authorizedApplication];
-            uint96 fromAmount = authorization.authorized;
-
-            if (fromAmount <= stakingProviderStruct.tStake) {
-                continue;
-            }
-            authorization.authorized = stakingProviderStruct.tStake;
-
-            bool successful = true;
-            //slither-disable-next-line calls-loop
-            try
-                IApplication(authorizedApplication)
-                    .involuntaryAuthorizationDecrease{
-                    gas: GAS_LIMIT_AUTHORIZATION_DECREASE
-                }(stakingProvider, fromAmount, authorization.authorized)
-            {} catch {
-                successful = false;
-            }
-            if (authorization.deauthorizing > authorization.authorized) {
-                authorization.deauthorizing = authorization.authorized;
-            }
-            emit AuthorizationInvoluntaryDecreased(
-                stakingProvider,
-                authorizedApplication,
-                fromAmount,
-                authorization.authorized,
-                successful
-            );
-            if (authorization.authorized == 0) {
-                applicationsToDelete++;
-            }
-        }
-        if (applicationsToDelete > 0) {
-            cleanAuthorizedApplications(
-                stakingProviderStruct,
-                applicationsToDelete
-            );
-        }
-
-        emit Unstaked(stakingProvider, legacyStake);
-        stakingProviderStruct.keepInTStake = 0;
-        stakingProviderStruct.nuInTStake = 0;
-        decreaseStakeCheckpoint(stakingProvider, legacyStake);
-    }
-
-    /// @notice Returns minimum possible stake for T, KEEP or NU in T denomination
-    /// @dev For example, suppose the given staking provider has 10 T, 20 T worth
-    ///      of KEEP, and 30 T worth of NU all staked, and the maximum
-    ///      application authorization is 40 T, then `getMinStaked` for
-    ///      that staking provider returns:
-    ///          * 0 T if KEEP stake type specified i.e.
-    ///            min = 40 T max - (10 T) = 30 T
-    ///          * 10 T if NU stake type specified i.e.
-    ///            min = 40 T max - (10 T) = 30 T
-    ///          * 0 T if T stake type specified i.e.
-    ///            min = 40 T max = 40 T
-    ///      In other words, the minimum stake amount for the specified
-    ///      stake type is the minimum amount of stake of the given type
-    ///      needed to satisfy the maximum application authorization given
-    ///      the staked amounts of the T stake types for that staking provider.
-    function getMinStaked(address stakingProvider, StakeType stakeTypes)
+    /// @notice Returns the maximum application authorization
+    function getMaxAuthorization(address stakingProvider)
         public
         view
         override
@@ -1177,19 +725,12 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
             address application = stakingProviderStruct.authorizedApplications[
                 i
             ];
+            if (skipApplication(application)) {
+                continue;
+            }
             maxAuthorization = MathUpgradeable.max(
                 maxAuthorization,
                 stakingProviderStruct.authorizations[application].authorized
-            );
-        }
-
-        if (maxAuthorization == 0) {
-            return 0;
-        }
-        if (stakeTypes != StakeType.T) {
-            maxAuthorization -= MathUpgradeable.min(
-                maxAuthorization,
-                stakingProviderStruct.tStake
             );
         }
         return maxAuthorization.toUint96();
@@ -1231,162 +772,11 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         StakingProviderInfo storage stakingProviderStruct = stakingProviders[
             stakingProvider
         ];
-        uint96 stakingProviderBalance = stakingProviderStruct.tStake +
-            stakingProviderStruct.keepInTStake +
-            stakingProviderStruct.nuInTStake;
+        uint96 stakingProviderBalance = stakingProviderStruct.tStake;
         address oldDelegatee = delegates(stakingProvider);
         _delegates[stakingProvider] = delegatee;
         emit DelegateChanged(stakingProvider, oldDelegatee, delegatee);
         moveVotingPower(oldDelegatee, delegatee, stakingProviderBalance);
-    }
-
-    /// @notice Adds staking providers to the slashing queue along with the
-    ///         amount. The notifier will receive reward per each staking
-    ///         provider from notifiers treasury. Can only be called by
-    ///         application authorized for all staking providers in the array.
-    function notify(
-        uint96 amount,
-        uint256 rewardMultiplier,
-        address notifier,
-        address[] memory _stakingProviders
-    ) internal {
-        require(
-            amount > 0 && _stakingProviders.length > 0,
-            "Parameters must be specified"
-        );
-
-        ApplicationInfo storage applicationStruct = applicationInfo[msg.sender];
-        require(
-            applicationStruct.status == ApplicationStatus.APPROVED,
-            "Application is not approved"
-        );
-
-        uint256 queueLength = slashingQueue.length;
-        for (uint256 i = 0; i < _stakingProviders.length; i++) {
-            address stakingProvider = _stakingProviders[i];
-            uint256 amountToSlash = MathUpgradeable.min(
-                stakingProviders[stakingProvider]
-                    .authorizations[msg.sender]
-                    .authorized,
-                amount
-            );
-            if (
-                //slither-disable-next-line incorrect-equality
-                amountToSlash == 0
-            ) {
-                continue;
-            }
-            slashingQueue.push(
-                SlashingEvent(stakingProvider, amountToSlash.toUint96())
-            );
-        }
-
-        if (notifier != address(0)) {
-            uint256 reward = ((slashingQueue.length - queueLength) *
-                notificationReward).percent(rewardMultiplier);
-            reward = MathUpgradeable.min(reward, notifiersTreasury);
-            emit NotifierRewarded(notifier, reward);
-            if (reward != 0) {
-                notifiersTreasury -= reward;
-                token.safeTransfer(notifier, reward);
-            }
-        }
-    }
-
-    /// @notice Processes one specified slashing event.
-    ///         Executes `involuntaryAuthorizationDecrease` function on each
-    ///         affected application.
-    //slither-disable-next-line dead-code
-    function processSlashing(SlashingEvent storage slashing)
-        internal
-        returns (uint96 tAmountToBurn)
-    {
-        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
-            slashing.stakingProvider
-        ];
-        uint96 tAmountToSlash = slashing.amount;
-        uint96 oldStake = stakingProviderStruct.tStake +
-            stakingProviderStruct.keepInTStake +
-            stakingProviderStruct.nuInTStake;
-        // slash T
-        tAmountToBurn = MathUpgradeable
-            .min(tAmountToSlash, stakingProviderStruct.tStake)
-            .toUint96();
-        stakingProviderStruct.tStake -= tAmountToBurn;
-        tAmountToSlash -= tAmountToBurn;
-
-        uint96 slashedAmount = slashing.amount - tAmountToSlash;
-        emit TokensSeized(slashing.stakingProvider, slashedAmount, false);
-        authorizationDecrease(
-            slashing.stakingProvider,
-            stakingProviderStruct,
-            slashedAmount
-        );
-        uint96 newStake = stakingProviderStruct.tStake +
-            stakingProviderStruct.keepInTStake +
-            stakingProviderStruct.nuInTStake;
-        decreaseStakeCheckpoint(slashing.stakingProvider, oldStake - newStake);
-    }
-
-    /// @notice Synchronize authorizations (if needed) after slashing stake
-    function authorizationDecrease(
-        address stakingProvider,
-        StakingProviderInfo storage stakingProviderStruct,
-        uint96 slashedAmount
-    ) internal {
-        uint96 totalStake = stakingProviderStruct.tStake +
-            stakingProviderStruct.nuInTStake +
-            stakingProviderStruct.keepInTStake;
-        uint256 applicationsToDelete = 0;
-        for (
-            uint256 i = 0;
-            i < stakingProviderStruct.authorizedApplications.length;
-            i++
-        ) {
-            address authorizedApplication = stakingProviderStruct
-                .authorizedApplications[i];
-            AppAuthorization storage authorization = stakingProviderStruct
-                .authorizations[authorizedApplication];
-            uint96 fromAmount = authorization.authorized;
-
-            authorization.authorized -= MathUpgradeable
-                .min(fromAmount, slashedAmount)
-                .toUint96();
-
-            if (authorization.authorized > totalStake) {
-                authorization.authorized = totalStake;
-            }
-
-            bool successful = true;
-            //slither-disable-next-line calls-loop
-            try
-                IApplication(authorizedApplication)
-                    .involuntaryAuthorizationDecrease{
-                    gas: GAS_LIMIT_AUTHORIZATION_DECREASE
-                }(stakingProvider, fromAmount, authorization.authorized)
-            {} catch {
-                successful = false;
-            }
-            if (authorization.deauthorizing > authorization.authorized) {
-                authorization.deauthorizing = authorization.authorized;
-            }
-            emit AuthorizationInvoluntaryDecreased(
-                stakingProvider,
-                authorizedApplication,
-                fromAmount,
-                authorization.authorized,
-                successful
-            );
-            if (authorization.authorized == 0) {
-                applicationsToDelete++;
-            }
-        }
-        if (applicationsToDelete > 0) {
-            cleanAuthorizedApplications(
-                stakingProviderStruct,
-                applicationsToDelete
-            );
-        }
     }
 
     /// @notice Removes application with zero authorization from authorized
@@ -1428,6 +818,28 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
+    /// @notice Decreases the authorization for the given `stakingProvider` on
+    ///         the given `application`, for all authorized amount.
+    function forceDecreaseAuthorization(
+        address stakingProvider,
+        StakingProviderInfo storage stakingProviderStruct,
+        address application
+    ) internal {
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        uint96 fromAmount = authorization.authorized;
+        require(fromAmount > 0, "Application is not authorized");
+        authorization.authorized = 0;
+        authorization.deauthorizing = 0;
+
+        emit AuthorizationDecreaseApproved(
+            stakingProvider,
+            application,
+            fromAmount,
+            0
+        );
+    }
+
     /// @notice Creates new checkpoints due to a change of stake amount
     /// @param _delegator Address of the staking provider acting as delegator
     /// @param _amount Amount of T to increment
@@ -1456,15 +868,6 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         }
     }
 
-    /// @notice Creates new checkpoints due to an increment of a stakers' stake
-    /// @param _delegator Address of the staking provider acting as delegator
-    /// @param _amount Amount of T to increment
-    function increaseStakeCheckpoint(address _delegator, uint96 _amount)
-        internal
-    {
-        newStakeCheckpoint(_delegator, _amount, true);
-    }
-
     /// @notice Creates new checkpoints due to a decrease of a stakers' stake
     /// @param _delegator Address of the stake owner acting as delegator
     /// @param _amount Amount of T to decrease
@@ -1480,17 +883,13 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
         emit GovernanceTransferred(oldGuvnor, newGuvnor);
     }
 
-    /// @notice Returns the amount of legacy tokens that's obtained from
-    ///         `tAmount` T tokens for the given `ratio`, and the T remainder
-    ///         that can't be converted.
-    function convertFromT(uint96 tAmount, uint256 ratio)
+    // slither-disable-next-line dead-code
+    function skipApplication(address application)
         internal
-        pure
-        returns (uint256 amount, uint96 tRemainder)
+        view
+        virtual
+        returns (bool)
     {
-        //slither-disable-next-line weak-prng
-        tRemainder = (tAmount % ratio).toUint96();
-        uint256 convertibleAmount = tAmount - tRemainder;
-        amount = (convertibleAmount * CONVERSION_DIVISOR) / ratio;
+        return application != TACO_APPLICATION;
     }
 }

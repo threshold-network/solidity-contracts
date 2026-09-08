@@ -115,9 +115,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Resolve latest contracts
-        run: yarn upgrade @keep-network/keep-core@${{ github.event.inputs.environment }}
-
       - name: Configure tenderly
         env:
           TENDERLY_TOKEN: ${{ secrets.TENDERLY_TOKEN }}
@@ -125,14 +122,7 @@ jobs:
 
       - name: Deploy contracts
         env:
-          # Using fake ternary expressions to decide which credentials to use,
-          # depending on chosen environment. Note: if `GOERLI_ETH_HOSTNAME_HTTP`
-          # is empty, the expression will be evaluated to
-          # `SEPOLIA_ETH_HOSTNAME_HTTP`'s value.
-          CHAIN_API_URL: |
-            ${{ inputs.github.event.inputs.environment == 'goerli'
-              && secrets.GOERLI_ETH_HOSTNAME_HTTP
-              || secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
+          CHAIN_API_URL: ${{ secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
           CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
           KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
         run: yarn deploy --network ${{ github.event.inputs.environment }}
@@ -193,24 +183,10 @@ jobs:
       - name: Install needed dependencies
         run: yarn install --frozen-lockfile
 
-      # If we don't remove the `keep-core` contracts from `node-modules`, the
-      # `etherscan-verify` plugins tries to verify them, which is not desired.
-      - name: Prepare for verification on Etherscan
-        run: |
-          rm -rf ./node_modules/@keep-network/keep-core
-          rm -rf ./external/npm
-
       - name: Verify contracts on Etherscan
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-          # Using fake ternary expressions to decide which credentials to use,
-          # depending on chosen environment. Note: if `GOERLI_ETH_HOSTNAME_HTTP`
-          # is empty, the expression will be evaluated to
-          # `SEPOLIA_ETH_HOSTNAME_HTTP`'s value.
-          CHAIN_API_URL: |
-            ${{ inputs.github.event.inputs.environment == 'goerli'
-              && secrets.GOERLI_ETH_HOSTNAME_HTTP
-              || secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
+          CHAIN_API_URL: ${{ secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
         run: |
           yarn run hardhat --network ${{ github.event.inputs.environment }} \
             etherscan-verify --license GPL-3.0 --force-license
@@ -240,19 +216,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Resolve latest contracts
-        run: yarn upgrade @keep-network/keep-core@${{ github.event.inputs.environment }}
-
       - name: Deploy contracts
         env:
-          # Using fake ternary expressions to decide which credentials to use,
-          # depending on chosen environment. Note: if `GOERLI_ETH_HOSTNAME_HTTP`
-          # is empty, the expression will be evaluated to
-          # `SEPOLIA_ETH_HOSTNAME_HTTP`'s value.
-          CHAIN_API_URL: |
-            ${{ inputs.github.event.inputs.environment == 'goerli'
-              && secrets.GOERLI_ETH_HOSTNAME_HTTP
-              || secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
+          CHAIN_API_URL: ${{ secrets.SEPOLIA_ETH_HOSTNAME_HTTP }}
           CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.DAPP_DEV_TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
           KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY: ${{ secrets.TESTNET_ETH_CONTRACT_OWNER_PRIVATE_KEY }}
         run: yarn deploy --network ${{ github.event.inputs.environment }}
