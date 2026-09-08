@@ -1,5 +1,17 @@
-const { expect } = require("chai")
-const { defaultAbiCoder } = require("@ethersproject/abi")
+import type { BigNumberish, BytesLike } from "ethers"
+
+import type {
+  T,
+  TestStakerGovernor,
+  TestStakingCheckpoints,
+  TestTokenholderGovernorStub,
+} from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers, helpers } from "hardhat"
+import { expect } from "chai"
+import { defaultAbiCoder } from "@ethersproject/abi"
+
+type Proposal = [string[], BigNumberish[], BytesLike[]]
 
 const { mineBlocks } = helpers.time
 const { to1e18 } = helpers.number
@@ -15,12 +27,15 @@ const secondsInADay = ethers.BigNumber.from(60 * 60 * 24)
 const averageBlockTime = 13
 
 describe("StakerGovernor", () => {
-  let tToken
-  let staker
-  let whale
-  let vetoer
+  let tStaking: TestStakingCheckpoints
+  let tokenholderGov: TestTokenholderGovernorStub
+  let tGov: TestStakerGovernor
+  let tToken: T
+  let staker: SignerWithAddress
+  let whale: SignerWithAddress
+  let vetoer: SignerWithAddress
 
-  let proposalThresholdFunction
+  let proposalThresholdFunction: TestStakerGovernor["proposalThreshold()"]
 
   // Initial scenario is 2 stakers, whose total amount is 30,000 tokens.
   const initialStakerBalance = to1e18(75)
@@ -101,8 +116,11 @@ describe("StakerGovernor", () => {
     const expectedTotalStake = whaleBalance.add(firstStake)
     const expectedThreshold = expectedTotalStake.mul(25).div(10000)
     const mockDescription = "Mock Proposal"
-    const mockProposal = [[AddressZero], [42], [0xfabada]]
-    const mockProposalWithDescription = [...mockProposal, mockDescription]
+    const mockProposal: Proposal = [[AddressZero], [42], ["0xfabada"]]
+    const mockProposalWithDescription: [...Proposal, string] = [
+      ...mockProposal,
+      mockDescription,
+    ]
 
     beforeEach(async () => {
       await tToken.connect(whale).approve(tStaking.address, whaleBalance)
@@ -111,7 +129,7 @@ describe("StakerGovernor", () => {
       await tToken.connect(staker).approve(tStaking.address, firstStake)
       await tStaking.connect(staker).deposit(firstStake)
 
-      lastBlock = (await mineBlocks(1)) - 1
+      await mineBlocks(1)
     })
 
     context("only whale has enough stake to propose", () => {
@@ -137,7 +155,7 @@ describe("StakerGovernor", () => {
       beforeEach(async () => {
         await tToken.connect(staker).approve(tStaking.address, topUpAmount)
         await tStaking.connect(staker).deposit(topUpAmount)
-        lastBlock = (await mineBlocks(1)) - 1
+        await mineBlocks(1)
       })
 
       it("proposal threshold is as expected", async () => {
@@ -155,7 +173,10 @@ describe("StakerGovernor", () => {
 
     context("when there's a proposal", () => {
       const descriptionHash = ethers.utils.id(mockDescription)
-      const mockProposalWithHash = [...mockProposal, descriptionHash]
+      const mockProposalWithHash: [...Proposal, string] = [
+        ...mockProposal,
+        descriptionHash,
+      ]
       const proposalID = ethers.utils.keccak256(
         defaultAbiCoder.encode(
           ["address[]", "uint256[]", "bytes[]", "bytes32"],

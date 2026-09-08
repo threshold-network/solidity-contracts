@@ -1,6 +1,9 @@
-const { expect } = require("chai")
+import type { BigNumberish, ContractTransaction } from "ethers"
+import type { ApplicationMock, ExtendedTokenStaking, T } from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers, helpers, upgrades } from "hardhat"
+import { expect } from "chai"
 
-const { helpers } = require("hardhat")
 const { lastBlockTime, mineBlocks, increaseTime } = helpers.time
 const { to1e18 } = helpers.number
 
@@ -12,29 +15,28 @@ const ApplicationStatus = {
   PAUSED: 2,
   DISABLED: 3,
 }
-const { upgrades } = require("hardhat")
 
 describe("TokenStaking", () => {
-  let tToken
-  let application1Mock
-  let application2Mock
+  let tToken: T
+  let application1Mock: ApplicationMock
+  let application2Mock: ApplicationMock
 
   const tAllocation = to1e18("4500000000") // 4.5 Billion
 
-  let tokenStaking
+  let tokenStaking: ExtendedTokenStaking
 
-  let deployer
-  let panicButton
+  let deployer: SignerWithAddress
+  let panicButton: SignerWithAddress
   // Token staker has 5 (T/NU/KEEP) tokens
-  let staker
+  let staker: SignerWithAddress
   const initialStakerBalance = to1e18(5)
-  let stakingProvider
-  let authorizer
-  let beneficiary
-  let delegatee
+  let stakingProvider: SignerWithAddress
+  let authorizer: SignerWithAddress
+  let beneficiary: SignerWithAddress
+  let delegatee: SignerWithAddress
 
-  let otherStaker
-  let auxiliaryAccount
+  let otherStaker: SignerWithAddress
+  let auxiliaryAccount: SignerWithAddress
 
   beforeEach(async () => {
     ;[
@@ -64,14 +66,14 @@ describe("TokenStaking", () => {
     const ExtendedTokenStaking = await ethers.getContractFactory(
       "ExtendedTokenStaking"
     )
-    const tokenStakingInitializerArgs = []
-    tokenStaking = await upgrades.deployProxy(
+    const tokenStakingInitializerArgs: [] = []
+    tokenStaking = (await upgrades.deployProxy(
       ExtendedTokenStaking,
       tokenStakingInitializerArgs,
       {
         constructorArgs: [tToken.address],
       }
-    )
+    )) as ExtendedTokenStaking
     await tokenStaking.deployed()
 
     const ApplicationMock = await ethers.getContractFactory("ApplicationMock")
@@ -93,7 +95,7 @@ describe("TokenStaking", () => {
     })
 
     context("when caller is the governance", () => {
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         tx = await tokenStaking.connect(deployer).setMinimumStakeAmount(amount)
@@ -224,7 +226,7 @@ describe("TokenStaking", () => {
           const amountToDecrease = amount.div(3)
           const expectedFromAmount = amount
           const expectedToAmount = amount.sub(amountToDecrease)
-          let tx
+          let tx: ContractTransaction
 
           beforeEach(async () => {
             tx = await tokenStaking
@@ -272,8 +274,8 @@ describe("TokenStaking", () => {
           const expectedToAmount1 = amount.sub(amountToDecrease1)
           const amountToDecrease2 = amount.div(5)
           const expectedToAmount2 = amount.sub(amountToDecrease2)
-          let tx1
-          let tx2
+          let tx1: ContractTransaction
+          let tx2: ContractTransaction
 
           beforeEach(async () => {
             tx1 = await tokenStaking
@@ -429,7 +431,7 @@ describe("TokenStaking", () => {
       const amountToDecrease = amount.div(3)
       const expectedFromAmount = amount
       const expectedToAmount = amount.sub(amountToDecrease)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await tokenStaking
@@ -472,7 +474,7 @@ describe("TokenStaking", () => {
       "when approve after request of full deauthorization for one app",
       () => {
         const otherAmount = amount.div(3)
-        let tx
+        let tx: ContractTransaction
 
         beforeEach(async () => {
           await tokenStaking
@@ -531,7 +533,7 @@ describe("TokenStaking", () => {
     context(
       "when approve after request of full deauthorization for last app",
       () => {
-        let tx
+        let tx: ContractTransaction
 
         beforeEach(async () => {
           await tokenStaking
@@ -643,7 +645,7 @@ describe("TokenStaking", () => {
 
     context("when application was authorized and got disabled", () => {
       const amount = initialStakerBalance
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await tokenStaking.connect(deployer).setAuthorizationCeiling(1)
@@ -766,7 +768,7 @@ describe("TokenStaking", () => {
     })
 
     context("when pause active application", () => {
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         tx = await tokenStaking
@@ -838,8 +840,8 @@ describe("TokenStaking", () => {
       })
     })
 
-    const contextDisable = (preparation) => {
-      let tx
+    const contextDisable = (preparation: () => void | Promise<void>) => {
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await preparation()
@@ -923,7 +925,7 @@ describe("TokenStaking", () => {
     })
 
     context("when set panic button address for approved application", () => {
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         tx = await tokenStaking
@@ -956,7 +958,7 @@ describe("TokenStaking", () => {
 
     context("when caller is the governance", () => {
       const ceiling = 10
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         tx = await tokenStaking
@@ -1110,8 +1112,8 @@ describe("TokenStaking", () => {
     context("when unstake after minimum staking time passes", () => {
       const amount = initialStakerBalance
       const minAmount = initialStakerBalance.div(3)
-      let tx
-      let blockTimestamp
+      let tx: ContractTransaction
+      let blockTimestamp: number
 
       beforeEach(async () => {
         await tokenStaking.connect(deployer).setMinimumStakeAmount(minAmount)
@@ -1230,7 +1232,7 @@ describe("TokenStaking", () => {
     context("when amount to unstake is zero", () => {
       const amount = initialStakerBalance
       const amountToTransfer = amount
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await tokenStaking
@@ -1267,8 +1269,9 @@ describe("TokenStaking", () => {
         expect(await tToken.balanceOf(application1Mock.address)).to.equal(
           amountToTransfer
         )
-        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
-          .false
+        expect(
+          await application1Mock.stakeless(stakingProvider.address)
+        ).to.equal(false)
       })
 
       it("should create a new checkpoint for staker", async () => {
@@ -1285,7 +1288,7 @@ describe("TokenStaking", () => {
     context("when amount to unstake is not zero", () => {
       const amount = initialStakerBalance
       const amountToTransfer = amount.div(3)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await tokenStaking
@@ -1316,8 +1319,9 @@ describe("TokenStaking", () => {
         expect(await tToken.balanceOf(staker.address)).to.equal(
           amount.sub(amountToTransfer)
         )
-        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
-          .false
+        expect(
+          await application1Mock.stakeless(stakingProvider.address)
+        ).to.equal(false)
       })
 
       it("should decrease authorized amount", async () => {
@@ -1370,15 +1374,16 @@ describe("TokenStaking", () => {
       })
 
       it("should return stakeless flag", async () => {
-        expect(await application1Mock.stakeless(stakingProvider.address)).to.be
-          .true
+        expect(
+          await application1Mock.stakeless(stakingProvider.address)
+        ).to.equal(true)
       })
     })
 
     context("when amount to transfer is zero and no authorization", () => {
       const amount = initialStakerBalance
       const amountToTransfer = 0
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await tokenStaking
@@ -1440,7 +1445,7 @@ describe("TokenStaking", () => {
       () => {
         const amount = initialStakerBalance
         const amountToTransfer = 0
-        let tx
+        let tx: ContractTransaction
 
         beforeEach(async () => {
           await tokenStaking
@@ -1515,7 +1520,7 @@ describe("TokenStaking", () => {
       const reward = initialStakerBalance
       const amount = reward.div(3)
       const expectedReward = reward.sub(amount)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await tToken.connect(staker).approve(tokenStaking.address, reward)
@@ -1675,7 +1680,7 @@ describe("TokenStaking", () => {
             amount
           )
 
-        tx = await tokenStaking
+        await tokenStaking
           .connect(staker)
           .delegateVoting(stakingProvider.address, delegatee.address)
       })
@@ -1700,17 +1705,17 @@ describe("TokenStaking", () => {
     })
   })
 
-  async function assertStake(address, expectedTStake) {
+  async function assertStake(address: string, expectedTStake: BigNumberish) {
     expect(await tokenStaking.stakeAmount(address), "invalid tStake").to.equal(
       expectedTStake
     )
   }
 
   async function assertApplicationStakingProviders(
-    applicationMock,
-    stakingProviderAddress,
-    expectedAuthorized,
-    expectedDeauthorizingTo
+    applicationMock: ApplicationMock,
+    stakingProviderAddress: string,
+    expectedAuthorized: BigNumberish,
+    expectedDeauthorizingTo: BigNumberish
   ) {
     expect(
       (await applicationMock.stakingProviders(stakingProviderAddress))

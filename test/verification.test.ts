@@ -1,25 +1,62 @@
-const { expect } = require("chai")
-const hre = require("hardhat")
-const { verificationContracts } = require("../tasks/verify-deployments")
-const { Etherscan } = require("@nomicfoundation/hardhat-verify/etherscan")
+import { expect } from "chai"
+import hre from "hardhat"
+import { verificationContracts } from "../tasks/verify-deployments"
+import { Etherscan } from "@nomicfoundation/hardhat-verify/etherscan"
+import type { HardhatRuntimeEnvironment, TaskArguments } from "hardhat/types"
+import type { Deployment } from "hardhat-deploy/types"
+import tDeployment from "../deployments/mainnet/T.json"
+import vendingDeployment from "../deployments/mainnet/VendingMachineNuCypher.json"
+import timelockDeployment from "../deployments/mainnet/TokenholderTimelock.json"
+import governorDeployment from "../deployments/mainnet/TokenholderGovernor.json"
+
+type VerificationDeployment = Pick<
+  Deployment,
+  "address" | "abi" | "args" | "libraries"
+>
+
+type VerificationContext = {
+  network: { name: string }
+  deployments: { get: (name: string) => Promise<VerificationDeployment> }
+  run: (task: string, args: TaskArguments) => Promise<unknown>
+}
+
+const successfulResponse = (
+  message: string
+): Awaited<ReturnType<Etherscan["verify"]>> => ({
+  status: 1,
+  message,
+  isPending: () => false,
+  isFailure: () => false,
+  isSuccess: () => true,
+  isBytecodeMissingInNetworkError: () => false,
+  isAlreadyVerified: () => false,
+  isOk: () => true,
+})
 
 describe("deployment verification", () => {
-  const action = hre.tasks["verify-deployments"].action
+  // The fixture supplies only the HRE members consumed by this task. Keep the
+  // framework-boundary assertion here; fixture state below remains typed.
+  const action = (args: { names: string[] }, context: VerificationContext) =>
+    hre.tasks["verify-deployments"].action(
+      args,
+      context as HardhatRuntimeEnvironment,
+      Object.assign(async () => undefined, { isDefined: false })
+    )
   const names = Object.keys(verificationContracts)
-  let requests
-  let records
-  let context
+  let requests: { task: string; args: TaskArguments }[]
+  let records: Record<string, VerificationDeployment>
+  let context: VerificationContext
 
   beforeEach(() => {
     requests = []
     // Committed records exercise the real aliases, nested constructor arrays,
     // large allocation amounts, and legacy governance constructor arguments.
-    records = Object.fromEntries(
-      names.map((name) => [
-        name,
-        require(`../deployments/mainnet/${name}.json`),
-      ])
-    )
+    records = {
+      T: tDeployment,
+      VendingMachineNuCypher: vendingDeployment,
+      TokenholderTimelock: timelockDeployment,
+      TokenholderGovernor: governorDeployment,
+    }
     context = {
       network: { name: "sepolia" },
       deployments: {
@@ -118,8 +155,8 @@ describe("deployment verification", () => {
       verify: Etherscan.prototype.verify,
       getVerificationStatus: Etherscan.prototype.getVerificationStatus,
     }
-    const submissions = []
-    const verified = new Set()
+    const submissions: Parameters<Etherscan["verify"]>[] = []
+    const verified = new Set<string>()
     try {
       hre.config.etherscan = Object.assign({}, originalConfig, {
         apiKey: "local-test-key",
@@ -140,15 +177,11 @@ describe("deployment verification", () => {
       Etherscan.prototype.verify = async function (...args) {
         expect(this.apiUrl).to.equal("https://api.etherscan.io/v2/api")
         submissions.push(args)
-        return { message: args[0] }
+        return successfulResponse(args[0])
       }
       Etherscan.prototype.getVerificationStatus = async (address) => {
         verified.add(address)
-        return {
-          isAlreadyVerified: () => false,
-          isFailure: () => false,
-          isSuccess: () => true,
-        }
+        return successfulResponse(address)
       }
       context.deployments = hre.deployments
       context.run = hre.run

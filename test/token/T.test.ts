@@ -1,21 +1,25 @@
-const { expect } = require("chai")
+import type { BigNumberish, ContractTransaction, Wallet } from "ethers"
+import type { T } from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers, helpers } from "hardhat"
+import { expect } from "chai"
 
-const { MAX_UINT96 } = require("../helpers/contract-test-helpers")
+import { MAX_UINT96 } from "../helpers/contract-test-helpers"
 
-const { helpers } = require("hardhat")
 const { to1e18 } = helpers.number
 const { lastBlockNumber, lastBlockTime, mineBlocks } = helpers.time
 
 const ZERO_ADDRESS = ethers.constants.AddressZero
 
 describe("T token", () => {
+  let t: T
   const initialBalance = to1e18(1000000)
-  let deployer
-  let tokenHolder
-  let tokenRecipient
-  let delegatee
-  let delegatee2
-  let thirdParty
+  let deployer: SignerWithAddress
+  let tokenHolder: SignerWithAddress
+  let tokenRecipient: SignerWithAddress
+  let delegatee: SignerWithAddress
+  let delegatee2: SignerWithAddress
+  let thirdParty: SignerWithAddress
 
   beforeEach(async () => {
     ;[
@@ -56,10 +60,13 @@ describe("T token", () => {
     })
   })
 
-  const describeDelegate = (getDelegator, doDelegate) => {
+  const describeDelegate = (
+    getDelegator: () => { address: string },
+    doDelegate: (delegatee: string) => Promise<ContractTransaction>
+  ) => {
     context("when delegated to someone else", () => {
-      let delegator
-      let tx
+      let delegator: { address: string }
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         delegator = getDelegator()
@@ -89,8 +96,8 @@ describe("T token", () => {
     })
 
     context("when self-delegated", () => {
-      let delegator
-      let tx
+      let delegator: { address: string }
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         delegator = getDelegator()
@@ -119,11 +126,11 @@ describe("T token", () => {
     })
 
     context("when delegated multiple times", () => {
-      let delegator
-      let block1
-      let block2
-      let block3
-      let block4
+      let delegator: { address: string }
+      let block1: number
+      let block2: number
+      let block3: number
+      let block4: number
 
       beforeEach(async () => {
         delegator = getDelegator()
@@ -183,11 +190,11 @@ describe("T token", () => {
     )
   })
 
-  describe("delegateBySig", async () => {
-    let yesterday
-    let tomorrow
+  describe("delegateBySig", () => {
+    let yesterday: number
+    let tomorrow: number
 
-    let delegator
+    let delegator: Wallet
 
     beforeEach(async () => {
       const lastBlockTimestamp = await lastBlockTime()
@@ -252,7 +259,7 @@ describe("T token", () => {
       })
     })
 
-    const getDelegation = async (delegatee, deadline) => {
+    const getDelegation = async (delegatee: string, deadline: number) => {
       // We use ethers.utils.SigningKey for a Wallet instead of
       // Signer.signMessage to do not add '\x19Ethereum Signed Message:\n'
       // prefix to the signed message. The '\x19` protection (see EIP191 for
@@ -288,7 +295,9 @@ describe("T token", () => {
     }
   })
 
-  const describeTransfer = (doTransfer) => {
+  const describeTransfer = (
+    doTransfer: (amount: BigNumberish) => Promise<ContractTransaction>
+  ) => {
     context("when no vote delegation was done for sender and recipient", () => {
       beforeEach(async () => {
         await doTransfer(to1e18(100))
@@ -316,7 +325,7 @@ describe("T token", () => {
       "when both sender and receiver delegated votes to someone else",
       () => {
         const amount = to1e18(100)
-        let tx
+        let tx: ContractTransaction
 
         beforeEach(async () => {
           await t.connect(tokenHolder).delegate(delegatee.address)
@@ -375,7 +384,7 @@ describe("T token", () => {
 
     context("when both sender and recipient self-delegated votes", () => {
       const amount = to1e18(120)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(tokenHolder.address)
@@ -420,7 +429,7 @@ describe("T token", () => {
 
     context("when sender delegated votes to someone else", () => {
       const amount = to1e18(70)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(delegatee.address)
@@ -463,7 +472,7 @@ describe("T token", () => {
 
     context("when sender self-delegated votes", () => {
       const amount = to1e18(991)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(tokenHolder.address)
@@ -502,7 +511,7 @@ describe("T token", () => {
 
     context("when recipient delegated votes to someone else", () => {
       const amount = to1e18(214)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await t.connect(tokenRecipient).delegate(delegatee2.address)
@@ -539,7 +548,7 @@ describe("T token", () => {
 
     context("when recipient self-delegated votes", () => {
       const amount = to1e18(124)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await t.connect(tokenRecipient).delegate(tokenRecipient.address)
@@ -571,9 +580,9 @@ describe("T token", () => {
     })
 
     context("when transferred multiple times", () => {
-      let block1
-      let block2
-      let block3
+      let block1: number
+      let block2: number
+      let block3: number
 
       beforeEach(async () => {
         await t.connect(tokenHolder).delegate(delegatee.address)
@@ -678,7 +687,7 @@ describe("T token", () => {
     })
 
     context("when delegated to someone else", () => {
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await t.connect(thirdParty).delegate(delegatee.address)
@@ -698,7 +707,7 @@ describe("T token", () => {
     })
 
     context("when self-delegated", () => {
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         await t.connect(thirdParty).delegate(thirdParty.address)
@@ -727,9 +736,9 @@ describe("T token", () => {
 
     context("when minted several times", () => {
       context("when minted to the same account", () => {
-        let block1
-        let block2
-        let block3
+        let block1: number
+        let block2: number
+        let block3: number
 
         beforeEach(async () => {
           await t.connect(thirdParty).delegate(delegatee.address)
@@ -773,9 +782,9 @@ describe("T token", () => {
       })
 
       context("when minted to different accounts", () => {
-        let block1
-        let block2
-        let block3
+        let block1: number
+        let block2: number
+        let block3: number
 
         beforeEach(async () => {
           await t.connect(tokenHolder).delegate(delegatee.address)
@@ -824,7 +833,12 @@ describe("T token", () => {
     })
   })
 
-  const describeBurn = (doBurn) => {
+  const describeBurn = (
+    doBurn: (
+      account: SignerWithAddress,
+      amount: BigNumberish
+    ) => Promise<ContractTransaction>
+  ) => {
     context("when no delegation was done", () => {
       const amount = to1e18(10)
 
@@ -839,10 +853,10 @@ describe("T token", () => {
 
     context("when delegated to someone else", () => {
       const amount = to1e18(15)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
-        t.connect(tokenHolder).delegate(delegatee.address)
+        await t.connect(tokenHolder).delegate(delegatee.address)
         tx = await doBurn(tokenHolder, amount)
       })
 
@@ -866,10 +880,10 @@ describe("T token", () => {
 
     context("when self-delegated", () => {
       const amount = to1e18(16)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
-        t.connect(tokenHolder).delegate(tokenHolder.address)
+        await t.connect(tokenHolder).delegate(tokenHolder.address)
         tx = await doBurn(tokenHolder, amount)
       })
 
@@ -905,9 +919,9 @@ describe("T token", () => {
 
     context("when burned several times", () => {
       context("when burned from the same account", () => {
-        let block1
-        let block2
-        let block3
+        let block1: number
+        let block2: number
+        let block3: number
 
         beforeEach(async () => {
           await t.connect(tokenHolder).delegate(delegatee.address)
@@ -953,9 +967,9 @@ describe("T token", () => {
       })
 
       context("when burned from different accounts", () => {
-        let block1
-        let block2
-        let block3
+        let block1: number
+        let block2: number
+        let block3: number
 
         // tokenHolder and thirdParty has initialBalance minted
         // to total initial balance in this test is initialBalance x 2

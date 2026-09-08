@@ -8,7 +8,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { execute, read, log } = deployments
   const { to1e18, from1e18 } = helpers.number
 
-  const T = await deployments.get("T")
+  await deployments.get("T")
 
   const totalSupply: BigNumber = await read("T", "totalSupply")
 

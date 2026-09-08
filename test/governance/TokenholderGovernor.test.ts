@@ -1,5 +1,23 @@
-const { expect } = require("chai")
-const { defaultAbiCoder } = require("@ethersproject/abi")
+import type {
+  BigNumber,
+  BigNumberish,
+  BytesLike,
+  ContractTransaction,
+  PopulatedTransaction,
+} from "ethers"
+import type {
+  T,
+  TestStakingCheckpoints,
+  TestTokenholderGovernor,
+  TimelockController,
+} from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers, helpers } from "hardhat"
+import { expect } from "chai"
+import { defaultAbiCoder } from "@ethersproject/abi"
+
+type Proposal = [string[], BigNumberish[], BytesLike[]]
+
 const { mineBlocks, increaseTime, lastBlockTime } = helpers.time
 const { to1e18 } = helpers.number
 const { AddressZero, HashZero } = ethers.constants
@@ -21,23 +39,29 @@ const Vote = {
   Meh: 2,
 }
 
-function missingRoleMessage(account, role) {
+function missingRoleMessage(account: string, role: string) {
   return `AccessControl: account ${account.toLowerCase()} is missing role ${role}`
 }
 
 describe("TokenholderGovernor", () => {
-  let deployer
-  let tToken
-  let staker
-  let stakerWhale
-  let holder
-  let holderWhale
-  let vetoer
-  let bystander
-  let recipient
-  let timelock
+  let tGov: TestTokenholderGovernor
+  let tGovDest: TestTokenholderGovernor
+  let tStaking: TestStakingCheckpoints
+  let TIMELOCK_ADMIN_ROLE: string
+  let PROPOSER_ROLE: string
+  let proposalForTimelock: [...Proposal, string, string]
+  let deployer: SignerWithAddress
+  let tToken: T
+  let staker: SignerWithAddress
+  let stakerWhale: SignerWithAddress
+  let holder: SignerWithAddress
+  let holderWhale: SignerWithAddress
+  let vetoer: SignerWithAddress
+  let bystander: SignerWithAddress
+  let recipient: SignerWithAddress
+  let timelock: TimelockController
 
-  let proposalThresholdFunction
+  let proposalThresholdFunction: TestTokenholderGovernor["proposalThreshold()"]
   const minDelay = 1000
 
   // Initial scenario has a total of 100,000 tokens
@@ -59,19 +83,22 @@ describe("TokenholderGovernor", () => {
 
   // Mock proposal
   let description = "Mock Proposal"
-  let proposal = [[AddressZero], [42], [0xbebecafe]]
-  let proposalWithDescription = [...proposal, description]
+  let proposal: Proposal = [[AddressZero], [42], ["0xbebecafe"]]
+  let proposalWithDescription: [...Proposal, string] = [
+    ...proposal,
+    description,
+  ]
   let descriptionHash = ethers.utils.id(description)
-  let proposalWithHash = [...proposal, descriptionHash]
+  let proposalWithHash: [...Proposal, string] = [...proposal, descriptionHash]
   let proposalID = ethers.utils.keccak256(
     defaultAbiCoder.encode(
       ["address[]", "uint256[]", "bytes[]", "bytes32"],
       proposalWithHash
     )
   )
-  let timelockProposalID
+  let timelockProposalID: string
 
-  let VETO_POWER
+  let VETO_POWER: string
 
   beforeEach(async () => {
     ;[
@@ -101,7 +128,7 @@ describe("TokenholderGovernor", () => {
     await tToken.mint(holderWhale.address, holderWhaleBalance)
 
     const Timelock = await ethers.getContractFactory("TimelockController")
-    const proposers = []
+    const proposers: string[] = []
     // With the zero address as executor, anyone can execute proposals in the Timelock
     const executors = [AddressZero]
     timelock = await Timelock.deploy(minDelay, proposers, executors)
@@ -166,7 +193,7 @@ describe("TokenholderGovernor", () => {
         expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
       })
       it("nobody can make a proposal", async () => {
-        errorMessage =
+        const errorMessage =
           "GovernorCompatibilityBravo: proposer votes below proposal threshold"
         await expect(
           tGov.connect(staker).propose(...proposalWithDescription)
@@ -197,7 +224,7 @@ describe("TokenholderGovernor", () => {
           expect(await proposalThresholdFunction()).to.equal(expectedThreshold)
         })
         it("small fish can't make a proposal", async () => {
-          errorMessage =
+          const errorMessage =
             "GovernorCompatibilityBravo: proposer votes below proposal threshold"
           await expect(
             tGov.connect(staker).propose(...proposalWithDescription)
@@ -275,12 +302,12 @@ describe("TokenholderGovernor", () => {
         description = "Proposal to transfer some T"
 
         // Proposal to transfer 1 T unit to some recipient
-        transferTx = await tToken.populateTransaction.transfer(
+        const transferTx = await tToken.populateTransaction.transfer(
           recipient.address,
           1
         )
 
-        proposal = [[tToken.address], [0], [transferTx.data]]
+        proposal = [[tToken.address], [0], [transferTx.data!]]
         proposalWithDescription = [...proposal, description]
         descriptionHash = ethers.utils.id(description)
         proposalWithHash = [...proposal, descriptionHash]
@@ -346,10 +373,10 @@ describe("TokenholderGovernor", () => {
         })
 
         it("proposal voting counters are on zero", async () => {
-          votes = await tGov.proposalVotes(proposalID)
-          againstVotes = votes[0]
-          forVotes = votes[1]
-          abstainVotes = votes[2]
+          const votes = await tGov.proposalVotes(proposalID)
+          const againstVotes = votes[0]
+          const forVotes = votes[1]
+          const abstainVotes = votes[2]
 
           expect(againstVotes).to.equal(0)
           expect(forVotes).to.equal(0)
@@ -379,9 +406,9 @@ describe("TokenholderGovernor", () => {
         })
 
         context("participants can vote", () => {
-          let againstVotes
-          let forVotes
-          let abstainVotes
+          let againstVotes: BigNumber
+          let forVotes: BigNumber
+          let abstainVotes: BigNumber
 
           beforeEach(async () => {
             await tGov.connect(holderWhale).castVote(proposalID, Vote.Yea)
@@ -389,7 +416,7 @@ describe("TokenholderGovernor", () => {
             await tGov.connect(holder).castVote(proposalID, Vote.Yea)
             await tGov.connect(staker).castVote(proposalID, Vote.Meh)
 
-            votes = await tGov.proposalVotes(proposalID)
+            const votes = await tGov.proposalVotes(proposalID)
             againstVotes = votes[0]
             forVotes = votes[1]
             abstainVotes = votes[2]
@@ -409,7 +436,7 @@ describe("TokenholderGovernor", () => {
         })
 
         context("when quorum is reached late", () => {
-          let proposalDeadline
+          let proposalDeadline: BigNumber
 
           beforeEach(async () => {
             proposalDeadline = await tGov.proposalDeadline(proposalID)
@@ -418,14 +445,15 @@ describe("TokenholderGovernor", () => {
           })
 
           it("the deadline is extended ...", async () => {
-            extendedDeadline = await tGov.proposalDeadline(proposalID)
+            const extendedDeadline = await tGov.proposalDeadline(proposalID)
             expect(extendedDeadline).to.equal(proposalDeadline.add(4))
           })
 
           it("... and it's possible to vote past the original deadline", async () => {
-            currentBlock = await mineBlocks(2)
-            proposalDeadlineAlreadyPast = proposalDeadline.lt(currentBlock)
-            expect(proposalDeadlineAlreadyPast).to.be.true
+            const currentBlock = await mineBlocks(2)
+            const proposalDeadlineAlreadyPast =
+              proposalDeadline.lt(currentBlock)
+            expect(proposalDeadlineAlreadyPast).to.equal(true)
             await tGov.connect(stakerWhale).castVote(proposalID, Vote.Yea)
           })
         })
@@ -437,10 +465,10 @@ describe("TokenholderGovernor", () => {
           })
 
           it("proposal voting counters are as expected", async () => {
-            votes = await tGov.proposalVotes(proposalID)
-            againstVotes = votes[0]
-            forVotes = votes[1]
-            abstainVotes = votes[2]
+            const votes = await tGov.proposalVotes(proposalID)
+            const againstVotes = votes[0]
+            const forVotes = votes[1]
+            const abstainVotes = votes[2]
 
             expect(againstVotes).to.equal(0)
             expect(forVotes).to.equal(holderWhaleBalance)
@@ -489,8 +517,8 @@ describe("TokenholderGovernor", () => {
           })
 
           context("when proposal is queued", () => {
-            let tx
-            let queueTimestamp
+            let tx: ContractTransaction
+            let queueTimestamp: number
             beforeEach(async () => {
               tx = await tGov.connect(bystander).queue(...proposalWithHash)
               queueTimestamp = await lastBlockTime()
@@ -529,16 +557,21 @@ describe("TokenholderGovernor", () => {
             })
 
             it("Timelock is aware of the proposal", async () => {
-              expect(await timelock.isOperation(timelockProposalID)).to.be.true
+              expect(await timelock.isOperation(timelockProposalID)).to.equal(
+                true
+              )
             })
 
             it("Proposal state in Timelock is pending; not ready nor done", async () => {
-              expect(await timelock.isOperationPending(timelockProposalID)).to
-                .be.true
-              expect(await timelock.isOperationReady(timelockProposalID)).to.be
-                .false
-              expect(await timelock.isOperationDone(timelockProposalID)).to.be
-                .false
+              expect(
+                await timelock.isOperationPending(timelockProposalID)
+              ).to.equal(true)
+              expect(
+                await timelock.isOperationReady(timelockProposalID)
+              ).to.equal(false)
+              expect(
+                await timelock.isOperationDone(timelockProposalID)
+              ).to.equal(false)
             })
 
             it("Proposal activation timestamp in Timelock is as expected", async () => {
@@ -570,27 +603,31 @@ describe("TokenholderGovernor", () => {
 
             it("but with enough time, anyone can execute it", async () => {
               await increaseTime(minDelay + 1)
-              expect(await timelock.isOperationReady(timelockProposalID)).to.be
-                .true
+              expect(
+                await timelock.isOperationReady(timelockProposalID)
+              ).to.equal(true)
               await tGov.connect(bystander).execute(...proposalWithHash)
-              expect(await timelock.isOperationDone(timelockProposalID)).to.be
-                .true
+              expect(
+                await timelock.isOperationDone(timelockProposalID)
+              ).to.equal(true)
             })
 
             it("...it should be possible to execute from the Timelock directly too", async () => {
               await increaseTime(minDelay + 1)
-              expect(await timelock.isOperationReady(timelockProposalID)).to.be
-                .true
+              expect(
+                await timelock.isOperationReady(timelockProposalID)
+              ).to.equal(true)
               await timelock
                 .connect(bystander)
                 .executeBatch(...proposalForTimelock)
-              expect(await timelock.isOperationDone(timelockProposalID)).to.be
-                .true
+              expect(
+                await timelock.isOperationDone(timelockProposalID)
+              ).to.equal(true)
             })
 
             context("after Timelock duration", () => {
-              let recipientBalance
-              let tx
+              let recipientBalance: BigNumber
+              let tx: ContractTransaction
 
               beforeEach(async () => {
                 await increaseTime(minDelay + 1)
@@ -644,8 +681,8 @@ describe("TokenholderGovernor", () => {
   })
 
   describe("when migrating TokenholderGovernor", () => {
-    let grantRoleTx
-    let revokeRoleTx
+    let grantRoleTx: PopulatedTransaction
+    let revokeRoleTx: PopulatedTransaction
 
     beforeEach(async () => {
       const TestGovernor = await ethers.getContractFactory(
@@ -670,12 +707,15 @@ describe("TokenholderGovernor", () => {
         tGov.address
       )
 
-      const proposal = [
+      const proposal: Proposal = [
         [timelock.address, timelock.address],
         [0, 0],
-        [grantRoleTx.data, revokeRoleTx.data],
+        [grantRoleTx.data!, revokeRoleTx.data!],
       ]
-      const proposalWithDescription = [...proposal, description]
+      const proposalWithDescription: [...Proposal, string] = [
+        ...proposal,
+        description,
+      ]
       const descriptionHash = ethers.utils.id(description)
       proposalWithHash = [...proposal, descriptionHash]
       proposalID = ethers.utils.keccak256(
@@ -697,16 +737,17 @@ describe("TokenholderGovernor", () => {
     })
 
     it("Timelock only answers to the original Governor, for now)", async () => {
-      expect(await timelock.hasRole(PROPOSER_ROLE, tGov.address)).to.be.true
+      expect(await timelock.hasRole(PROPOSER_ROLE, tGov.address)).to.equal(true)
     })
 
     it("Timelock doesn't care for the new Governor, yet", async () => {
-      expect(await timelock.hasRole(PROPOSER_ROLE, tGovDest.address)).to.be
-        .false
+      expect(await timelock.hasRole(PROPOSER_ROLE, tGovDest.address)).to.equal(
+        false
+      )
     })
 
     context("once the migration proposal is executed", () => {
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         // Skip vote delay
@@ -724,12 +765,15 @@ describe("TokenholderGovernor", () => {
       })
 
       it("Timelock now only allows proposals from new Governor", async () => {
-        expect(await timelock.hasRole(PROPOSER_ROLE, tGovDest.address)).to.be
-          .true
+        expect(
+          await timelock.hasRole(PROPOSER_ROLE, tGovDest.address)
+        ).to.equal(true)
       })
 
       it("Timelock doesn't listen to the old Governor anymore", async () => {
-        expect(await timelock.hasRole(PROPOSER_ROLE, tGov.address)).to.be.false
+        expect(await timelock.hasRole(PROPOSER_ROLE, tGov.address)).to.equal(
+          false
+        )
       })
 
       it("Timelock emited a CallExecuted event for the grant role step", async () => {
@@ -741,7 +785,7 @@ describe("TokenholderGovernor", () => {
             0,
             timelock.address,
             0,
-            grantRoleTx.data
+            grantRoleTx.data!
           )
       })
 
@@ -754,7 +798,7 @@ describe("TokenholderGovernor", () => {
             1,
             timelock.address,
             0,
-            revokeRoleTx.data
+            revokeRoleTx.data!
           )
       })
 
@@ -775,13 +819,13 @@ describe("TokenholderGovernor", () => {
       context("when using the new Governor", () => {
         beforeEach(async () => {
           // Proposal to transfer 1 T unit to some recipient
-          transferTx = await tToken.populateTransaction.transfer(
+          const transferTx = await tToken.populateTransaction.transfer(
             recipient.address,
             1
           )
 
           description = "Proposal for new Governor"
-          proposal = [[tToken.address], [0], [transferTx.data]]
+          proposal = [[tToken.address], [0], [transferTx.data!]]
           proposalWithDescription = [...proposal, description]
           descriptionHash = ethers.utils.id(description)
           proposalWithHash = [...proposal, descriptionHash]
@@ -877,21 +921,24 @@ describe("TokenholderGovernor", () => {
     describe("The DAO can pass a proposal to send back the tokens", () => {
       beforeEach(async () => {
         // Let's prepare the token transfer calldata
-        transferTx = await tToken.populateTransaction.transfer(
+        const transferTx = await tToken.populateTransaction.transfer(
           holder.address,
           1
         )
 
         // We need use the Governor.relay() method to relay the token transfer
-        relayTx = await tGov.populateTransaction.relay(
-          transferTx.to,
+        const relayTx = await tGov.populateTransaction.relay(
+          transferTx.to!,
           0,
-          transferTx.data
+          transferTx.data!
         )
 
         description = "Send 1 token back to holder"
-        const proposal = [[relayTx.to], [0], [relayTx.data]]
-        const proposalWithDescription = [...proposal, description]
+        const proposal: Proposal = [[relayTx.to!], [0], [relayTx.data!]]
+        const proposalWithDescription: [...Proposal, string] = [
+          ...proposal,
+          description,
+        ]
         const descriptionHash = ethers.utils.id(description)
         proposalWithHash = [...proposal, descriptionHash]
         proposalID = ethers.utils.keccak256(
@@ -921,7 +968,7 @@ describe("TokenholderGovernor", () => {
         // Skip Timelock delay
         await increaseTime(minDelay + 1)
         // Execute
-        tx = await tGov.connect(bystander).execute(...proposalWithHash)
+        await tGov.connect(bystander).execute(...proposalWithHash)
       })
 
       it("Governor contract now has a token balance of 0", async () => {

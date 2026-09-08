@@ -1,13 +1,22 @@
-const { expect } = require("chai")
+import type {
+  T,
+  TestStakingCheckpoints,
+  TestTokenholderGovernorVotes,
+} from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers, helpers } from "hardhat"
+import { expect } from "chai"
 
 const { lastBlockNumber } = helpers.time
 const { to1e18 } = helpers.number
 
 describe("TokenholderGovernorVotes", () => {
-  let tToken
+  let tStaking: TestStakingCheckpoints
+  let tVotes: TestTokenholderGovernorVotes
+  let tToken: T
 
   // Staker has 5 T tokens
-  let staker
+  let staker: SignerWithAddress
   const initialStakerBalance = to1e18(5)
 
   beforeEach(async () => {
@@ -20,7 +29,7 @@ describe("TokenholderGovernorVotes", () => {
     )
     tStaking = await TestStaking.deploy(tToken.address)
     await tStaking.deployed()
-    ;[staker, thirdParty] = await ethers.getSigners()
+    ;[staker] = await ethers.getSigners()
     await tToken.mint(staker.address, initialStakerBalance)
     await tToken.connect(staker).delegate(staker.address)
 
@@ -43,7 +52,7 @@ describe("TokenholderGovernorVotes", () => {
     })
 
     context("once deployed", () => {
-      let atLastBlock
+      let atLastBlock: number
       beforeEach(async () => {
         atLastBlock = (await lastBlockNumber()) - 1
       })

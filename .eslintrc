@@ -10,5 +10,22 @@
   },
   "rules": {
     "new-cap": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.ts"],
+      "parser": "@typescript-eslint/parser",
+      "parserOptions": {
+        "project": "./tsconfig.json"
+      },
+      "extends": ["plugin:@typescript-eslint/recommended"],
+      "rules": {
+        "@typescript-eslint/no-floating-promises": [
+          "error",
+          { "ignoreVoid": false }
+        ],
+        "@typescript-eslint/no-misused-promises": "error"
+      }
+    }
+  ]
 }

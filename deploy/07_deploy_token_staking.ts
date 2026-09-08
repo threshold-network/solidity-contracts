@@ -2,6 +2,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
 
 import { ethers, upgrades } from "hardhat"
+import * as fs from "fs"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments } = hre
@@ -11,7 +12,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const T = await deployments.get("T")
 
   const tokenStakingConstructorArgs = [T.address]
-  const tokenStakingInitializerArgs = []
+  const tokenStakingInitializerArgs: [] = []
 
   // TODO: Consider upgradable deployment also for sepolia.
   let tokenStakingAddress
@@ -29,22 +30,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log(`Deployed TokenStaking with TransparentProxy at ${tokenStakingAddress}`)
 
     const implementationInterface = tokenStaking.interface
-    let jsonAbi = implementationInterface.format(ethers.utils.FormatTypes.json)
+    const jsonAbi = implementationInterface.format(
+      ethers.utils.FormatTypes.json
+    )
 
     const tokenStakingDeployment = {
       address: tokenStakingAddress,
       abi: JSON.parse(jsonAbi as string),
     }
-    const fs = require("fs")
     fs.writeFileSync(
       "TokenStaking.json",
       JSON.stringify(tokenStakingDeployment, null, 2),
-      "utf8",
-      function (err) {
-        if (err) {
-          console.log(err)
-        }
-      }
+      "utf8"
     )
     log(`Saved TokenStaking address and ABI in TokenStaking.json`)
   } else {
