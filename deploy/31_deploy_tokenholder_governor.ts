@@ -6,7 +6,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer, thresholdCouncil } = await getNamedAccounts()
 
   // TODO: fail if thresholdCouncil is undefined on mainnet
-  let vetoer = thresholdCouncil ?? deployer
+  const vetoer = thresholdCouncil ?? deployer
 
   const T = await deployments.get("T")
   const TokenStaking = await deployments.get("TokenStaking")

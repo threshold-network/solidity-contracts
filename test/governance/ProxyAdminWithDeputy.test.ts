@@ -1,24 +1,33 @@
-const { expect } = require("chai")
-
-const { upgrades } = require("hardhat")
+import type {
+  ProxyAdmin,
+  ProxyAdminWithDeputy,
+  SimpleStorage,
+  SimpleStorage__factory as SimpleStorageFactory,
+  TestTokenholderGovernorStubV2,
+} from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers, upgrades } from "hardhat"
+import { expect } from "chai"
 
 describe("ProxyAdminWithDeputy", () => {
-  let deployer
-  let deputy
-  let timelock
-  let adminWithDeputy
+  let tGov: TestTokenholderGovernorStubV2
+  let storage: SimpleStorage
+  let deployer: SignerWithAddress
+  let deputy: SignerWithAddress
+  let timelock: SignerWithAddress
+  let adminWithDeputy: ProxyAdminWithDeputy
 
-  let SimpleStorage
+  let SimpleStorage: SimpleStorageFactory
   const initialState = 42
 
   beforeEach(async () => {
     ;[deployer, deputy, timelock] = await ethers.getSigners()
     SimpleStorage = await ethers.getContractFactory("SimpleStorage")
     const initializerArgs = [initialState] // stored value in proxy state
-    storage = await upgrades.deployProxy(SimpleStorage, initializerArgs, {
+    storage = (await upgrades.deployProxy(SimpleStorage, initializerArgs, {
       kind: "transparent",
       constructorArgs: [1], // implementation version 1
-    })
+    })) as SimpleStorage
     await storage.deployed()
 
     const GovernorStub = await ethers.getContractFactory(
@@ -38,18 +47,21 @@ describe("ProxyAdminWithDeputy", () => {
   })
 
   describe("Plain Upgrades deployment - No ProxyAdminWithDeputy", () => {
-    let newImplementationAddress
-    let adminInstance
+    let newImplementationAddress: string
+    let adminInstance: ProxyAdmin
 
     beforeEach(async () => {
-      newImplementationAddress = await upgrades.prepareUpgrade(
+      const implementation = await upgrades.prepareUpgrade(
         storage.address,
         SimpleStorage,
         {
           constructorArgs: [2],
         }
       )
-      adminInstance = await upgrades.admin.getInstance()
+      if (typeof implementation !== "string")
+        throw new Error("Expected implementation address")
+      newImplementationAddress = implementation
+      adminInstance = (await upgrades.admin.getInstance()) as ProxyAdmin
     })
 
     it("ProxyAdmin is the admin for the UpgradeableProxy", async () => {
@@ -98,16 +110,19 @@ describe("ProxyAdminWithDeputy", () => {
     })
 
     describe("Upgrades procedure with ProxyAdminWithDeputy", () => {
-      let newImplementationAddress
+      let newImplementationAddress: string
 
       beforeEach(async () => {
-        newImplementationAddress = await upgrades.prepareUpgrade(
+        const implementation = await upgrades.prepareUpgrade(
           storage.address,
           SimpleStorage,
           {
             constructorArgs: [2],
           }
         )
+        if (typeof implementation !== "string")
+          throw new Error("Expected implementation address")
+        newImplementationAddress = implementation
       })
 
       it("before upgrade, implementation version is 1", async () => {

@@ -10,7 +10,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { getNamedAccounts, deployments } = hre
   const { deployer } = await getNamedAccounts()
 
-  const proposers = []
+  const proposers: string[] = []
   const executors = [ethers.constants.AddressZero]
   const minDelay = 172800 // 2 days in seconds (2 * 24 * 60 * 60)
 

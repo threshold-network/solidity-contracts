@@ -1,11 +1,14 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "lib": ["es5", "dom", "scripthost"],
+    "lib": ["es2020"],
     "module": "commonjs",
     "moduleResolution": "node",
-    "target": "es2017"
+    "target": "es2017",
+    "strict": true,
+    "resolveJsonModule": true,
+    "types": ["node", "mocha", "chai-as-promised"]
   },
   "files": ["./hardhat.config.ts"],
-  "include": ["./deploy"]
+  "include": ["./deploy", "./tasks", "./test", "./typechain"]
 }

@@ -1,11 +1,14 @@
-const { expect } = require("chai")
+import type { BigNumberish, ContractTransaction } from "ethers"
+import type { T, TestToken, VendingMachine } from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers, helpers } from "hardhat"
+import { expect } from "chai"
 
-const { helpers } = require("hardhat")
 const { to1e18, to1ePrecision } = helpers.number
 
 describe("VendingMachine", () => {
-  let wrappedToken
-  let tToken
+  let wrappedToken: TestToken
+  let tToken: T
 
   const floatingPointDivisor = to1ePrecision(1, 15)
   const tAllocation = to1e18("4500000000") // 4.5 Billion
@@ -14,7 +17,7 @@ describe("VendingMachine", () => {
     .mul(tAllocation)
     .div(maxWrappedTokens)
 
-  function convertToT(amount) {
+  function convertToT(amount: BigNumberish) {
     amount = ethers.BigNumber.from(amount)
     const wrappedRemainder = amount.mod(floatingPointDivisor)
     amount = amount.sub(wrappedRemainder)
@@ -24,7 +27,7 @@ describe("VendingMachine", () => {
     }
   }
 
-  function convertFromT(amount) {
+  function convertFromT(amount: BigNumberish) {
     amount = ethers.BigNumber.from(amount)
     const tRemainder = amount.mod(expectedRatio)
     amount = amount.sub(tRemainder)
@@ -34,14 +37,14 @@ describe("VendingMachine", () => {
     }
   }
 
-  let vendingMachine
+  let vendingMachine: VendingMachine
 
   // Token holder has 5 wrapped tokens (KEEP/NU)
-  let tokenHolder
+  let tokenHolder: SignerWithAddress
   const initialHolderBalance = to1e18(5)
 
   // Third party has no wrapped tokens and no T tokens.
-  let thirdParty
+  let thirdParty: SignerWithAddress
 
   beforeEach(async () => {
     const TestToken = await ethers.getContractFactory("TestToken")
@@ -52,7 +55,7 @@ describe("VendingMachine", () => {
     tToken = await T.deploy()
     await tToken.deployed()
 
-    let auxiliaryAccount
+    let auxiliaryAccount: SignerWithAddress
     ;[tokenHolder, thirdParty, auxiliaryAccount] = await ethers.getSigners()
     await tToken.mint(auxiliaryAccount.address, tAllocation)
     await wrappedToken.mint(auxiliaryAccount.address, maxWrappedTokens)
@@ -129,7 +132,7 @@ describe("VendingMachine", () => {
         const amount = initialHolderBalance
         const expectedNewBalance = convertToT(amount).result
         const expectedRemaining = tAllocation.sub(expectedNewBalance)
-        let tx
+        let tx: ContractTransaction
 
         beforeEach(async () => {
           await wrappedToken
@@ -171,7 +174,7 @@ describe("VendingMachine", () => {
         const amount = to1e18(1)
         const expectedNewBalance = convertToT(amount).result
         const expectedRemaining = tAllocation.sub(expectedNewBalance)
-        let tx
+        let tx: ContractTransaction
 
         beforeEach(async () => {
           await wrappedToken
@@ -218,7 +221,7 @@ describe("VendingMachine", () => {
           const amount = convertibleAmount.add(1)
           const expectedNewBalance = convertToT(amount).result
           const expectedRemaining = tAllocation.sub(expectedNewBalance)
-          let tx
+          let tx: ContractTransaction
 
           beforeEach(async () => {
             await wrappedToken
@@ -295,7 +298,7 @@ describe("VendingMachine", () => {
       const amount = to1e18(2)
       const expectedNewBalance = convertToT(amount).result
       const expectedRemaining = tAllocation.sub(expectedNewBalance)
-      let tx
+      let tx: ContractTransaction
 
       beforeEach(async () => {
         tx = await wrappedToken
@@ -376,7 +379,7 @@ describe("VendingMachine", () => {
       })
 
       context("when unwrapping all that was previously wrapped", () => {
-        let tx
+        let tx: ContractTransaction
 
         beforeEach(async () => {
           await tToken
@@ -423,7 +426,7 @@ describe("VendingMachine", () => {
 
           const allocationLeft = tAllocation.sub(tAmount).add(tAmount2)
           const holderTBalance = tAmount.sub(tAmount2)
-          let tx
+          let tx: ContractTransaction
 
           beforeEach(async () => {
             await tToken
@@ -464,6 +467,7 @@ describe("VendingMachine", () => {
         })
 
         context("when unwrapping part of the allowance", () => {
+          let tx: ContractTransaction
           let tAmount2 = to1e18(1)
           const conversion = convertFromT(tAmount2)
           const wrappedAmount2 = conversion.result
@@ -519,7 +523,7 @@ describe("VendingMachine", () => {
               .sub(tAmount)
               .add(convertibleTAmount2)
             const holderTBalance = tAmount.sub(convertibleTAmount2)
-            let tx
+            let tx: ContractTransaction
 
             beforeEach(async () => {
               await tToken

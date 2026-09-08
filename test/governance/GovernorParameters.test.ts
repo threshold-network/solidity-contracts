@@ -1,8 +1,13 @@
-const { expect } = require("chai")
+import type { ContractTransaction } from "ethers"
+import type { TestGovernorParameters } from "../../typechain"
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { ethers } from "hardhat"
+import { expect } from "chai"
 
 describe("ParametersGovernor", () => {
-  let executor
-  let other
+  let tGov: TestGovernorParameters
+  let executor: SignerWithAddress
+  let other: SignerWithAddress
 
   beforeEach(async () => {
     ;[executor, other] = await ethers.getSigners()
@@ -37,10 +42,10 @@ describe("ParametersGovernor", () => {
   })
 
   describe("parameters are updated", () => {
-    let tx1
-    let tx2
-    let tx3
-    let tx4
+    let tx1: ContractTransaction
+    let tx2: ContractTransaction
+    let tx3: ContractTransaction
+    let tx4: ContractTransaction
     beforeEach(async () => {
       tx1 = await tGov.connect(executor).updateQuorumNumerator(100)
       tx2 = await tGov.connect(executor).updateProposalThresholdNumerator(200)

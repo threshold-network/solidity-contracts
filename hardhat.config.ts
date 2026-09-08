@@ -6,6 +6,7 @@ import "@nomiclabs/hardhat-ethers"
 import "@nomicfoundation/hardhat-chai-matchers"
 import "@openzeppelin/hardhat-upgrades"
 import "@nomicfoundation/hardhat-verify"
+import "@typechain/hardhat"
 import { Tenderly } from "@tenderly/hardhat-tenderly/dist/Tenderly"
 import "@tenderly/hardhat-tenderly/dist/type-extensions"
 
@@ -43,6 +44,11 @@ const config: HardhatUserConfig = {
   paths: {
     artifacts: "./build",
   },
+  typechain: {
+    outDir: "typechain",
+    target: "ethers-v5",
+    alwaysGenerateOverloads: true,
+  },
   networks: {
     hardhat: {
       forking: {
@@ -68,7 +74,7 @@ const config: HardhatUserConfig = {
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
         ? [
             process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY, // TODO: verify if we have different owner here or can we remove this
+            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY!, // TODO: verify if we have different owner here or can we remove this
           ]
         : undefined,
       tags: ["tenderly"],

@@ -6,3 +6,4 @@ deployments/
 docgen-templates/
 export/
 export.json
+typechain/
