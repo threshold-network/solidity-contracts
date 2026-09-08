@@ -1,67 +1,55 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
-import * as fs from "fs"
-
-import { ethers, upgrades } from "hardhat"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments } = hre
-  const { execute, log } = deployments
+  const { getNamedAccounts, deployments, ethers, upgrades, artifacts } = hre
+  const { execute, read, log } = deployments
   const { deployer } = await getNamedAccounts()
-
   const T = await deployments.get("T")
+  const useProxy =
+    hre.network.name === "mainnet" || hre.network.name === "sepolia"
+  let tokenStaking = await deployments.getOrNull("TokenStaking")
 
-  const tokenStakingConstructorArgs = [T.address]
-  const tokenStakingInitializerArgs = []
-
-  // TODO: Consider upgradable deployment also for sepolia.
-  let tokenStakingAddress
-  if (hre.network.name === "mainnet" || hre.network.name === "sepolia") {
-    const TokenStaking = await ethers.getContractFactory("TokenStaking")
-
-    const tokenStaking = await upgrades.deployProxy(
-      TokenStaking,
-      tokenStakingInitializerArgs,
-      {
-        constructorArgs: tokenStakingConstructorArgs,
-      }
-    )
-    tokenStakingAddress = tokenStaking.address
-    log(`Deployed TokenStaking with TransparentProxy at ${tokenStakingAddress}`)
-
-    const implementationInterface = tokenStaking.interface
-    const jsonAbi = implementationInterface.format(ethers.utils.FormatTypes.json)
-
-    let parsedAbi: unknown[]
-    try {
-      parsedAbi = JSON.parse(jsonAbi as string) as unknown[]
-    } catch (e) {
-      throw new Error(`Failed to parse ABI from contract interface: ${e}`)
+  if (useProxy && tokenStaking) {
+    if ((await ethers.provider.getCode(tokenStaking.address)) === "0x") {
+      throw new Error(
+        "Recorded TokenStaking has no code; reconcile the deployment before continuing"
+      )
     }
-
-    const tokenStakingDeployment = {
-      address: tokenStakingAddress,
-      abi: parsedAbi,
-    }
-    const deploymentsDir = `deployments/${hre.network.name}`
-    await fs.promises.mkdir(deploymentsDir, { recursive: true })
-
-    await deployments.save("TokenStaking", tokenStakingDeployment)
-
-    await fs.promises.writeFile(
-      `${deploymentsDir}/TokenStaking.json`,
-      JSON.stringify(tokenStakingDeployment, null, 2),
-      "utf8"
+    log(`Reusing TokenStaking at ${tokenStaking.address}`)
+  } else if (useProxy) {
+    const factory = await ethers.getContractFactory(
+      "TokenStaking",
+      await ethers.getSigner(deployer)
     )
-    log(`Saved TokenStaking address and ABI in ${deploymentsDir}/TokenStaking.json`)
+    const proxy = await upgrades.deployProxy(factory, [], {
+      constructorArgs: [T.address],
+      kind: "transparent",
+    })
+    await proxy.deployed()
+    tokenStaking = {
+      address: proxy.address,
+      abi: (await artifacts.readArtifact("TokenStaking")).abi,
+      implementation: await upgrades.erc1967.getImplementationAddress(
+        proxy.address
+      ),
+    }
+    await deployments.save("TokenStaking", tokenStaking)
+    log(
+      `Deployed TokenStaking with TransparentProxy at ${tokenStaking.address}`
+    )
   } else {
-    const TokenStaking = await deployments.deploy("TokenStaking", {
+    tokenStaking = await deployments.deploy("TokenStaking", {
       from: deployer,
-      args: tokenStakingConstructorArgs,
+      args: [T.address],
       log: true,
     })
-    tokenStakingAddress = TokenStaking.address
+  }
 
+  // Preserve existing initialized proxies and recover interrupted direct deployments.
+  if (
+    (await read("TokenStaking", "governance")) === ethers.constants.AddressZero
+  ) {
     await execute("TokenStaking", { from: deployer }, "initialize")
     log("Initialized TokenStaking.")
   }
@@ -69,7 +57,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (hre.network.tags.tenderly) {
     await hre.tenderly.verify({
       name: "TokenStaking",
-      address: tokenStakingAddress,
+      address: tokenStaking.address,
     })
   }
 }

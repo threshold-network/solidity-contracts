@@ -3,7 +3,7 @@
 # Run the full operator setup for a NEW staking provider + operator.
 #
 # Prerequisites:
-#   0. TokenStaking must be upgraded to ExtendedTokenStaking (adds stake()):
+#   0. TokenStaking must be upgraded to SepoliaTokenStaking (adds stake()):
 #      yarn deploy --network sepolia --tags TokenStakingUpgrade
 #   1. Run: node scripts/setup-new-staking-provider.js "your-password"
 #   2. Fund: bash scripts/fund-new-operator.sh

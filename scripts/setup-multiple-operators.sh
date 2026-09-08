@@ -11,7 +11,7 @@
 #   sends ETH_PER_OPERATOR (default 0.05ether) to each new staking provider and operator (2×), plus gas
 #   for T transfers and those sends. Or AUTO_FUND_T=1 (default) when deployer / T_MINTER_PRIVATE_KEY is
 #   T owner so T shortfall is minted (does not mint native ETH).
-#   TokenStaking proxy MUST use ExtendedTokenStaking (implements stake()). If stake() is missing,
+#   TokenStaking proxy MUST use SepoliaTokenStaking (implements stake()). If stake() is missing,
 #   txs revert with empty data (~30k gas) and increaseAuthorization fails with "Not authorizer".
 #   One-time: cd solidity-contracts && yarn deploy --network sepolia --tags TokenStakingUpgrade
 #   Beacon + ECDSA sortition pools must not require chaosnet beta operators, or joinSortitionPool on
@@ -24,7 +24,7 @@
 #   T_MINTER_PRIVATE_KEY matches T.owner(). Set AUTO_FUND_T=0 to require a pre-funded deployer.
 #   ETH_PER_OPERATOR: native ETH sent to each new SP and each operator (default 0.05ether). Sepolia
 #   gas for stake/register/join can exceed 0.001ether per address; override if your network is cheaper.
-#   CAST_SEND_MAX_RETRIES: retries for cast "nonce too low" / RPC lag (default 10, exponential backoff).
+#   Ambiguous transaction submission stops setup; reconcile the original transaction before retrying.
 #   python3 is required for --new. Parent/Ansible export wins over .env for deployer / T minter keys.
 #
 # Usage:
@@ -241,7 +241,7 @@ else
   echo "=== Registering $N new operators ==="
   echo "T required: $((N * 80000)) (80k per operator)"
   echo "ETH: deployer funds each new SP + operator with ETH_PER_OPERATOR=$ETH_PER_OPERATOR (override via env)"
-  echo "TokenStaking: use ExtendedTokenStaking (yarn deploy --network sepolia --tags TokenStakingUpgrade)"
+  echo "TokenStaking: use SepoliaTokenStaking (yarn deploy --network sepolia --tags TokenStakingUpgrade)"
   echo "Chaosnet: run bash scripts/deactivate-chaosnet.sh from repo root (uses pools linked on-chain)"
 fi
 echo ""
@@ -264,25 +264,33 @@ run_existing_operator() {
   echo "--- Operator $i/$N (existing) ---"
   ETH_PRIVATE_KEY="$sp_key" cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
     "$sp_addr" $RANDOM_BEACON $AMOUNT_40K \
-    --rpc-url $CHAIN_API_URL
+    --rpc-url "$CHAIN_API_URL" || return 1
   ETH_PRIVATE_KEY="$sp_key" cast_send_ok $TOKEN_STAKING "increaseAuthorization(address,address,uint96)" \
     "$sp_addr" $WALLET_REGISTRY $AMOUNT_40K \
-    --rpc-url $CHAIN_API_URL
+    --rpc-url "$CHAIN_API_URL" || return 1
   ETH_PRIVATE_KEY="$sp_key" cast_send_ok $RANDOM_BEACON "registerOperator(address)" "$op_addr" \
-    --rpc-url $CHAIN_API_URL
+    --rpc-url "$CHAIN_API_URL" || return 1
   ETH_PRIVATE_KEY="$sp_key" cast_send_ok $WALLET_REGISTRY "registerOperator(address)" "$op_addr" \
-    --rpc-url $CHAIN_API_URL
+    --rpc-url "$CHAIN_API_URL" || return 1
   ETH_PRIVATE_KEY="$op_key" cast_send_ok $RANDOM_BEACON "joinSortitionPool()" \
-    --rpc-url $CHAIN_API_URL
+    --rpc-url "$CHAIN_API_URL" || return 1
   ETH_PRIVATE_KEY="$op_key" cast_send_ok $WALLET_REGISTRY "joinSortitionPool()" \
-    --rpc-url $CHAIN_API_URL
+    --rpc-url "$CHAIN_API_URL" || return 1
   echo "  Registered: $op_addr"
 }
 
 if [ "$USE_EXISTING" = true ]; then
+  failed=0
   for i in $(seq 1 "$N"); do
-    run_existing_operator "$i" || { echo "Skipping operator $i (missing OP${i}_* in config)"; }
+    if ! run_existing_operator "$i"; then
+      echo "ERROR: Operator $i setup is incomplete (missing configuration or failed transaction)." >&2
+      failed=$((failed + 1))
+    fi
   done
+  if [ "$failed" -ne 0 ]; then
+    echo "ERROR: $failed of $N existing operators could not be registered." >&2
+    exit 1
+  fi
   echo ""
   echo "=== Done. $N existing operators registered. ==="
   exit 0
@@ -328,7 +336,7 @@ for i in $(seq 1 "$N"); do
   CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY="$_DEPLOYER_ACCOUNT_PRIVATE_KEY"
   if [ -z "${NEW_STAKING_PROVIDER_KEY:-}" ] || [ -z "${NEW_OPERATOR_KEY:-}" ]; then
     echo "ERROR: .env.operator-${i} is missing NEW_STAKING_PROVIDER_KEY / NEW_OPERATOR_KEY." >&2
-    echo "       Remove stale solidity-contracts/.env.operator-* (old generator did not write keys) and re-run." >&2
+    echo "       Preserve existing key files and restore the missing keys from your backup before resuming." >&2
     exit 1
   fi
 

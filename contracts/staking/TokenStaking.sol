@@ -302,6 +302,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ) external virtual override onlyAuthorizerOf(stakingProvider) {
         require(application != address(0), "Parameters must be specified");
         require(amount > 0, "Parameters must be specified");
+        require(!skipApplication(application), "Application is deprecated");
         ApplicationInfo storage applicationStruct = applicationInfo[
             application
         ];
@@ -352,6 +353,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         Returns resulting authorized amount for the application.
     function approveAuthorizationDecrease(address stakingProvider)
         external
+        virtual
         override
         returns (uint96)
     {
@@ -579,6 +581,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// Migration
     function migrateAndRelease(address stakingProvider, uint96 amount)
         external
+        virtual
         override
         returns (bool stakeless)
     {
