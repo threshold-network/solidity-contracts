@@ -3,8 +3,6 @@ node_modules/
 artifacts/
 build/
 cache/
-deployments/*
-!deployments/mainnet/
 export/
 export.json
 
@@ -21,3 +19,12 @@ yarn-error.log
 
 # OpenZeppelin
 .openzeppelin/unknown-*.json
+!.openzeppelin/unknown-11155111.json
+
+# Generated operator setup artifacts
+operator-*-keystore/
+spv-maintainer-keystore/
+.env.new-operator
+.env.operator-*
+.env.operators-*
+.env

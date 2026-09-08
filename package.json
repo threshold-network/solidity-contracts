@@ -10,12 +10,14 @@
     "export/",
     "scripts/",
     ".openzeppelin/mainnet.json",
+    ".openzeppelin/unknown-11155111.json",
     "export.json"
   ],
   "scripts": {
     "clean": "hardhat clean && rm -rf cache/ deployments/ export/ external/npm export.json",
     "build": "hardhat compile",
     "deploy": "hardhat deploy --export export.json",
+    "upgrade:token-staking": "hardhat run scripts/upgrade-token-staking.ts",
     "format": "npm run lint && prettier --check .",
     "format:fix": "npm run lint:fix && prettier --write .",
     "lint": "npm run lint:js && npm run lint:sol",
@@ -26,7 +28,7 @@
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
-    "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
+    "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts && hardhat run scripts/export-staking-build-info.js",
     "prepublishOnly": "hardhat prepare-artifacts --network $npm_config_network"
   },
   "devDependencies": {
@@ -61,5 +63,6 @@
     "@openzeppelin/contracts": "~4.5.0",
     "@openzeppelin/contracts-upgradeable": "~4.5.2",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
-  }
+  },
+  "packageManager": "yarn@4.12.0"
 }

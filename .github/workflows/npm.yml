@@ -12,20 +12,27 @@ on:
       - "yarn.lock"
   workflow_dispatch:
 
+# Git dependencies bootstrap with Yarn Classic in parallel. A relative cache
+# keeps each bootstrap's cache inside its own temporary checkout.
+env:
+  YARN_CACHE_FOLDER: .yarn/cache
+
 jobs:
   npm-compile-publish-contracts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 may cause issues with the
           # artifacts generation during `hardhat compile` - see
           # https://github.com/NomicFoundation/hardhat/issues/3877.
           node-version: "18.15.0"
           registry-url: "https://registry.npmjs.org"
-          cache: "yarn"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - name: Install needed dependencies
         run: yarn install --frozen-lockfile

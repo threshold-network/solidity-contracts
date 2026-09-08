@@ -266,6 +266,86 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     //
     //
 
+    /// @notice Allows the Governance to approve the particular application
+    ///         before individual stake authorizers are able to authorize it.
+    function approveApplication(address application)
+        external
+        virtual
+        override
+        onlyGovernance
+    {
+        require(application != address(0), "Parameters must be specified");
+        ApplicationInfo storage info = applicationInfo[application];
+        require(
+            info.status == ApplicationStatus.NOT_APPROVED ||
+                info.status == ApplicationStatus.PAUSED,
+            "Can't approve application"
+        );
+
+        if (info.status == ApplicationStatus.NOT_APPROVED) {
+            applications.push(application);
+        }
+        info.status = ApplicationStatus.APPROVED;
+        emit ApplicationStatusChanged(application, ApplicationStatus.APPROVED);
+    }
+
+    /// @notice Increases the authorization of the given staking provider for
+    ///         the given application by the given amount. Can only be called by
+    ///         the given staking provider's authorizer.
+    /// @dev Calls `authorizationIncreased` callback on the given application to
+    ///      notify the application about authorization change.
+    ///      See `IApplication`.
+    function increaseAuthorization(
+        address stakingProvider,
+        address application,
+        uint96 amount
+    ) external virtual override onlyAuthorizerOf(stakingProvider) {
+        require(application != address(0), "Parameters must be specified");
+        require(amount > 0, "Parameters must be specified");
+        require(!skipApplication(application), "Application is deprecated");
+        ApplicationInfo storage applicationStruct = applicationInfo[
+            application
+        ];
+        require(
+            applicationStruct.status == ApplicationStatus.APPROVED,
+            "Application is not approved"
+        );
+
+        StakingProviderInfo storage stakingProviderStruct = stakingProviders[
+            stakingProvider
+        ];
+        AppAuthorization storage authorization = stakingProviderStruct
+            .authorizations[application];
+        uint96 fromAmount = authorization.authorized;
+        if (fromAmount == 0) {
+            require(
+                authorizationCeiling == 0 ||
+                    stakingProviderStruct.authorizedApplications.length <
+                    authorizationCeiling,
+                "Too many applications"
+            );
+            stakingProviderStruct.authorizedApplications.push(application);
+        }
+
+        uint96 availableTValue = getAvailableToAuthorize(
+            stakingProvider,
+            application
+        );
+        require(availableTValue >= amount, "Not enough stake to authorize");
+        authorization.authorized += amount;
+        emit AuthorizationIncreased(
+            stakingProvider,
+            application,
+            fromAmount,
+            authorization.authorized
+        );
+        IApplication(application).authorizationIncreased(
+            stakingProvider,
+            fromAmount,
+            authorization.authorized
+        );
+    }
+
     /// @notice Called by the application at its discretion to approve the
     ///         previously requested authorization decrease request. Can only be
     ///         called by the application that was previously requested to
@@ -273,6 +353,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     ///         Returns resulting authorized amount for the application.
     function approveAuthorizationDecrease(address stakingProvider)
         external
+        virtual
         override
         returns (uint96)
     {
@@ -500,6 +581,7 @@ contract TokenStaking is Initializable, IStaking, Checkpoints {
     /// Migration
     function migrateAndRelease(address stakingProvider, uint96 amount)
         external
+        virtual
         override
         returns (bool stakeless)
     {

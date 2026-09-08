@@ -1,60 +1,57 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types"
 import { DeployFunction } from "hardhat-deploy/types"
-
-import { ethers, upgrades } from "hardhat"
+import { stakingContractFactory } from "../scripts/staking-artifacts"
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, deployments } = hre
-  const { execute, log } = deployments
+  const { getNamedAccounts, deployments, ethers, upgrades } = hre
+  const { execute, read, log } = deployments
   const { deployer } = await getNamedAccounts()
-
   const T = await deployments.get("T")
+  const useProxy =
+    hre.network.name === "mainnet" || hre.network.name === "sepolia"
+  let tokenStaking = await deployments.getOrNull("TokenStaking")
 
-  const tokenStakingConstructorArgs = [T.address]
-  const tokenStakingInitializerArgs = []
-
-  // TODO: Consider upgradable deployment also for sepolia.
-  let tokenStakingAddress
-  if (hre.network.name == "mainnet") {
-    const TokenStaking = await ethers.getContractFactory("TokenStaking")
-
-    const tokenStaking = await upgrades.deployProxy(
-      TokenStaking,
-      tokenStakingInitializerArgs,
-      {
-        constructorArgs: tokenStakingConstructorArgs,
-      }
-    )
-    tokenStakingAddress = tokenStaking.address
-    log(`Deployed TokenStaking with TransparentProxy at ${tokenStakingAddress}`)
-
-    const implementationInterface = tokenStaking.interface
-    let jsonAbi = implementationInterface.format(ethers.utils.FormatTypes.json)
-
-    const tokenStakingDeployment = {
-      address: tokenStakingAddress,
-      abi: JSON.parse(jsonAbi as string),
+  if (useProxy && tokenStaking) {
+    if ((await ethers.provider.getCode(tokenStaking.address)) === "0x") {
+      throw new Error(
+        "Recorded TokenStaking has no code; reconcile the deployment before continuing"
+      )
     }
-    const fs = require("fs")
-    fs.writeFileSync(
-      "TokenStaking.json",
-      JSON.stringify(tokenStakingDeployment, null, 2),
-      "utf8",
-      function (err) {
-        if (err) {
-          console.log(err)
-        }
-      }
+    log(`Reusing TokenStaking at ${tokenStaking.address}`)
+  } else if (useProxy) {
+    const { factory, artifact } = await stakingContractFactory(
+      hre,
+      "TokenStaking",
+      deployer
     )
-    log(`Saved TokenStaking address and ABI in TokenStaking.json`)
+    const proxy = await upgrades.deployProxy(factory, [], {
+      constructorArgs: [T.address],
+      kind: "transparent",
+    })
+    await proxy.deployed()
+    tokenStaking = {
+      address: proxy.address,
+      abi: artifact.abi,
+      implementation: await upgrades.erc1967.getImplementationAddress(
+        proxy.address
+      ),
+    }
+    await deployments.save("TokenStaking", tokenStaking)
+    log(
+      `Deployed TokenStaking with TransparentProxy at ${tokenStaking.address}`
+    )
   } else {
-    const TokenStaking = await deployments.deploy("TokenStaking", {
+    tokenStaking = await deployments.deploy("TokenStaking", {
       from: deployer,
-      args: tokenStakingConstructorArgs,
+      args: [T.address],
       log: true,
     })
-    tokenStakingAddress = TokenStaking.address
+  }
 
+  // Preserve existing initialized proxies and recover interrupted direct deployments.
+  if (
+    (await read("TokenStaking", "governance")) === ethers.constants.AddressZero
+  ) {
     await execute("TokenStaking", { from: deployer }, "initialize")
     log("Initialized TokenStaking.")
   }
@@ -62,7 +59,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (hre.network.tags.tenderly) {
     await hre.tenderly.verify({
       name: "TokenStaking",
-      address: tokenStakingAddress,
+      address: tokenStaking.address,
     })
   }
 }

@@ -7,16 +7,23 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Git dependencies bootstrap with Yarn Classic in parallel. A relative cache
+# keeps each bootstrap's cache inside its own temporary checkout.
+env:
+  YARN_CACHE_FOLDER: .yarn/cache
+
 jobs:
   code-lint-and-format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "yarn"
+
+      - name: Enable Corepack (Yarn from packageManager field)
+        run: corepack enable
 
       - name: Install dependencies
         run: yarn install
