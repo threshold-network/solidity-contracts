@@ -52,7 +52,9 @@ const config: HardhatUserConfig = {
       accounts: process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
         ? [
             process.env.CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY,
-            process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY, // TODO: verify if we have different owner here or can we remove this
+            ...(process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY
+              ? [process.env.KEEP_CONTRACT_OWNER_ACCOUNT_PRIVATE_KEY]
+              : []),
           ]
         : undefined,
       tags: ["tenderly"],
