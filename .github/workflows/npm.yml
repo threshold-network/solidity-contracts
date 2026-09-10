@@ -16,9 +16,9 @@ jobs:
   npm-compile-publish-contracts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           # Using fixed version, because 18.16 may cause issues with the
           # artifacts generation during `hardhat compile` - see
@@ -37,7 +37,7 @@ jobs:
 
       - name: Bump up package version
         id: npm-version-bump
-        uses: keep-network/npm-version-bump@v2
+        uses: threshold-network/ci/actions/npm-version-bump@20b35345d276a3c7365e3829b8078387a7c9dccb
         with:
           environment: dev
           branch: ${{ github.ref }}
