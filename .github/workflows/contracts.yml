@@ -129,7 +129,7 @@ jobs:
 
       - name: Bump up package version
         id: npm-version-bump
-        uses: threshold-network/ci/actions/npm-version-bump@4e5a710bc94d6abba62abbb6b8c70adfd10af83f
+        uses: threshold-network/ci/actions/npm-version-bump@20b35345d276a3c7365e3829b8078387a7c9dccb
         with:
           environment: ${{ github.event.inputs.environment }}
           branch: ${{ github.ref }}
@@ -141,7 +141,7 @@ jobs:
         run: npm publish --access=public --network=${{ github.event.inputs.environment }} --tag ${{ github.event.inputs.environment }}
 
       - name: Notify CI about completion of the workflow
-        uses: threshold-network/ci/actions/notify-workflow-completed@4e5a710bc94d6abba62abbb6b8c70adfd10af83f
+        uses: threshold-network/ci/actions/notify-workflow-completed@20b35345d276a3c7365e3829b8078387a7c9dccb
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         with:
@@ -226,7 +226,7 @@ jobs:
 
       - name: Bump up package version
         id: npm-version-bump
-        uses: threshold-network/ci/actions/npm-version-bump@4e5a710bc94d6abba62abbb6b8c70adfd10af83f
+        uses: threshold-network/ci/actions/npm-version-bump@20b35345d276a3c7365e3829b8078387a7c9dccb
         with:
           environment: dapp-dev-${{ github.event.inputs.environment }}
           branch: ${{ github.ref }}
@@ -241,7 +241,7 @@ jobs:
             --tag dapp-development-${{ github.event.inputs.environment }}
 
       - name: Notify CI about completion of the workflow
-        uses: threshold-network/ci/actions/notify-workflow-completed@4e5a710bc94d6abba62abbb6b8c70adfd10af83f
+        uses: threshold-network/ci/actions/notify-workflow-completed@20b35345d276a3c7365e3829b8078387a7c9dccb
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         with:
