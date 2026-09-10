@@ -69,7 +69,9 @@ jobs:
         run: yarn install
 
       - name: Build contracts
-        run: yarn build
+        # The locked OpenZeppelin upgrades plugin can lose validation-cache
+        # entries when independent compilation jobs write concurrently.
+        run: yarn build --concurrency 1
 
       - name: Run tests
         if: github.ref != 'refs/heads/dapp-development'
