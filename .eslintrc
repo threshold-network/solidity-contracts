@@ -1,5 +1,6 @@
 {
-  "extends": ["eslint-config-keep"],
+  "extends": ["google", "prettier"],
+  "plugins": ["no-only-tests", "prettier"],
   "parserOptions": {
     "ecmaVersion": 2017,
     "sourceType": "module"
@@ -9,6 +10,9 @@
     "mocha": true
   },
   "rules": {
-    "new-cap": "off"
+    "new-cap": "off",
+    "require-jsdoc": 0,
+    "no-only-tests/no-only-tests": "error",
+    "prettier/prettier": ["error", { "semi": false }]
   }
 }
