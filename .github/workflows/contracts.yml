@@ -68,6 +68,9 @@ jobs:
       - name: Build contracts
         run: yarn build
 
+      - name: Check tooling compatibility
+        run: yarn test:tooling
+
       - name: Run tests
         if: github.ref != 'refs/heads/dapp-development'
         run: yarn test
