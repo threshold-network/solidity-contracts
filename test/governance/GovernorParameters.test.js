@@ -1,4 +1,5 @@
 const { expect } = require("chai")
+const { mineBlocks } = helpers.time
 
 describe("ParametersGovernor", () => {
   let executor
@@ -99,6 +100,88 @@ describe("ParametersGovernor", () => {
       await expect(
         tGov.connect(other).setVotingPeriod(1234)
       ).to.be.revertedWith("Governor: onlyGovernance")
+    })
+  })
+
+  describe("quorum history", () => {
+    it("preserves the initial quorum before deployment", async () => {
+      const { blockNumber } = await tGov.deployTransaction.wait()
+      expect(await tGov.quorum(blockNumber - 1)).to.equal(10)
+
+      await tGov.connect(executor).updateQuorumNumerator(100)
+      expect(await tGov.quorum(blockNumber - 1)).to.equal(10)
+      expect(await tGov.quorum(blockNumber)).to.equal(10)
+    })
+
+    it("uses the numerator at each historical block, including zero", async () => {
+      const updates = []
+      for (const numerator of [100, 0, 10000, 20]) {
+        const tx = await tGov.connect(executor).updateQuorumNumerator(numerator)
+        const { blockNumber } = await tx.wait()
+        updates.push({ blockNumber, numerator })
+        await mineBlocks(2)
+      }
+
+      expect(await tGov.quorum(updates[0].blockNumber - 1)).to.equal(10)
+      for (const { blockNumber, numerator } of updates) {
+        expect(await tGov.quorum(blockNumber)).to.equal(numerator)
+        expect(await tGov.quorum(blockNumber + 1)).to.equal(numerator)
+      }
+      expect(await tGov.quorumNumerator()).to.equal(20)
+    })
+
+    it("uses the final numerator when governance updates twice in one block", async () => {
+      const nonce = await executor.getTransactionCount()
+      let first
+      let second
+      await ethers.provider.send("evm_setAutomine", [false])
+      try {
+        first = await tGov.connect(executor).updateQuorumNumerator(100, {
+          nonce,
+          gasLimit: 300000,
+        })
+        second = await tGov.connect(executor).updateQuorumNumerator(0, {
+          nonce: nonce + 1,
+          gasLimit: 300000,
+        })
+        await ethers.provider.send("evm_mine", [])
+      } finally {
+        await ethers.provider.send("evm_setAutomine", [true])
+      }
+      const firstReceipt = await first.wait()
+      const secondReceipt = await second.wait()
+      expect(secondReceipt.blockNumber).to.equal(firstReceipt.blockNumber)
+      await mineBlocks(1)
+
+      expect(await tGov.quorum(firstReceipt.blockNumber - 1)).to.equal(10)
+      expect(await tGov.quorum(firstReceipt.blockNumber)).to.equal(0)
+      expect(await tGov.quorumNumerator()).to.equal(0)
+      await expect(second)
+        .to.emit(tGov, "QuorumNumeratorUpdated")
+        .withArgs(100, 0)
+    })
+
+    it("rejects an excessive numerator without changing quorum history", async () => {
+      const tx = await tGov.connect(executor).updateQuorumNumerator(10000)
+      const { blockNumber } = await tx.wait()
+      await expect(
+        tGov.connect(executor).updateQuorumNumerator(10001)
+      ).to.be.revertedWith("quorumNumerator > Denominator")
+      await mineBlocks(1)
+
+      expect(await tGov.quorumNumerator()).to.equal(10000)
+      expect(await tGov.quorum(blockNumber)).to.equal(10000)
+      expect(await tGov.quorum(blockNumber - 1)).to.equal(10)
+    })
+
+    it("preserves the supply provider's rejection of current and future blocks", async () => {
+      const blockNumber = await ethers.provider.getBlockNumber()
+      await expect(tGov.quorum(blockNumber)).to.be.revertedWith(
+        "Block not yet determined"
+      )
+      await expect(tGov.quorum(blockNumber + 1)).to.be.revertedWith(
+        "Block not yet determined"
+      )
     })
   })
 })

@@ -16,6 +16,7 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/governance/Governor.sol";
+import {Checkpoints as QuorumCheckpoints} from "@openzeppelin/contracts/utils/Checkpoints.sol";
 
 /// @title GovernorParameters
 /// @notice Abstract contract to handle governance parameters
@@ -24,6 +25,8 @@ import "@openzeppelin/contracts/governance/Governor.sol";
 ///      thresholds too. See OpenZeppelin's GovernorVotesQuorumFraction,
 ///      GovernorVotes and GovernorSettings for reference.
 abstract contract GovernorParameters is Governor {
+    using QuorumCheckpoints for QuorumCheckpoints.History;
+
     uint256 public constant FRACTION_DENOMINATOR = 10000;
     uint64 internal constant AVERAGE_BLOCK_TIME_IN_SECONDS = 13;
 
@@ -32,6 +35,7 @@ abstract contract GovernorParameters is Governor {
 
     uint256 private _votingDelay;
     uint256 private _votingPeriod;
+    QuorumCheckpoints.History private _quorumNumeratorHistory;
 
     event QuorumNumeratorUpdated(
         uint256 oldQuorumNumerator,
@@ -103,8 +107,10 @@ abstract contract GovernorParameters is Governor {
         override
         returns (uint256)
     {
+        uint256 pastTotalSupply = _getPastTotalSupply(blockNumber);
         return
-            (_getPastTotalSupply(blockNumber) * quorumNumerator) /
+            (pastTotalSupply *
+                _quorumNumeratorHistory.getAtBlock(blockNumber)) /
             FRACTION_DENOMINATOR;
     }
 
@@ -153,7 +159,21 @@ abstract contract GovernorParameters is Governor {
         );
 
         uint256 oldQuorumNumerator = quorumNumerator;
-        quorumNumerator = newQuorumNumerator;
+
+        if (_quorumNumeratorHistory._checkpoints.length == 0) {
+            // Preserve the initial quorum for supply queries before deployment.
+            // The denominator bound above makes the uint224 conversion safe.
+            _quorumNumeratorHistory._checkpoints.push(
+                QuorumCheckpoints.Checkpoint({
+                    _blockNumber: 0,
+                    _value: uint224(newQuorumNumerator)
+                })
+            );
+            quorumNumerator = newQuorumNumerator;
+        } else {
+            (oldQuorumNumerator, quorumNumerator) = _quorumNumeratorHistory
+                .push(newQuorumNumerator);
+        }
 
         emit QuorumNumeratorUpdated(oldQuorumNumerator, newQuorumNumerator);
     }
