@@ -137,7 +137,10 @@ contract TestGovernorParameters is GovernorParameters {
         virtual
         override
         returns (uint256)
-    {}
+    {
+        require(blockNumber < block.number, "Block not yet determined");
+        return FRACTION_DENOMINATOR;
+    }
 
     function _executor() internal view virtual override returns (address) {
         return executor;

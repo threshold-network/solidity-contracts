@@ -160,6 +160,131 @@ describe("TokenholderGovernor", () => {
     })
   })
 
+  describe("quorum changes through governance", () => {
+    beforeEach(async () => {
+      await tToken.connect(holder).delegate(holder.address)
+      await tToken.connect(staker).delegate(staker.address)
+      await tToken.connect(holderWhale).delegate(holderWhale.address)
+    })
+
+    async function createProposal(target, calldata, proposalDescription) {
+      const calls = [[target], [0], [calldata]]
+      const hash = ethers.utils.id(proposalDescription)
+      const id = await tGov.hashProposal(...calls, hash)
+      await tGov.connect(holderWhale).propose(...calls, proposalDescription)
+      await mineBlocks(3)
+      return { id, args: [...calls, hash] }
+    }
+
+    async function updateQuorum(numerator) {
+      const calldata = tGov.interface.encodeFunctionData(
+        "updateQuorumNumerator",
+        [numerator]
+      )
+      const update = await createProposal(
+        tGov.address,
+        calldata,
+        `Set quorum numerator to ${numerator}`
+      )
+      await tGov.connect(holderWhale).castVote(update.id, Vote.Yea)
+      await mineBlocks(8)
+      await tGov.connect(bystander).queue(...update.args)
+      await increaseTime(minDelay + 1)
+      await tGov.connect(bystander).execute(...update.args)
+      expect(await tGov.quorumNumerator()).to.equal(numerator)
+    }
+
+    for (const withAbstention of [false, true]) {
+      context(
+        `with ${withAbstention ? "for and abstain" : "only for"} votes`,
+        () => {
+          it("cannot revive a defeated proposal after a quorum decrease, while new proposals use the decrease", async () => {
+            const calldata = tToken.interface.encodeFunctionData("transfer", [
+              recipient.address,
+              1,
+            ])
+            const oldProposal = await createProposal(
+              tToken.address,
+              calldata,
+              "Transfer with insufficient quorum"
+            )
+            const snapshot = await tGov.proposalSnapshot(oldProposal.id)
+            const originalQuorum = await tGov.quorum(snapshot)
+            await tGov.connect(holder).castVote(oldProposal.id, Vote.Yea)
+            if (withAbstention) {
+              await tGov.connect(staker).castVote(oldProposal.id, Vote.Meh)
+            }
+            await mineBlocks(8)
+            expect(await tGov.state(oldProposal.id)).to.equal(
+              ProposalStates.Defeated
+            )
+
+            await updateQuorum(withAbstention ? 20 : 10)
+
+            expect(await tGov.state(oldProposal.id)).to.equal(
+              ProposalStates.Defeated
+            )
+            expect(await tGov.quorum(snapshot)).to.equal(originalQuorum)
+            await expect(
+              tGov.connect(bystander).queue(...oldProposal.args)
+            ).to.be.revertedWith("Governor: proposal not successful")
+            await expect(
+              tGov.connect(bystander).execute(...oldProposal.args)
+            ).to.be.revertedWith("Governor: proposal not successful")
+
+            const newProposal = await createProposal(
+              tToken.address,
+              calldata,
+              "Transfer under the new quorum"
+            )
+            const newSnapshot = await tGov.proposalSnapshot(newProposal.id)
+            const newQuorum = await tGov.quorum(newSnapshot)
+            expect(newQuorum).to.equal(
+              expectedTotal.mul(withAbstention ? 20 : 10).div(10000)
+            )
+            await tGov.connect(holder).castVote(newProposal.id, Vote.Yea)
+            if (withAbstention) {
+              await tGov.connect(staker).castVote(newProposal.id, Vote.Meh)
+            }
+            await mineBlocks(8)
+            expect(await tGov.state(newProposal.id)).to.equal(
+              ProposalStates.Succeeded
+            )
+            await tGov.connect(bystander).queue(...newProposal.args)
+            await increaseTime(minDelay + 1)
+            await tGov.connect(bystander).execute(...newProposal.args)
+            expect(await tGov.state(newProposal.id)).to.equal(
+              ProposalStates.Executed
+            )
+            expect(await tToken.balanceOf(recipient.address)).to.equal(1)
+          })
+        }
+      )
+    }
+
+    it("preserves a queued proposal after a quorum increase", async () => {
+      const calldata = tToken.interface.encodeFunctionData("transfer", [
+        recipient.address,
+        1,
+      ])
+      const oldProposal = await createProposal(
+        tToken.address,
+        calldata,
+        "Transfer approved before the quorum increase"
+      )
+      await tGov.connect(holderWhale).castVote(oldProposal.id, Vote.Yea)
+      await mineBlocks(8)
+      await tGov.connect(bystander).queue(...oldProposal.args)
+
+      await updateQuorum(5000)
+
+      expect(await tGov.state(oldProposal.id)).to.equal(ProposalStates.Queued)
+      await tGov.connect(bystander).execute(...oldProposal.args)
+      expect(await tGov.state(oldProposal.id)).to.equal(ProposalStates.Executed)
+      expect(await tToken.balanceOf(recipient.address)).to.equal(1)
+    })
+  })
+
   describe("when all tokens are liquid", () => {
     context("...but nobody delegated their vote...", () => {
       it("proposal threshold is as expected", async () => {
