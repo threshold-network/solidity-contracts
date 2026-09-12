@@ -1,4 +1,5 @@
 .openzeppelin/
+.venv-slither/
 artifacts/
 build/
 cache/

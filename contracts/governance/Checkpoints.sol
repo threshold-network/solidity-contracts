@@ -43,7 +43,6 @@ abstract contract Checkpoints is IVotesHistory {
     // Reserved storage space in case we need to add more variables,
     // since there are upgradeable contracts that inherit from this one.
     // See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    // slither-disable-next-line unused-state
     uint256[47] private __gap;
 
     /// @notice Emitted when an account changes their delegate.
@@ -125,7 +124,6 @@ abstract contract Checkpoints is IVotesHistory {
     }
 
     /// @notice Change delegation for `delegator` to `delegatee`.
-    // slither-disable-next-line dead-code
     function delegate(address delegator, address delegatee) internal virtual;
 
     /// @notice Moves voting power from one delegate to another
@@ -139,8 +137,6 @@ abstract contract Checkpoints is IVotesHistory {
     ) internal {
         if (src != dst && amount > 0) {
             if (src != address(0)) {
-                // https://github.com/crytic/slither/issues/960
-                // slither-disable-next-line variable-scope
                 (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
                     _checkpoints[src],
                     subtract,
@@ -150,8 +146,6 @@ abstract contract Checkpoints is IVotesHistory {
             }
 
             if (dst != address(0)) {
-                // https://github.com/crytic/slither/issues/959
-                // slither-disable-next-line uninitialized-local
                 (uint256 oldWeight, uint256 newWeight) = writeCheckpoint(
                     _checkpoints[dst],
                     add,
@@ -241,7 +235,6 @@ abstract contract Checkpoints is IVotesHistory {
     }
 
     /// @notice Maximum token supply. Defaults to `type(uint96).max` (2^96 - 1)
-    // slither-disable-next-line dead-code
     function maxSupply() internal view virtual returns (uint96) {
         return type(uint96).max;
     }
