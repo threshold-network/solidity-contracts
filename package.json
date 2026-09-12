@@ -26,6 +26,7 @@
     "lint:js": "eslint . ",
     "lint:sol": "solhint 'contracts/**/*.sol'",
     "test": "hardhat test",
+    "test:tooling": "node --test test-tooling/dependencies.cjs",
     "test:system": "NODE_ENV=system-test hardhat test ./test/system/*.test.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "prepack": "tsc -p tsconfig.export.json && hardhat export-artifacts export/artifacts",
@@ -62,5 +63,18 @@
     "@openzeppelin/contracts": "~4.5.0",
     "@openzeppelin/contracts-upgradeable": "~4.5.2",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
+  },
+  "resolutions": {
+    "**/@ethersproject/providers/ws": "8.21.1",
+    "**/@openzeppelin/platform-deploy-client/axios": "0.33.0",
+    "**/@tenderly/hardhat-tenderly/axios": "0.33.0",
+    "**/hardhat-deploy/axios": "0.33.0",
+    "**/hardhat/adm-zip": "0.6.1",
+    "**/hardhat/undici": "6.28.1",
+    "**/mocha/diff": "8.0.4",
+    "**/mocha/serialize-javascript": "7.1.1",
+    "**/qs": "6.16.0",
+    "**/solc/tmp": "0.2.7",
+    "**/tenderly/axios": "0.33.0"
   }
 }
