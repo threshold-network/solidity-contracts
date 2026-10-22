@@ -16,7 +16,7 @@ below.
 
 Please make sure you have the following prerequisites installed on your machine:
 
-- https://nodejs.org[Node.js] 22.x (see `.nvmrc`)
+- https://nodejs.org[Node.js] 22.23.4 (pinned in `.nvmrc`)
 - https://yarnpkg.com[Yarn] 1.22.22 (pinned in `package.json`)
 
 === Build contracts
