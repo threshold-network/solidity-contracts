@@ -49,6 +49,11 @@ install Python 3.13 and create an isolated environment:
 ```
 python3.13 -m venv .venv-slither
 source .venv-slither/bin/activate
+export PIP_CONSTRAINT="$PWD/constraints-python.txt"
+export PIP_BUILD_CONSTRAINT="$PIP_CONSTRAINT"
+python -m pip --disable-pip-version-check install --no-index --no-deps --no-cache-dir \
+  'pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70'
+python -m pip install certifi
 python -m pip install -r requirements-slither.txt
 python -m pip check
 solc-select install 0.8.9
@@ -56,6 +61,12 @@ solc-select use 0.8.9
 yarn install --frozen-lockfile
 slither .
 ```
+
+Bootstrap pip before installing other packages, including in an existing virtual
+environment. The hash-pinned wheel and certificate constraints follow the
+https://discuss.python.org/t/109576[Python eMudhra/emSign advisory]. Keep both
+constraint variables set while installing tools so isolated build dependencies
+use the same security floors.
 
 Slither performs a clean Hardhat compilation with the OpenZeppelin upgrades
 plugin enabled. The compiler remains Solidity 0.8.9, and

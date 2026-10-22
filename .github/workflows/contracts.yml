@@ -250,6 +250,9 @@ jobs:
 
   contracts-slither:
     runs-on: ubuntu-latest
+    env:
+      PIP_CONSTRAINT: ${{ github.workspace }}/constraints-python.txt
+      PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/constraints-python.txt
     if: |
       github.event_name != 'workflow_dispatch'
         && github.event_name != 'schedule'
@@ -265,7 +268,15 @@ jobs:
         with:
           python-version: "3.13"
           cache: "pip"
-          cache-dependency-path: requirements-slither.txt
+          cache-dependency-path: |
+            requirements-slither.txt
+            constraints-python.txt
+
+      - name: Bootstrap Python certificate trust
+        run: |
+          python -m pip --disable-pip-version-check install --no-index --no-deps --no-cache-dir \
+            'pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70'
+          python -m pip install certifi
 
       - name: Install Slither
         run: |
