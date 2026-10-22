@@ -44,7 +44,19 @@ yarn test
 CI runs https://github.com/crytic/slither[Slither] with Python 3.13 and the
 versions pinned in `requirements-slither.txt`: Slither 0.11.6,
 crytic-compile 0.4.2, and solc-select 1.2.0. To use the same tools locally,
-install Python 3.13 and create an isolated environment:
+install Python 3.13 and update the operating system's certificate trust store
+before creating an isolated environment. On Ubuntu, update the signed package
+indexes and installed CA bundle:
+
+```
+sudo apt-get update
+sudo apt-get install --yes --only-upgrade ca-certificates
+```
+
+On other platforms, apply the current certificate trust updates through the
+operating system's supported update mechanism. Both the system roots and pip's
+bundled roots must be updated because pip trusts them together. Then create or
+activate the virtual environment and bootstrap its Python certificate trust:
 
 ```
 python3.13 -m venv .venv-slither
