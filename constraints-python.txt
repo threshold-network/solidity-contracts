@@ -1,0 +1,4 @@
+# Security floors for installation and isolated build environments.
+# https://discuss.python.org/t/109576
+pip>=26.2.2
+certifi>=2026.10.19
