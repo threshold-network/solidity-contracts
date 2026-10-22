@@ -62,5 +62,8 @@
     "@openzeppelin/contracts": "~4.5.0",
     "@openzeppelin/contracts-upgradeable": "~4.5.2",
     "@thesis/solidity-contracts": "github:thesis/solidity-contracts#4985bcf"
+  },
+  "resolutions": {
+    "**/hardhat/undici": "6.29.1"
   }
 }
